@@ -1,0 +1,30 @@
+{
+  "name": "showdown-winrate",
+  "version": "2.8.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "ethers": "^6.13.2",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "^0.447.0",
+    "next": "14.2.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "tailwindcss": "^3.4.10",
+    "postcss": "^8.4.40",
+    "autoprefixer": "^10.4.20"
+  }
+}
