@@ -60,8 +60,8 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
     if (!client) return null;
-    const v = await client.get<DayEntry>(kvKey(dayIndex));
-    return (v as any) || null;
+    const v = await client.get(kvKey(dayIndex));
+    return (v as DayEntry | null) || null;
   } catch {
     return null;
   }
