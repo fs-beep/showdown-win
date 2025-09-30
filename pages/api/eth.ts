@@ -36,6 +36,44 @@ function remember(dayIndex: number, entry: DayEntry) {
 function dayIndexFromTs(ts: number) { return Math.floor(ts / 86400); }
 function clamp(n: number, a: number, b: number) { return Math.max(a, Math.min(b, n)); }
 
+// Optional persistent cache (Vercel KV or Upstash for Redis via REST). Falls back to in-memory only if not configured.
+// We lazily import '@vercel/kv' after normalizing envs so it works with either KV_* or UPSTASH_*.
+const KV_ENV_PRESENT = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+function kvKey(dayIndex: number) { return `day:${dayIndex}`; }
+let _kvClient: any | null = null;
+async function getKv() {
+  if (!KV_ENV_PRESENT) return null;
+  // Normalize Upstash → Vercel KV env names if needed
+  if (!process.env.KV_REST_API_URL && process.env.UPSTASH_REDIS_REST_URL) {
+    process.env.KV_REST_API_URL = process.env.UPSTASH_REDIS_REST_URL;
+  }
+  if (!process.env.KV_REST_API_TOKEN && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    process.env.KV_REST_API_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+  }
+  if (!_kvClient) {
+    const mod = await import('@vercel/kv');
+    _kvClient = mod.kv;
+  }
+  return _kvClient;
+}
+async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
+  try {
+    const client = await getKv();
+    if (!client) return null;
+    const v = await client.get<DayEntry>(kvKey(dayIndex));
+    return (v as any) || null;
+  } catch {
+    return null;
+  }
+}
+async function kvSetDay(dayIndex: number, entry: DayEntry): Promise<void> {
+  try {
+    const client = await getKv();
+    if (!client) return;
+    await client.set(kvKey(dayIndex), entry);
+  } catch {}
+}
+
 const iface = new Interface([
   'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason)',
 ]);
@@ -218,19 +256,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const CONC = 6;
     for (let i=0; i<dayRanges.length; i+=CONC) {
       const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
-        if (r.key < todayDay && dayCache.has(r.key)) {
-          const cached = dayCache.get(r.key)!;
-          resultRows.push(...cached.rows);
+        // 1) Try in-memory first (fast)
+        const mem = dayCache.get(r.key);
+        if (mem && r.key < todayDay) {
+          resultRows.push(...mem.rows);
           return;
         }
-        if (r.key === todayDay && dayCache.has(r.key)) {
-          const updated = await extendToday(dayCache.get(r.key)!, r.start, r.end, latest.ts);
+        if (mem && r.key === todayDay) {
+          const updated = await extendToday(mem, r.start, r.end, latest.ts);
           remember(r.key, updated);
+          await kvSetDay(r.key, updated);
           resultRows.push(...updated.rows);
           return;
         }
+
+        // 2) Try persistent KV
+        const fromKv = await kvGetDay(r.key);
+        if (fromKv && r.key < todayDay) {
+          remember(r.key, fromKv);
+          resultRows.push(...fromKv.rows);
+          return;
+        }
+        if (fromKv && r.key === todayDay) {
+          const updated = await extendToday(fromKv, r.start, r.end, latest.ts);
+          remember(r.key, updated);
+          await kvSetDay(r.key, updated);
+          resultRows.push(...updated.rows);
+          return;
+        }
+
+        // 3) Build fresh and persist
         const built = await buildDay(r.start, r.end, latest.ts);
         remember(built.key, built.entry);
+        await kvSetDay(built.key, built.entry);
         resultRows.push(...built.entry.rows);
       });
       await Promise.all(slice);
