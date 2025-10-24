@@ -74,6 +74,7 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [useUtc, setUseUtc] = useState<boolean>(true);
+  const [compact, setCompact] = useState<boolean>(false);
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
   const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
 
@@ -84,6 +85,8 @@ export default function Home() {
       const initial: 'light' | 'dark' = stored === 'dark' || (!stored && prefersDark) ? 'dark' : 'light';
       setTheme(initial);
       if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', initial === 'dark');
+      const c = typeof window !== 'undefined' ? localStorage.getItem('compact') : null;
+      if (c === '1') setCompact(true);
     } catch {}
   }, []);
   useEffect(() => {
@@ -92,6 +95,12 @@ export default function Home() {
       if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
     } catch {}
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') localStorage.setItem('compact', compact ? '1' : '0');
+    } catch {}
+  }, [compact]);
 
   // 1) Initialize state from URL query once
   useEffect(() => {
@@ -170,6 +179,8 @@ export default function Home() {
   const [pageAll, setPageAll] = useState(1);
   const [pageFiltered, setPageFiltered] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  const [jumpAll, setJumpAll] = useState<string>('');
+  const [jumpFiltered, setJumpFiltered] = useState<string>('');
   // Sorting state
   const [decodedSort, setDecodedSort] = useState<{ key: keyof Row; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
   const [filteredSort, setFilteredSort] = useState<{ key: keyof Row | 'result'; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
@@ -207,6 +218,17 @@ export default function Home() {
 
   useEffect(() => { setPageAll(1); }, [rows, pageSize]);
   useEffect(() => { setPageFiltered(1); }, [filtered, pageSize]);
+
+  // Keyboard: arrow left/right to switch pages on All table
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') setPageAll(p => Math.min(Math.ceil(rows.length / pageSize) || 1, p + 1));
+      if (e.key === 'ArrowLeft') setPageAll(p => Math.max(1, p - 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [rows, pageSize]);
 
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -399,6 +421,13 @@ export default function Home() {
             >
               Play Showdown
             </a>
+              <button
+                onClick={() => setCompact(!compact)}
+                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+                title={compact ? 'Compact rows' : 'Comfortable rows'}
+              >
+                {compact ? 'Comfort' : 'Compact'}
+              </button>
               <button
                 onClick={() => setUseUtc(!useUtc)}
                 className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
@@ -704,6 +733,13 @@ export default function Home() {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
+              <input
+                value={jumpFiltered}
+                onChange={e=>setJumpFiltered(e.target.value)}
+                onKeyDown={e=>{ if (e.key==='Enter') { const n=parseInt(jumpFiltered||'1',10); if (!isNaN(n)) setPageFiltered(Math.min(Math.max(1,n), Math.ceil(filtered.length/pageSize))); } }}
+                className="ml-2 w-16 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700"
+                placeholder="Go"
+              />
             </div>
           )}
         </div>
@@ -770,6 +806,13 @@ export default function Home() {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
+              <input
+                value={jumpAll}
+                onChange={e=>setJumpAll(e.target.value)}
+                onKeyDown={e=>{ if (e.key==='Enter') { const n=parseInt(jumpAll||'1',10); if (!isNaN(n)) setPageAll(Math.min(Math.max(1,n), Math.ceil(rows.length/pageSize))); } }}
+                className="ml-2 w-16 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700"
+                placeholder="Go"
+              />
             </div>
           )}
         </div>
