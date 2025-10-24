@@ -76,6 +76,9 @@ export default function Home() {
   const [useUtc, setUseUtc] = useState<boolean>(true);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
+  const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
+  const [expandedFiltered, setExpandedFiltered] = useState<Set<string>>(new Set());
+  const [expandedAll, setExpandedAll] = useState<Set<string>>(new Set());
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
   const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
 
@@ -86,6 +89,8 @@ export default function Home() {
       const initial: 'light' | 'dark' = stored === 'dark' || (!stored && prefersDark) ? 'dark' : 'light';
       setTheme(initial);
       if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', initial === 'dark');
+      const rp = typeof window !== 'undefined' ? localStorage.getItem('recentPlayers') : null;
+      if (rp) setRecentPlayers(JSON.parse(rp));
     } catch {}
   }, []);
   useEffect(() => {
@@ -240,6 +245,21 @@ export default function Home() {
     } catch {}
   };
 
+  const toggleExpandedFiltered = (tx: string) => {
+    setExpandedFiltered(prev => {
+      const n = new Set(prev);
+      if (n.has(tx)) n.delete(tx); else n.add(tx);
+      return n;
+    });
+  };
+  const toggleExpandedAll = (tx: string) => {
+    setExpandedAll(prev => {
+      const n = new Set(prev);
+      if (n.has(tx)) n.delete(tx); else n.add(tx);
+      return n;
+    });
+  };
+
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
     const map = new Map<string, { wins: number; losses: number; total: number }>();
@@ -374,6 +394,11 @@ export default function Home() {
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
       setRows(sorted);
+      const setP = new Set<string>(recentPlayers);
+      for (const r of sorted) { setP.add((r.winningPlayer||'').trim()); setP.add((r.losingPlayer||'').trim()); }
+      const next = Array.from(setP).filter(Boolean).slice(0, 200);
+      setRecentPlayers(next);
+      try { localStorage.setItem('recentPlayers', JSON.stringify(next)); } catch {}
       setAggByClass(j.aggByClass || null);
       setAggUpdatedAt(j.aggLastUpdate || null);
     } catch (e:any) {
@@ -462,7 +487,18 @@ export default function Home() {
           <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm sticky top-0 z-20 backdrop-blur bg-white/90 dark:bg-gray-800/90">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
-            <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={player} onChange={e=>setPlayer(e.target.value)} placeholder="megaflop" />
+            <input
+              className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+              value={player}
+              onChange={e=>setPlayer(e.target.value)}
+              placeholder="megaflop"
+              list="player-suggestions"
+            />
+            <datalist id="player-suggestions">
+              {recentPlayers.slice(0,50).map((p)=> (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
@@ -718,7 +754,8 @@ export default function Home() {
               </thead>
               <tbody>
                 {paginatedFiltered.map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <>
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2 font-medium">{r.result}</td>
@@ -732,6 +769,19 @@ export default function Home() {
                       </button>
                     </td>
                   </tr>
+                  {expandedFiltered.has(r.txHash) && (
+                    <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                      <td colSpan={7} className="p-3 text-xs">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
+                          <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
+                          <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
+                          <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
@@ -795,7 +845,8 @@ export default function Home() {
               </thead>
               <tbody>
                 {paginatedAll.map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <>
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2">{r.gameId}</td>
@@ -810,6 +861,19 @@ export default function Home() {
                       </button>
                     </td>
                   </tr>
+                  {expandedAll.has(r.txHash) && (
+                    <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                      <td colSpan={8} className="p-3 text-xs">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
+                          <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
+                          <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
+                          <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </>
                 ))}
                 {rows.length === 0 && (
                   <tr>
