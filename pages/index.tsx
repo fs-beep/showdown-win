@@ -348,19 +348,6 @@ export default function Home() {
             >
               Play Showdown
             </a>
-              {/* Share URL button */}
-              <button
-                onClick={() => {
-                  try {
-                    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-                    navigator.clipboard?.writeText?.(shareUrl);
-                  } catch {}
-                }}
-                className="hidden md:inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
-                title="Copy shareable link"
-              >
-                Copy link
-              </button>
               <button
                 onClick={() => setUseUtc(!useUtc)}
                 className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
@@ -712,8 +699,8 @@ export default function Home() {
           {rows.length > PAGE_SIZE && (
             <div className="mt-3 flex items-center justify-center gap-2 text-xs">
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.max(1,p-1))} disabled={pageAll===1}>Prev</button>
-              <div>Page {pageAll} / {Math.ceil(rows.length / PAGE_SIZE)}</div>
-              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil(rows.length / PAGE_SIZE),p+1))} disabled={pageAll>=Math.ceil(rows.length / PAGE_SIZE)}>Next</button>
+              <div>Page {pageAll} / {Math.ceil((rows.length) / PAGE_SIZE)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / PAGE_SIZE),p+1))} disabled={pageAll>=Math.ceil((rows.length) / PAGE_SIZE)}>Next</button>
             </div>
           )}
         </div>
