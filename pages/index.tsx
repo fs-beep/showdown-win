@@ -76,6 +76,7 @@ export default function Home() {
   const [useUtc, setUseUtc] = useState<boolean>(true);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
   const [expandedFiltered, setExpandedFiltered] = useState<Set<string>>(new Set());
   const [expandedAll, setExpandedAll] = useState<Set<string>>(new Set());
@@ -538,6 +539,13 @@ export default function Home() {
             >
               Play Showdown
             </a>
+            <button
+              onClick={async()=>{ try { await navigator.clipboard.writeText(window.location.href); setCopiedLink(true); setTimeout(()=>setCopiedLink(false), 1200);} catch {} }}
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+              title="Copy shareable link"
+            >
+              Share Link
+            </button>
               {/* Compact/comfort toggle removed */}
               <button
                 onClick={() => setUseUtc(!useUtc)}
@@ -1019,6 +1027,11 @@ export default function Home() {
       {copiedTx && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black text-white px-3 py-1 text-xs shadow dark:bg-white dark:text-black">
           Copied tx: {copiedTx.slice(0,10)}…
+        </div>
+      )}
+      {copiedLink && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black text-white px-3 py-1 text-xs shadow dark:bg-white dark:text-black">
+          Link copied
         </div>
       )}
       <BackToTop visible={showTop} />
