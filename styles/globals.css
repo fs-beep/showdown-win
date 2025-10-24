@@ -4,5 +4,9 @@
 
 html, body { @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100; }
 code { @apply px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800; }
+/* mobile tweaks */
+@media (max-width: 640px) {
+  table th, table td { padding: 0.35rem !important; }
+}
 
 /* previously: compact mode styles (removed) */

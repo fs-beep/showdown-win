@@ -699,7 +699,7 @@ export default function Home() {
           </div>
           <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
           <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -748,7 +748,7 @@ export default function Home() {
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -855,7 +855,7 @@ export default function Home() {
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2 w-28 cursor-pointer" aria-sort={filteredSort.key==='blockNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {filteredSort.key==='blockNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -945,7 +945,7 @@ export default function Home() {
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2 w-28 cursor-pointer" aria-sort={decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
