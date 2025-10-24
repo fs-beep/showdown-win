@@ -170,14 +170,40 @@ export default function Home() {
   const [pageAll, setPageAll] = useState(1);
   const [pageFiltered, setPageFiltered] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  // Sorting state
+  const [decodedSort, setDecodedSort] = useState<{ key: keyof Row; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
+  const [filteredSort, setFilteredSort] = useState<{ key: keyof Row | 'result'; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
+  const [overallSort, setOverallSort] = useState<{ key: keyof ClassRow; dir: 'asc'|'desc' }>({ key: 'total', dir: 'desc' });
+  const [playerClassSort, setPlayerClassSort] = useState<{ key: keyof ClassRow; dir: 'asc'|'desc' }>({ key: 'total', dir: 'desc' });
+  const sortedAll = useMemo(() => {
+    const arr = rows.slice();
+    arr.sort((a,b)=>{
+      const k = decodedSort.key;
+      const va = (a as any)[k];
+      const vb = (b as any)[k];
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return decodedSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [rows, decodedSort]);
   const paginatedAll = useMemo(() => {
     const start = (pageAll - 1) * pageSize;
-    return rows.slice().sort((a,b)=>b.blockNumber-a.blockNumber).slice(start, start + pageSize);
-  }, [rows, pageAll, pageSize]);
+    return sortedAll.slice(start, start + pageSize);
+  }, [sortedAll, pageAll, pageSize]);
+  const sortedFiltered = useMemo(() => {
+    const arr = filtered.slice();
+    arr.sort((a:any,b:any)=>{
+      const k = filteredSort.key as any;
+      const va = a[k]; const vb = b[k];
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return filteredSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, filteredSort]);
   const paginatedFiltered = useMemo(() => {
     const start = (pageFiltered - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, pageFiltered, pageSize]);
+    return sortedFiltered.slice(start, start + pageSize);
+  }, [sortedFiltered, pageFiltered, pageSize]);
 
   useEffect(() => { setPageAll(1); }, [rows, pageSize]);
   useEffect(() => { setPageFiltered(1); }, [filtered, pageSize]);
@@ -197,15 +223,23 @@ export default function Home() {
       }
     }
     const out = Array.from(map.entries()).map(([klass, s]) => ({ klass, ...s, winrate: s.total ? s.wins / s.total : 0 }));
-    out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+    out.sort((a:any,b:any) => {
+      const k = playerClassSort.key as any; const dir = playerClassSort.dir;
+      const cmp = a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0;
+      return dir === 'asc' ? cmp : -cmp;
+    });
     return out;
-  }, [rows, player]);
+  }, [rows, player, playerClassSort]);
 
   // Overall per-class stats for all matches in the selected date window
   const overallClassStats: ClassRow[] = useMemo(() => {
     if (aggByClass) {
       const out = Object.entries(aggByClass).map(([klass, s]) => ({ klass, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }));
-      out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+      out.sort((a:any,b:any) => {
+        const k = overallSort.key as any; const dir = overallSort.dir;
+        const cmp = a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0;
+        return dir === 'asc' ? cmp : -cmp;
+      });
       return out;
     }
     const map = new Map<string, { wins: number; losses: number; total: number }>();
@@ -222,9 +256,13 @@ export default function Home() {
       }
     }
     const out = Array.from(map.entries()).map(([klass, s]) => ({ klass, ...s, winrate: s.total ? s.wins / s.total : 0 }));
-    out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+    out.sort((a:any,b:any) => {
+      const k = overallSort.key as any; const dir = overallSort.dir;
+      const cmp = a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0;
+      return dir === 'asc' ? cmp : -cmp;
+    });
     return out;
-  }, [rows, aggByClass]);
+  }, [rows, aggByClass, overallSort]);
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
@@ -478,13 +516,13 @@ export default function Home() {
           <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2">Class</th>
-                  <th className="p-2">Wins</th>
-                  <th className="p-2">Losses</th>
-                  <th className="p-2">Games</th>
-                  <th className="p-2">Win Rate</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -524,13 +562,13 @@ export default function Home() {
           </div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2">Class</th>
-                  <th className="p-2">Wins</th>
-                  <th className="p-2">Losses</th>
-                  <th className="p-2">Games</th>
-                  <th className="p-2">Win Rate</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -625,12 +663,12 @@ export default function Home() {
           </div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2">Block</th>
-                  <th className="p-2">Game #</th>
-                  <th className="p-2">Result</th>
-                  <th className="p-2">Opponent</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
                   <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
                   <th className="p-2">Reason</th>
                   <th className="p-2">Tx</th>
@@ -687,14 +725,14 @@ export default function Home() {
           </div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2">Block</th>
-                  <th className="p-2">Game #</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
                   <th className="p-2">Game ID</th>
                   <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
-                  <th className="p-2">Winner</th>
-                  <th className="p-2">Loser</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'winningPlayer' as any, dir: s.key==='winningPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Winner</th>
+                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'losingPlayer' as any, dir: s.key==='losingPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Loser</th>
                   <th className="p-2">Reason</th>
                   <th className="p-2">Tx</th>
                 </tr>
