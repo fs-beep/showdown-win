@@ -180,7 +180,7 @@ export default function Home() {
     return { classes, matrix };
   }, [rows, player, matrixOnlyPlayer]);
 
-  const applyPreset = (kind: 'today'|'last7'|'last30'|'thisMonth'|'prevMonth'|'allTime') => {
+  const applyPreset = (kind: 'today'|'last7'|'last30'|'thisMonth'|'prevMonth'|'allTime'|'sincePatch') => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if (kind === 'today') {
@@ -205,6 +205,10 @@ export default function Home() {
       setStartDate(s); setEndDate(fmtDate(endPrev));
     } else if (kind === 'allTime') {
       setStartDate(MIN_DATE); setEndDate('');
+    } else if (kind === 'sincePatch') {
+      // Latest balance patch: 2025-10-03 → today
+      setStartDate('2025-10-03');
+      setEndDate(fmtDate(today));
     }
   };
 
@@ -284,6 +288,7 @@ export default function Home() {
               <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('thisMonth')}>This month</button>
               <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('prevMonth')}>Previous month</button>
               <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('allTime')}>All time</button>
+                <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
             </div>
 
             <button onClick={run} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
