@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Globe } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -73,6 +73,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  const [useUtc, setUseUtc] = useState<boolean>(true);
 
   useEffect(() => {
     try {
@@ -99,11 +100,13 @@ export default function Home() {
     const p = typeof q.player === 'string' ? q.player : undefined;
     const only = typeof q.only === 'string' ? q.only : undefined;
     const t = typeof q.theme === 'string' ? q.theme : undefined;
+    const tz = typeof q.tz === 'string' ? q.tz : undefined;
     if (s) setStartDate(s);
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (t === 'dark') setTheme('dark');
+    if (tz === 'local') setUseUtc(false);
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
@@ -117,8 +120,9 @@ export default function Home() {
     if (player) nextQuery.player = player;
     if (matrixOnlyPlayer) nextQuery.only = '1';
     if (theme === 'dark') nextQuery.theme = 'dark';
+    nextQuery.tz = useUtc ? 'utc' : 'local';
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
-  }, [startDate, endDate, player, matrixOnlyPlayer, theme]);
+  }, [startDate, endDate, player, matrixOnlyPlayer, theme, useUtc]);
 
   
 
@@ -159,6 +163,19 @@ export default function Home() {
       }))
       .sort((a, b) => b.blockNumber - a.blockNumber); // newest first
   }, [rows, player]);
+
+  // Pagination state
+  const [pageAll, setPageAll] = useState(1);
+  const [pageFiltered, setPageFiltered] = useState(1);
+  const PAGE_SIZE = 50;
+  const paginatedAll = useMemo(() => {
+    const start = (pageAll - 1) * PAGE_SIZE;
+    return rows.slice().sort((a,b)=>b.blockNumber-a.blockNumber).slice(start, start + PAGE_SIZE);
+  }, [rows, pageAll]);
+  const paginatedFiltered = useMemo(() => {
+    const start = (pageFiltered - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, pageFiltered]);
 
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -268,8 +285,8 @@ export default function Home() {
     setError(null); setRows([]); setLoading(true);
     try {
       const body = {
-        startTs: toStartOfDayEpoch(startDate),
-        endTs: toEndOfDayEpoch(endDate),
+        startTs: useUtc ? toStartOfDayEpoch(startDate) : toStartOfDayEpoch(startDate),
+        endTs: useUtc ? toEndOfDayEpoch(endDate) : toEndOfDayEpoch(endDate),
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: ApiResponse = await res.json();
@@ -343,6 +360,14 @@ export default function Home() {
                 title="Copy shareable link"
               >
                 Copy link
+              </button>
+              <button
+                onClick={() => setUseUtc(!useUtc)}
+                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+                title={useUtc ? 'Showing UTC times' : 'Showing local times'}
+              >
+                <Globe className="h-4 w-4"/>
+                {useUtc ? 'UTC' : 'Local'}
               </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -598,13 +623,13 @@ export default function Home() {
                   <th className="p-2">Game #</th>
                   <th className="p-2">Result</th>
                   <th className="p-2">Opponent</th>
-                  <th className="p-2">Started</th>
+                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
                   <th className="p-2">Reason</th>
                   <th className="p-2">Tx</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
+                {paginatedFiltered.map((r, i) => (
                   <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
@@ -623,6 +648,13 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+          {filtered.length > PAGE_SIZE && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.max(1,p-1))} disabled={pageFiltered===1}>Prev</button>
+              <div>Page {pageFiltered} / {Math.ceil(filtered.length / PAGE_SIZE)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / PAGE_SIZE),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / PAGE_SIZE)}>Next</button>
+            </div>
+          )}
         </div>
 
         {/* All decoded list (newest first) */}
@@ -647,7 +679,7 @@ export default function Home() {
                   <th className="p-2">Block</th>
                   <th className="p-2">Game #</th>
                   <th className="p-2">Game ID</th>
-                  <th className="p-2">Started</th>
+                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
                   <th className="p-2">Winner</th>
                   <th className="p-2">Loser</th>
                   <th className="p-2">Reason</th>
@@ -655,7 +687,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice().sort((a,b)=>b.blockNumber - a.blockNumber).map((r, i) => (
+                {paginatedAll.map((r, i) => (
                   <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
@@ -677,6 +709,13 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+          {rows.length > PAGE_SIZE && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.max(1,p-1))} disabled={pageAll===1}>Prev</button>
+              <div>Page {pageAll} / {Math.ceil(rows.length / PAGE_SIZE)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil(rows.length / PAGE_SIZE),p+1))} disabled={pageAll>=Math.ceil(rows.length / PAGE_SIZE)}>Next</button>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 text-xs text-gray-500">
