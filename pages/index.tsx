@@ -1042,22 +1042,60 @@ export default function Home() {
 }
 
 function TopClasses({ rows, player }: { rows: Row[]; player: string }) {
-  const p = player.trim().toLowerCase();
-  const counts = new Map<string, number>();
+  // Global class winrates
+  const globalMap: Record<string, { wins:number; total:number }> = {};
   for (const r of rows) {
-    const isP = r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p;
     const w = (r.winningClasses||'').trim(); const l=(r.losingClasses||'').trim();
-    if (w) counts.set(w, (counts.get(w)||0) + (isP ? 2 : 1));
-    if (l) counts.set(l, (counts.get(l)||0) + (isP ? 2 : 1));
+    if (w) { if (!globalMap[w]) globalMap[w] = { wins:0, total:0 }; globalMap[w].wins += 1; globalMap[w].total += 1; }
+    if (l) { if (!globalMap[l]) globalMap[l] = { wins:0, total:0 }; globalMap[l].total += 1; }
   }
-  const chips = Array.from(counts.entries()).map(([klass, n])=>({klass, n})).sort((a,b)=>b.n-a.n).slice(0,8);
-  if (chips.length===0) return null;
+  const global = Object.entries(globalMap)
+    .map(([klass, s]) => ({ klass, wins: s.wins, total: s.total, wr: s.total ? s.wins/s.total : 0 }))
+    .sort((a,b)=> b.total - a.total)
+    .slice(0,8);
+
+  // Player's own classes when they played
+  const p = player.trim().toLowerCase();
+  const ownMap: Record<string, { wins:number; total:number }> = {};
+  for (const r of rows) {
+    const wp = r.winningPlayer?.trim?.().toLowerCase();
+    const lp = r.losingPlayer?.trim?.().toLowerCase();
+    if (wp === p) {
+      const cls = (r.winningClasses||'').trim(); if (!cls) continue;
+      if (!ownMap[cls]) ownMap[cls] = { wins:0, total:0 }; ownMap[cls].wins += 1; ownMap[cls].total += 1;
+    } else if (lp === p) {
+      const cls = (r.losingClasses||'').trim(); if (!cls) continue;
+      if (!ownMap[cls]) ownMap[cls] = { wins:0, total:0 }; ownMap[cls].total += 1;
+    }
+  }
+  const mine = Object.entries(ownMap)
+    .map(([klass, s]) => ({ klass, wins: s.wins, total: s.total, wr: s.total ? s.wins/s.total : 0 }))
+    .sort((a,b)=> b.total - a.total)
+    .slice(0,8);
+
+  const Chip = ({ name, wr, total }: { name:string; wr:number; total:number }) => {
+    const hue = Math.round(wr * 120);
+    const style = { backgroundColor: `hsl(${hue}, 70%, 45%)`, color: 'white' } as React.CSSProperties;
+    return (
+      <span className="rounded-full px-2 py-1 text-xs" style={style} title={`WR ${(wr*100).toFixed(1)}% · ${total} games`}>
+        {name} {(wr*100).toFixed(0)}% ({total})
+      </span>
+    );
+  };
+
+  if (global.length === 0) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-      <span className="text-gray-500 mr-1">Top classes:</span>
-      {chips.map(c => (
-        <span key={c.klass} className="rounded-full border px-2 py-1 bg-white dark:bg-gray-800 dark:border-gray-700">{c.klass}<span className="text-gray-500"> ({c.n})</span></span>
-      ))}
+    <div className="mt-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-gray-500">Top classes (Global):</span>
+        {global.map(c => <Chip key={'g-'+c.klass} name={c.klass} wr={c.wr} total={c.total} />)}
+      </div>
+      {mine.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-gray-500">Top classes (By player):</span>
+          {mine.map(c => <Chip key={'p-'+c.klass} name={c.klass} wr={c.wr} total={c.total} />)}
+        </div>
+      )}
     </div>
   );
 }
