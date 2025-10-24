@@ -112,12 +112,14 @@ export default function Home() {
     const only = typeof q.only === 'string' ? q.only : undefined;
     const t = typeof q.theme === 'string' ? q.theme : undefined;
     const tz = typeof q.tz === 'string' ? q.tz : undefined;
+    const cmp = typeof q.compare === 'string' ? q.compare : undefined;
     if (s) setStartDate(s);
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (t === 'dark') setTheme('dark');
     if (tz === 'local') setUseUtc(false);
+    if (cmp) setPlayer2(cmp);
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
@@ -132,8 +134,9 @@ export default function Home() {
     if (matrixOnlyPlayer) nextQuery.only = '1';
     if (theme === 'dark') nextQuery.theme = 'dark';
     nextQuery.tz = useUtc ? 'utc' : 'local';
+    if (player2.trim()) nextQuery.compare = player2.trim();
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
-  }, [startDate, endDate, player, matrixOnlyPlayer, theme, useUtc]);
+  }, [startDate, endDate, player, player2, matrixOnlyPlayer, theme, useUtc]);
 
   
 
@@ -635,7 +638,7 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-52 cursor-pointer" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='wins' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {overallSort.key==='wins' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='losses' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {overallSort.key==='losses' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='total' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {overallSort.key==='total' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -645,7 +648,7 @@ export default function Home() {
               <tbody>
                 {overallClassStats.map((r, i) => (
                   <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2">{r.klass}</td>
+                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
