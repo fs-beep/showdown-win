@@ -169,15 +169,18 @@ export default function Home() {
   // Pagination state
   const [pageAll, setPageAll] = useState(1);
   const [pageFiltered, setPageFiltered] = useState(1);
-  const PAGE_SIZE = 50;
+  const [pageSize, setPageSize] = useState<number>(50);
   const paginatedAll = useMemo(() => {
-    const start = (pageAll - 1) * PAGE_SIZE;
-    return rows.slice().sort((a,b)=>b.blockNumber-a.blockNumber).slice(start, start + PAGE_SIZE);
-  }, [rows, pageAll]);
+    const start = (pageAll - 1) * pageSize;
+    return rows.slice().sort((a,b)=>b.blockNumber-a.blockNumber).slice(start, start + pageSize);
+  }, [rows, pageAll, pageSize]);
   const paginatedFiltered = useMemo(() => {
-    const start = (pageFiltered - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, pageFiltered]);
+    const start = (pageFiltered - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, pageFiltered, pageSize]);
+
+  useEffect(() => { setPageAll(1); }, [rows, pageSize]);
+  useEffect(() => { setPageFiltered(1); }, [filtered, pageSize]);
 
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -653,11 +656,16 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-          {filtered.length > PAGE_SIZE && (
+          {filtered.length > pageSize && (
             <div className="mt-3 flex items-center justify-center gap-2 text-xs">
               <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.max(1,p-1))} disabled={pageFiltered===1}>Prev</button>
-              <div>Page {pageFiltered} / {Math.ceil(filtered.length / PAGE_SIZE)}</div>
-              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / PAGE_SIZE),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / PAGE_SIZE)}>Next</button>
+              <div>Page {pageFiltered} / {Math.ceil(filtered.length / pageSize)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / pageSize),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / pageSize)}>Next</button>
+              <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
           )}
         </div>
@@ -714,11 +722,16 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-          {rows.length > PAGE_SIZE && (
+          {rows.length > pageSize && (
             <div className="mt-3 flex items-center justify-center gap-2 text-xs">
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.max(1,p-1))} disabled={pageAll===1}>Prev</button>
-              <div>Page {pageAll} / {Math.ceil((rows.length) / PAGE_SIZE)}</div>
-              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / PAGE_SIZE),p+1))} disabled={pageAll>=Math.ceil((rows.length) / PAGE_SIZE)}>Next</button>
+              <div>Page {pageAll} / {Math.ceil((rows.length) / pageSize)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / pageSize),p+1))} disabled={pageAll>=Math.ceil((rows.length) / pageSize)}>Next</button>
+              <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
           )}
         </div>
