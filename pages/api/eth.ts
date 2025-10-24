@@ -23,6 +23,7 @@ type Row = {
   endReason: string;
 };
 type DayEntry = { fromBlock: number; toBlock: number; rows: Row[]; lastUpdate: number };
+type DayAgg = { byClass: Record<string, { wins: number; losses: number; total: number }>; lastUpdate: number };
 
 const dayCache = new Map<number, DayEntry>();
 const dayOrder: number[] = [];
@@ -41,6 +42,7 @@ function clamp(n: number, a: number, b: number) { return Math.max(a, Math.min(b,
 // We lazily import '@vercel/kv' after normalizing envs so it works with either KV_* or UPSTASH_*.
 const KV_ENV_PRESENT = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
 function kvKey(dayIndex: number) { return `day:${dayIndex}`; }
+function kvAggKey(dayIndex: number) { return `dayAgg:${dayIndex}`; }
 let _kvClient: any | null = null;
 async function getKv() {
   if (!KV_ENV_PRESENT) return null;
@@ -67,11 +69,25 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
     return null;
   }
 }
+function computeAgg(rows: Row[]): DayAgg {
+  const map: Record<string, { wins: number; losses: number; total: number }> = {};
+  for (const r of rows) {
+    const w = (r.winningClasses || '').trim();
+    const l = (r.losingClasses || '').trim();
+    if (w) { if (!map[w]) map[w] = { wins: 0, losses: 0, total: 0 }; map[w].wins += 1; map[w].total += 1; }
+    if (l) { if (!map[l]) map[l] = { wins: 0, losses: 0, total: 0 }; map[l].losses += 1; map[l].total += 1; }
+  }
+  return { byClass: map, lastUpdate: Date.now() };
+}
+
 async function kvSetDay(dayIndex: number, entry: DayEntry): Promise<void> {
   try {
     const client = await getKv();
     if (!client) return;
     await client.set(kvKey(dayIndex), entry);
+    // Also persist aggregates for fast stats
+    const agg = computeAgg(entry.rows);
+    await client.set(kvAggKey(dayIndex), agg);
   } catch {}
 }
 
@@ -285,7 +301,17 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs } = (req.body || {}) as { startTs?: number; endTs?: number };
+    const { startTs, endTs, rebuildDay } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number };
+    // Admin: rebuild a specific day (UTC day index)
+    if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
+      const latest = await getLatest();
+      const start = rebuildDay * 86400;
+      const end = start + 86399;
+      const built = await buildDay(start, end, latest.ts);
+      remember(built.key, built.entry);
+      await kvSetDay(built.key, built.entry);
+      return res.status(200).json({ ok: true, rebuilt: built.key, fromBlock: built.entry.fromBlock, toBlock: built.entry.toBlock, rows: built.entry.rows.length });
+    }
     const earliest = await getEarliest();
     const latest = await getLatest();
 
