@@ -289,7 +289,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-        <p className="mt-2 text-gray-600">Pick a <b>start</b> and <b>end</b> date (local). I’ll resolve them to the right block numbers and fetch on-chain <code>GameResultEvent</code> logs. Historic days are served from cache; today updates incrementally.</p>
+        <p className="mt-2">Pick a <b>start</b> and <b>end</b> date.</p>
 
         <div className="mt-4">
           <a href={PLAY_URL} target="_blank" rel="noreferrer" aria-label="Play Showdown (opens in new tab)">
