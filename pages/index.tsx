@@ -1,8 +1,9 @@
 
 import Head from 'next/head';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Globe } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -19,7 +20,7 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
-type ApiResponse = { ok: boolean; error?: string; rows?: Row[] };
+type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
@@ -62,10 +63,21 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [startDate, setStartDate] = useState<string>(MIN_DATE);
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('megaflop');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const hydrated = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  const [useUtc, setUseUtc] = useState<boolean>(true);
+  const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
+  const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
+  const [classFilter, setClassFilter] = useState<string>('');
+  const [reasonFilter, setReasonFilter] = useState<string>('');
 
   useEffect(() => {
     try {
@@ -83,10 +95,40 @@ export default function Home() {
     } catch {}
   }, [theme]);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  // 1) Initialize state from URL query once
+  useEffect(() => {
+    if (hydrated.current) return;
+    const q = router.query;
+    const s = typeof q.start === 'string' ? q.start : undefined;
+    const e = typeof q.end === 'string' ? q.end : undefined;
+    const p = typeof q.player === 'string' ? q.player : undefined;
+    const only = typeof q.only === 'string' ? q.only : undefined;
+    const t = typeof q.theme === 'string' ? q.theme : undefined;
+    const tz = typeof q.tz === 'string' ? q.tz : undefined;
+    if (s) setStartDate(s);
+    if (e) setEndDate(e);
+    if (p) setPlayer(p);
+    if (only === '1') setMatrixOnlyPlayer(true);
+    if (t === 'dark') setTheme('dark');
+    if (tz === 'local') setUseUtc(false);
+    hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
+
+  // 2) Keep URL in sync with state (shallow replace)
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const nextQuery: Record<string, string> = {};
+    if (startDate) nextQuery.start = startDate;
+    if (endDate) nextQuery.end = endDate;
+    if (player) nextQuery.player = player;
+    if (matrixOnlyPlayer) nextQuery.only = '1';
+    if (theme === 'dark') nextQuery.theme = 'dark';
+    nextQuery.tz = useUtc ? 'utc' : 'local';
+    router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [startDate, endDate, player, matrixOnlyPlayer, theme, useUtc]);
+
+  
 
   const stats = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -126,6 +168,19 @@ export default function Home() {
       .sort((a, b) => b.blockNumber - a.blockNumber); // newest first
   }, [rows, player]);
 
+  // Pagination state
+  const [pageAll, setPageAll] = useState(1);
+  const [pageFiltered, setPageFiltered] = useState(1);
+  const PAGE_SIZE = 50;
+  const paginatedAll = useMemo(() => {
+    const start = (pageAll - 1) * PAGE_SIZE;
+    return rows.slice().sort((a,b)=>b.blockNumber-a.blockNumber).slice(start, start + PAGE_SIZE);
+  }, [rows, pageAll]);
+  const paginatedFiltered = useMemo(() => {
+    const start = (pageFiltered - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, pageFiltered]);
+
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
     const map = new Map<string, { wins: number; losses: number; total: number }>();
@@ -147,6 +202,11 @@ export default function Home() {
 
   // Overall per-class stats for all matches in the selected date window
   const overallClassStats: ClassRow[] = useMemo(() => {
+    if (aggByClass) {
+      const out = Object.entries(aggByClass).map(([klass, s]) => ({ klass, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }));
+      out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+      return out;
+    }
     const map = new Map<string, { wins: number; losses: number; total: number }>();
     for (const r of rows) {
       const w = (r.winningClasses ?? '').trim();
@@ -163,7 +223,7 @@ export default function Home() {
     const out = Array.from(map.entries()).map(([klass, s]) => ({ klass, ...s, winrate: s.total ? s.wins / s.total : 0 }));
     out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
     return out;
-  }, [rows]);
+  }, [rows, aggByClass]);
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
@@ -234,14 +294,17 @@ export default function Home() {
     setError(null); setRows([]); setLoading(true);
     try {
       const body = {
-        startTs: toStartOfDayEpoch(startDate),
-        endTs: toEndOfDayEpoch(endDate),
+        startTs: useUtc ? toStartOfDayEpoch(startDate) : toStartOfDayEpoch(startDate),
+        endTs: useUtc ? toEndOfDayEpoch(endDate) : toEndOfDayEpoch(endDate),
+        wantAgg: true,
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: ApiResponse = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
       setRows(sorted);
+      setAggByClass(j.aggByClass || null);
+      setAggUpdatedAt(j.aggLastUpdate || null);
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -251,6 +314,24 @@ export default function Home() {
 
   const dl = (name: string, data: any) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const toCsv = (rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
+    const keys = columns?.map(c => c.key) || (rows[0] ? Object.keys(rows[0]) : []);
+    const header = (columns?.map(c => c.label) || keys).join(',');
+    const lines = rows.map(r => keys.map(k => {
+      const v = r[k];
+      const s = v === null || v === undefined ? '' : String(v);
+      const escaped = '"' + s.replace(/"/g, '""') + '"';
+      return /[",\n]/.test(s) ? escaped : s;
+    }).join(','));
+    return [header, ...lines].join('\n');
+  };
+  const dlCsv = (name: string, rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
+    const csv = toCsv(rows, columns);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
@@ -265,7 +346,7 @@ export default function Home() {
           <a className="underline" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">Follow on X</a>
         </div>
 
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
             <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
@@ -279,6 +360,14 @@ export default function Home() {
             >
               Play Showdown
             </a>
+              <button
+                onClick={() => setUseUtc(!useUtc)}
+                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+                title={useUtc ? 'Showing UTC times' : 'Showing local times'}
+              >
+                <Globe className="h-4 w-4"/>
+                {useUtc ? 'UTC' : 'Local'}
+              </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
@@ -331,6 +420,17 @@ export default function Home() {
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
             </div>
 
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label className="block text-xs text-gray-500">Filter by class (contains)</label>
+                <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={classFilter} onChange={e=>setClassFilter(e.target.value)} placeholder="e.g. Inventor or /Rebel" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Filter by end reason (contains)</label>
+                <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={reasonFilter} onChange={e=>setReasonFilter(e.target.value)} placeholder="e.g. Timeout" />
+              </div>
+            </div>
+
             <button onClick={run} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
               {loading ? "Fetching..." : "Compute Winrate"}
@@ -373,11 +473,17 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
-              <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
+          <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
@@ -414,9 +520,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
-              <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_class_stats_" + (player||'player') + ".csv", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -505,9 +616,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
             {filtered.length > 0 && (
-              <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_matches_for_" + (player||'player') + ".csv", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -518,13 +634,13 @@ export default function Home() {
                   <th className="p-2">Game #</th>
                   <th className="p-2">Result</th>
                   <th className="p-2">Opponent</th>
-                  <th className="p-2">Started</th>
+                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
                   <th className="p-2">Reason</th>
                   <th className="p-2">Tx</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
+                {paginatedFiltered.map((r, i) => (
                   <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
@@ -543,6 +659,13 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+          {filtered.length > PAGE_SIZE && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.max(1,p-1))} disabled={pageFiltered===1}>Prev</button>
+              <div>Page {pageFiltered} / {Math.ceil(filtered.length / PAGE_SIZE)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / PAGE_SIZE),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / PAGE_SIZE)}>Next</button>
+            </div>
+          )}
         </div>
 
         {/* All decoded list (newest first) */}
@@ -550,9 +673,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">All Decoded Matches ({rows.length})</div>
             {rows.length > 0 && (
-              <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_winrate_results.csv", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -562,7 +690,7 @@ export default function Home() {
                   <th className="p-2">Block</th>
                   <th className="p-2">Game #</th>
                   <th className="p-2">Game ID</th>
-                  <th className="p-2">Started</th>
+                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
                   <th className="p-2">Winner</th>
                   <th className="p-2">Loser</th>
                   <th className="p-2">Reason</th>
@@ -570,7 +698,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice().sort((a,b)=>b.blockNumber - a.blockNumber).map((r, i) => (
+                {paginatedAll.map((r, i) => (
                   <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
@@ -592,6 +720,13 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+          {rows.length > PAGE_SIZE && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.max(1,p-1))} disabled={pageAll===1}>Prev</button>
+              <div>Page {pageAll} / {Math.ceil((rows.length) / PAGE_SIZE)}</div>
+              <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / PAGE_SIZE),p+1))} disabled={pageAll>=Math.ceil((rows.length) / PAGE_SIZE)}>Next</button>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 text-xs text-gray-500">
