@@ -460,7 +460,7 @@ export default function Home() {
         {/* All matches per-class performance (global) */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">Per‑Class Performance — All Matches in Range</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -507,7 +507,7 @@ export default function Home() {
         {/* Per-class performance (player specific) */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -553,7 +553,7 @@ export default function Home() {
         {/* Class-vs-Class matrix with toggle */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">Class vs Class — Win rate of <span className="font-semibold">class</span> vs <span className="font-semibold">class</span></div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Class vs Class — Win rate of <span className="font-semibold">class</span> vs <span className="font-semibold">class</span></div>
             <label className="flex items-center gap-2 text-xs text-gray-600">
               <input type="checkbox" className="h-4 w-4" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
@@ -608,7 +608,7 @@ export default function Home() {
         {/* Player-specific matches */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -665,7 +665,7 @@ export default function Home() {
         {/* All decoded list (newest first) */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">All Decoded Matches ({rows.length})</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">All Decoded Matches ({rows.length})</div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
