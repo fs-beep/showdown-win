@@ -518,16 +518,16 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
+                  <th className="p-2 w-52 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
+                  <th className="p-2 w-28 cursor-pointer" onClick={()=>setOverallSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {overallClassStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b dark:border-gray-700">
+                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="p-2">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
@@ -564,16 +564,16 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
+                  <th className="p-2 w-52 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games</th>
+                  <th className="p-2 w-28 cursor-pointer" onClick={()=>setPlayerClassSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {classStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b dark:border-gray-700">
+                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="p-2">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
@@ -665,18 +665,18 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
-                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
-                  <th className="p-2">Reason</th>
-                  <th className="p-2">Tx</th>
+                  <th className="p-2 w-28 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
+                  <th className="p-2 w-20 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result</th>
+                  <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
+                  <th className="p-2 w-40 whitespace-nowrap">Started ({useUtc ? 'UTC' : 'Local'})</th>
+                  <th className="p-2 w-36">Reason</th>
+                  <th className="p-2 w-16">Tx</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedFiltered.map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700">
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2 font-medium">{r.result}</td>
@@ -727,19 +727,19 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
-                  <th className="p-2">Game ID</th>
-                  <th className="p-2">Started ({useUtc ? 'UTC' : 'Local'})</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'winningPlayer' as any, dir: s.key==='winningPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Winner</th>
-                  <th className="p-2 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'losingPlayer' as any, dir: s.key==='losingPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Loser</th>
-                  <th className="p-2">Reason</th>
-                  <th className="p-2">Tx</th>
+                  <th className="p-2 w-28 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block</th>
+                  <th className="p-2 w-24 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game #</th>
+                  <th className="p-2 w-40">Game ID</th>
+                  <th className="p-2 w-40 whitespace-nowrap">Started ({useUtc ? 'UTC' : 'Local'})</th>
+                  <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'winningPlayer' as any, dir: s.key==='winningPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Winner</th>
+                  <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'losingPlayer' as any, dir: s.key==='losingPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Loser</th>
+                  <th className="p-2 w-36">Reason</th>
+                  <th className="p-2 w-16">Tx</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedAll.map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700">
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2">{r.gameId}</td>
