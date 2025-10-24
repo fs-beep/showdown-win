@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Globe } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Globe, Clipboard, Check, ArrowUp } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -75,6 +75,8 @@ export default function Home() {
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [useUtc, setUseUtc] = useState<boolean>(true);
   const [compact, setCompact] = useState<boolean>(false);
+  const [copiedTx, setCopiedTx] = useState<string | null>(null);
+  const [showTop, setShowTop] = useState<boolean>(false);
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
   const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
 
@@ -229,6 +231,22 @@ export default function Home() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [rows, pageSize]);
+
+  // Show Back-to-top button
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll);
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const copyTx = async (hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedTx(hash);
+      setTimeout(() => setCopiedTx(null), 1200);
+    } catch {}
+  };
 
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -712,7 +730,12 @@ export default function Home() {
                     <td className="p-2">{r.opponent}</td>
                     <td className="p-2">{r.startedAt}</td>
                     <td className="p-2">{r.endReason}</td>
-                    <td className="p-2"><a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a></td>
+                    <td className="p-2 flex items-center gap-2">
+                      <a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a>
+                      <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
+                        {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
@@ -783,7 +806,12 @@ export default function Home() {
                     <td className="p-2 font-medium">{r.winningPlayer}</td>
                     <td className="p-2">{r.losingPlayer}</td>
                     <td className="p-2">{r.endReason}</td>
-                    <td className="p-2"><a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a></td>
+                    <td className="p-2 flex items-center gap-2">
+                      <a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a>
+                      <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
+                        {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
@@ -821,6 +849,21 @@ export default function Home() {
           Daily cache on the server makes historical queries instant; today is fetched incrementally.
         </div>
       </div>
+      <BackToTop visible={showTop} />
     </div>
+  );
+}
+
+// Back to top floating button
+function BackToTop({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-6 right-6 z-20 rounded-full bg-black text-white p-3 shadow-lg dark:bg-white dark:text-black"
+      title="Back to top"
+    >
+      <ArrowUp className="h-4 w-4"/>
+    </button>
   );
 }
