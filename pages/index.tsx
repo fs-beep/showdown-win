@@ -127,6 +127,26 @@ export default function Home() {
     return out;
   }, [rows, player]);
 
+  // Overall per-class stats for all matches in the selected date window
+  const overallClassStats: ClassRow[] = useMemo(() => {
+    const map = new Map<string, { wins: number; losses: number; total: number }>();
+    for (const r of rows) {
+      const w = (r.winningClasses ?? '').trim();
+      const l = (r.losingClasses ?? '').trim();
+      if (w) {
+        const s = map.get(w) || { wins: 0, losses: 0, total: 0 };
+        s.wins += 1; s.total += 1; map.set(w, s);
+      }
+      if (l) {
+        const s = map.get(l) || { wins: 0, losses: 0, total: 0 };
+        s.losses += 1; s.total += 1; map.set(l, s);
+      }
+    }
+    const out = Array.from(map.entries()).map(([klass, s]) => ({ klass, ...s, winrate: s.total ? s.wins / s.total : 0 }));
+    out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+    return out;
+  }, [rows]);
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -303,7 +323,48 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Per-class performance */}
+        {/* All matches per-class performance (global) */}
+        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700">Per‑Class Performance — All Matches in Range</div>
+            {overallClassStats.length > 0 && (
+              <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <Download className="h-4 w-4"/> Download JSON
+              </button>
+            )}
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="p-2">Class</th>
+                  <th className="p-2">Wins</th>
+                  <th className="p-2">Losses</th>
+                  <th className="p-2">Games</th>
+                  <th className="p-2">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overallClassStats.map((r, i) => (
+                  <tr key={r.klass + i} className="border-b">
+                    <td className="p-2">{r.klass}</td>
+                    <td className="p-2 tabular-nums">{r.wins}</td>
+                    <td className="p-2 tabular-nums">{r.losses}</td>
+                    <td className="p-2 tabular-nums">{r.total}</td>
+                    <td className="p-2 tabular-nums">{(r.winrate*100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+                {overallClassStats.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={5}>No data yet — run a query above.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Per-class performance (player specific) */}
         <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
