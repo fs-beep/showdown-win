@@ -1,6 +1,7 @@
 
 import Head from 'next/head';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun } from 'lucide-react';
 
@@ -62,10 +63,16 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [startDate, setStartDate] = useState<string>(MIN_DATE);
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('megaflop');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const hydrated = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -83,10 +90,37 @@ export default function Home() {
     } catch {}
   }, [theme]);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  // 1) Initialize state from URL query once
+  useEffect(() => {
+    if (hydrated.current) return;
+    const q = router.query;
+    const s = typeof q.start === 'string' ? q.start : undefined;
+    const e = typeof q.end === 'string' ? q.end : undefined;
+    const p = typeof q.player === 'string' ? q.player : undefined;
+    const only = typeof q.only === 'string' ? q.only : undefined;
+    const t = typeof q.theme === 'string' ? q.theme : undefined;
+    if (s) setStartDate(s);
+    if (e) setEndDate(e);
+    if (p) setPlayer(p);
+    if (only === '1') setMatrixOnlyPlayer(true);
+    if (t === 'dark') setTheme('dark');
+    hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
+
+  // 2) Keep URL in sync with state (shallow replace)
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const nextQuery: Record<string, string> = {};
+    if (startDate) nextQuery.start = startDate;
+    if (endDate) nextQuery.end = endDate;
+    if (player) nextQuery.player = player;
+    if (matrixOnlyPlayer) nextQuery.only = '1';
+    if (theme === 'dark') nextQuery.theme = 'dark';
+    router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [startDate, endDate, player, matrixOnlyPlayer, theme]);
+
+  
 
   const stats = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -255,6 +289,24 @@ export default function Home() {
     const a = document.createElement('a'); a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
   };
+  const toCsv = (rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
+    const keys = columns?.map(c => c.key) || (rows[0] ? Object.keys(rows[0]) : []);
+    const header = (columns?.map(c => c.label) || keys).join(',');
+    const lines = rows.map(r => keys.map(k => {
+      const v = r[k];
+      const s = v === null || v === undefined ? '' : String(v);
+      const escaped = '"' + s.replace(/"/g, '""') + '"';
+      return /[",\n]/.test(s) ? escaped : s;
+    }).join(','));
+    return [header, ...lines].join('\n');
+  };
+  const dlCsv = (name: string, rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
+    const csv = toCsv(rows, columns);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
@@ -265,7 +317,7 @@ export default function Home() {
           <a className="underline" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">Follow on X</a>
         </div>
 
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
             <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
@@ -279,6 +331,19 @@ export default function Home() {
             >
               Play Showdown
             </a>
+              {/* Share URL button */}
+              <button
+                onClick={() => {
+                  try {
+                    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                    navigator.clipboard?.writeText?.(shareUrl);
+                  } catch {}
+                }}
+                className="hidden md:inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+                title="Copy shareable link"
+              >
+                Copy link
+              </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
@@ -373,9 +438,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
-              <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -414,9 +484,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
-              <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_class_stats_" + (player||'player') + ".csv", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -505,9 +580,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
             {filtered.length > 0 && (
-              <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_matches_for_" + (player||'player') + ".csv", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
@@ -550,9 +630,14 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">All Decoded Matches ({rows.length})</div>
             {rows.length > 0 && (
-              <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                <Download className="h-4 w-4"/> Download JSON
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_winrate_results.csv", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3 overflow-x-auto">
