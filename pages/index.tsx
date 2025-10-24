@@ -20,7 +20,7 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
-type ApiResponse = { ok: boolean; error?: string; rows?: Row[] };
+type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }> };
 
 const MIN_DATE = '2025-07-25';
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
@@ -74,6 +74,7 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [useUtc, setUseUtc] = useState<boolean>(true);
+  const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
 
   useEffect(() => {
     try {
@@ -198,6 +199,11 @@ export default function Home() {
 
   // Overall per-class stats for all matches in the selected date window
   const overallClassStats: ClassRow[] = useMemo(() => {
+    if (aggByClass) {
+      const out = Object.entries(aggByClass).map(([klass, s]) => ({ klass, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }));
+      out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
+      return out;
+    }
     const map = new Map<string, { wins: number; losses: number; total: number }>();
     for (const r of rows) {
       const w = (r.winningClasses ?? '').trim();
@@ -214,7 +220,7 @@ export default function Home() {
     const out = Array.from(map.entries()).map(([klass, s]) => ({ klass, ...s, winrate: s.total ? s.wins / s.total : 0 }));
     out.sort((a,b) => b.total - a.total || b.winrate - a.winrate);
     return out;
-  }, [rows]);
+  }, [rows, aggByClass]);
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
@@ -287,12 +293,14 @@ export default function Home() {
       const body = {
         startTs: useUtc ? toStartOfDayEpoch(startDate) : toStartOfDayEpoch(startDate),
         endTs: useUtc ? toEndOfDayEpoch(endDate) : toEndOfDayEpoch(endDate),
+        wantAgg: true,
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: ApiResponse = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
       setRows(sorted);
+      setAggByClass(j.aggByClass || null);
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
