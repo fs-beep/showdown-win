@@ -74,7 +74,6 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [useUtc, setUseUtc] = useState<boolean>(true);
-  const [compact, setCompact] = useState<boolean>(false);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
@@ -87,8 +86,6 @@ export default function Home() {
       const initial: 'light' | 'dark' = stored === 'dark' || (!stored && prefersDark) ? 'dark' : 'light';
       setTheme(initial);
       if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', initial === 'dark');
-      const c = typeof window !== 'undefined' ? localStorage.getItem('compact') : null;
-      if (c === '1') setCompact(true);
     } catch {}
   }, []);
   useEffect(() => {
@@ -98,11 +95,6 @@ export default function Home() {
     } catch {}
   }, [theme]);
 
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') localStorage.setItem('compact', compact ? '1' : '0');
-    } catch {}
-  }, [compact]);
 
   // 1) Initialize state from URL query once
   useEffect(() => {
@@ -417,7 +409,7 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${compact ? 'compact-mode' : ''}`}>
+    <div className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100`}>
       <Head><title>Showdown Winrate Checker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
@@ -439,13 +431,7 @@ export default function Home() {
             >
               Play Showdown
             </a>
-              <button
-                onClick={() => setCompact(!compact)}
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
-                title={compact ? 'Compact rows' : 'Comfortable rows'}
-              >
-                {compact ? 'Comfort' : 'Compact'}
-              </button>
+              {/* Compact/comfort toggle removed */}
               <button
                 onClick={() => setUseUtc(!useUtc)}
                 className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
