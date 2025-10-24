@@ -289,7 +289,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-        <p className="mt-2">Pick a <b>start</b> and <b>end</b> date.</p>
+        {/* subtitle removed per request */}
 
         <div className="mt-4">
           <a href={PLAY_URL} target="_blank" rel="noreferrer" aria-label="Play Showdown (opens in new tab)">
