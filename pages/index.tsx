@@ -20,7 +20,7 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
-type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }> };
+type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
@@ -75,6 +75,9 @@ export default function Home() {
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [useUtc, setUseUtc] = useState<boolean>(true);
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
+  const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
+  const [classFilter, setClassFilter] = useState<string>('');
+  const [reasonFilter, setReasonFilter] = useState<string>('');
 
   useEffect(() => {
     try {
@@ -301,6 +304,7 @@ export default function Home() {
       const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
       setRows(sorted);
       setAggByClass(j.aggByClass || null);
+      setAggUpdatedAt(j.aggLastUpdate || null);
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -416,6 +420,17 @@ export default function Home() {
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
             </div>
 
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label className="block text-xs text-gray-500">Filter by class (contains)</label>
+                <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={classFilter} onChange={e=>setClassFilter(e.target.value)} placeholder="e.g. Inventor or /Rebel" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Filter by end reason (contains)</label>
+                <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={reasonFilter} onChange={e=>setReasonFilter(e.target.value)} placeholder="e.g. Timeout" />
+              </div>
+            </div>
+
             <button onClick={run} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
               {loading ? "Fetching..." : "Compute Winrate"}
@@ -468,6 +483,7 @@ export default function Home() {
               </div>
             )}
           </div>
+          <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>

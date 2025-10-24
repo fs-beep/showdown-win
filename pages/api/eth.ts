@@ -383,7 +383,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     out.sort((a,b)=> a.blockNumber - b.blockNumber);
     if (wantAgg) {
       const agg = computeAgg(out);
-      return res.status(200).json({ ok: true, rows: out, aggByClass: agg.byClass });
+      return res.status(200).json({ ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
     }
     res.status(200).json({ ok: true, rows: out });
   } catch (e:any) {
