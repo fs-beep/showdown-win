@@ -24,6 +24,7 @@ type ApiResponse = { ok: boolean; error?: string; rows?: Row[] };
 const MIN_DATE = '2025-07-25';
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
 const SHOWDOWN_BANNER = '/images/showdown_large.jpeg';
+const PLAY_URL = 'https://alpha.showdown.game/';
 
 function fmtDate(d: Date) {
   const y = d.getFullYear();
@@ -269,19 +270,31 @@ export default function Home() {
             <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
             <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
           </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={PLAY_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-black text-white px-3 py-1 text-xs shadow hover:opacity-90 dark:bg-white dark:text-black"
+            >
+              Play Showdown
+            </a>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+          </div>
         </div>
         <p className="mt-2 text-gray-600">Pick a <b>start</b> and <b>end</b> date (local). I’ll resolve them to the right block numbers and fetch on-chain <code>GameResultEvent</code> logs. Historic days are served from cache; today updates incrementally.</p>
 
         <div className="mt-4">
-          <img src={SHOWDOWN_BANNER} alt="Showdown game artwork" className="w-full rounded-2xl shadow-sm object-cover"/>
+          <a href={PLAY_URL} target="_blank" rel="noreferrer" aria-label="Play Showdown (opens in new tab)">
+            <img src={SHOWDOWN_BANNER} alt="Showdown game artwork" className="w-full rounded-2xl shadow-sm object-cover"/>
+          </a>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
