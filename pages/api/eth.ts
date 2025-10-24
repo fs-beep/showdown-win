@@ -301,7 +301,7 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs, rebuildDay } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number };
+    const { startTs, endTs, rebuildDay, wantAgg } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
       const latest = await getLatest();
@@ -381,6 +381,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const r of windowed) byKey.set(stableRowKey(r), r);
     const out = Array.from(byKey.values());
     out.sort((a,b)=> a.blockNumber - b.blockNumber);
+    if (wantAgg) {
+      const agg = computeAgg(out);
+      return res.status(200).json({ ok: true, rows: out, aggByClass: agg.byClass });
+    }
     res.status(200).json({ ok: true, rows: out });
   } catch (e:any) {
     res.status(200).json({ ok: false, error: e?.message || String(e) });
