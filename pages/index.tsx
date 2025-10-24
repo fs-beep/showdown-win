@@ -64,7 +64,7 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
 
 export default function Home() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>(MIN_DATE);
+  const [startDate, setStartDate] = useState<string>('2025-10-03');
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('megaflop');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -618,13 +618,13 @@ export default function Home() {
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="text-gray-500 mr-1">Presets:</span>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('today')}>Today</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last7')}>Last 7 days</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last30')}>Last 30 days</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('prevMonth')}>Previous month</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
             </div>
 
             {/* Removed class and end reason filters per request */}
@@ -665,6 +665,8 @@ export default function Home() {
             {stats.dominantClass && <div className="text-xs text-gray-500 mt-1">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
           </div>
         </div>
+        {/* Top classes chips */}
+        <TopClasses rows={rows} player={player} />
         {player2.trim() && stats2 && (
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
@@ -1035,6 +1037,27 @@ export default function Home() {
         </div>
       )}
       <BackToTop visible={showTop} />
+    </div>
+  );
+}
+
+function TopClasses({ rows, player }: { rows: Row[]; player: string }) {
+  const p = player.trim().toLowerCase();
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const isP = r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p;
+    const w = (r.winningClasses||'').trim(); const l=(r.losingClasses||'').trim();
+    if (w) counts.set(w, (counts.get(w)||0) + (isP ? 2 : 1));
+    if (l) counts.set(l, (counts.get(l)||0) + (isP ? 2 : 1));
+  }
+  const chips = Array.from(counts.entries()).map(([klass, n])=>({klass, n})).sort((a,b)=>b.n-a.n).slice(0,8);
+  if (chips.length===0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+      <span className="text-gray-500 mr-1">Top classes:</span>
+      {chips.map(c => (
+        <span key={c.klass} className="rounded-full border px-2 py-1 bg-white dark:bg-gray-800 dark:border-gray-700">{c.klass}<span className="text-gray-500"> ({c.n})</span></span>
+      ))}
     </div>
   );
 }
