@@ -658,8 +658,7 @@ export default function Home() {
             {stats.dominantClass && <div className="text-xs text-gray-500 mt-1">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
           </div>
         </div>
-        {/* Top classes chips */}
-        <TopClasses rows={rows} player={player} />
+        {/* Top classes chips removed per request */}
         {player2.trim() && stats2 && (
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
