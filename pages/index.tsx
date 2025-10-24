@@ -410,7 +410,7 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100`}>
-      <Head><title>Showdown Winrate Checker</title></Head>
+      <Head><title>Showdown Meta Tracker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
           This tool was brought to you by <span className="font-semibold">megaflop</span>.{' '}
@@ -420,7 +420,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
-            <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
+            <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Meta Tracker</motion.h1>
           </div>
           <div className="flex items-center gap-2">
             <a
@@ -459,7 +459,7 @@ export default function Home() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm sticky top-0 z-20 backdrop-blur bg-white/90 dark:bg-gray-800/90">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
             <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={player} onChange={e=>setPlayer(e.target.value)} placeholder="megaflop" />
@@ -568,6 +568,9 @@ export default function Home() {
                     <td className="p-2 tabular-nums">{(r.winrate*100).toFixed(1)}%</td>
                   </tr>
                 ))}
+                {loading && overallClassStats.length === 0 && (
+                  <SkeletonTableRows rows={6} cols={5} />
+                )}
                 {overallClassStats.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={5}>No data yet — run a query above.</td>
@@ -614,6 +617,9 @@ export default function Home() {
                     <td className="p-2 tabular-nums">{(r.winrate*100).toFixed(1)}%</td>
                   </tr>
                 ))}
+                {loading && classStats.length === 0 && (
+                  <SkeletonTableRows rows={6} cols={5} />
+                )}
                 {classStats.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={5}>No class stats yet — run a query above.</td>
@@ -668,6 +674,9 @@ export default function Home() {
                     })}
                   </tr>
                 ))}
+                {loading && classVsClass.classes.length === 0 && (
+                  <SkeletonTableRows rows={8} cols={classVsClass.classes.length || 6} />
+                )}
                 {classVsClass.classes.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={1}>No data yet.</td>
@@ -726,7 +735,9 @@ export default function Home() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>No matches for this player (in the chosen range) yet.</td>
+                    <td className="p-6 text-center text-gray-500" colSpan={7}>
+                      {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -802,9 +813,7 @@ export default function Home() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={8}>
-                      {loading ? "Fetching logs..." : "No rows yet. Pick a date range and click Compute."}
-                    </td>
+                    <td className="p-6 text-center text-gray-500" colSpan={8}>{loading ? <SkeletonTableRows rows={10} cols={8} /> : "No rows yet. Pick a date range and click Compute."}</td>
                   </tr>
                 )}
               </tbody>
@@ -857,5 +866,24 @@ function BackToTop({ visible }: { visible: boolean }) {
     >
       <ArrowUp className="h-4 w-4"/>
     </button>
+  );
+}
+
+// Skeleton table rows for loading states
+function SkeletonTableRows({ rows, cols }: { rows: number; cols: number }) {
+  const r = Array.from({ length: rows });
+  const c = Array.from({ length: cols });
+  return (
+    <>
+      {r.map((_, i) => (
+        <tr key={i} className="animate-pulse">
+          {c.map((__, j) => (
+            <td key={j} className="p-2">
+              <div className="h-3 rounded bg-gray-200 dark:bg-gray-700"/>
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
   );
 }
