@@ -417,7 +417,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <div className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${compact ? 'compact-mode' : ''}`}>
       <Head><title>Showdown Winrate Checker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
@@ -849,6 +849,12 @@ export default function Home() {
           Daily cache on the server makes historical queries instant; today is fetched incrementally.
         </div>
       </div>
+      {/* copy toast */}
+      {copiedTx && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black text-white px-3 py-1 text-xs shadow dark:bg-white dark:text-black">
+          Copied tx: {copiedTx.slice(0,10)}…
+        </div>
+      )}
       <BackToTop visible={showTop} />
     </div>
   );
