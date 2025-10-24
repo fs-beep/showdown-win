@@ -11,6 +11,7 @@ const MAX_DAYS_CACHE = 120;
 type Row = {
   blockNumber: number;
   txHash: string;
+  logIndex: number;
   gameNumber: number;
   gameId: string;
   startedAt: string;
@@ -153,7 +154,14 @@ function buildRanges(fromBlock: number, toBlock: number) {
 
 async function getLogsSingle(fromBlock: number, toBlock: number) {
   const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: CONTRACT, topics: [TOPIC0] }] });
-  return j?.result || [];
+  const arr = j?.result || [];
+  // Defensive: some RPC providers can occasionally return duplicate logs in large ranges
+  const uniq = new Map<string, any>();
+  for (const log of arr) {
+    const key = `${log.transactionHash}-${parseInt(log.logIndex, 16)}`;
+    uniq.set(key, log);
+  }
+  return Array.from(uniq.values());
 }
 async function getLogsChunked(fromBlock: number, toBlock: number) {
   const ranges = buildRanges(fromBlock, toBlock);
@@ -183,6 +191,7 @@ function decode(log: any): Row | null {
     return {
       blockNumber: parseInt(log.blockNumber, 16),
       txHash: log.transactionHash,
+      logIndex: parseInt(log.logIndex, 16),
       gameNumber: Number(gameNumber?.toString?.() ?? gameNumber),
       gameId: String(gameId),
       startedAt: String(startedAt),
@@ -196,6 +205,40 @@ function decode(log: any): Row | null {
   } catch { return null; }
 }
 
+function parseStartedAtTs(str: string): number | null {
+  if (!str) return null;
+  // Common on-chain string: "YYYY-MM-DD HH:mm:ss UTC"
+  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\s*(?:UTC|Z))?$/i.exec(str.trim());
+  if (m) {
+    const year = Number(m[1]);
+    const month = Number(m[2]) - 1; // JS months are 0-based
+    const day = Number(m[3]);
+    const hour = Number(m[4]);
+    const minute = Number(m[5]);
+    const second = Number(m[6]);
+    const ms = Date.UTC(year, month, day, hour, minute, second);
+    return Math.floor(ms / 1000);
+  }
+  // Fallback: try to coerce to ISO
+  const iso = str.replace(' ', 'T').replace(/\s*UTC$/i, 'Z');
+  const ms = Date.parse(iso);
+  if (isNaN(ms)) return null;
+  return Math.floor(ms / 1000);
+}
+function filterRowsByTs(rows: Row[], startTs: number, endTs: number): Row[] {
+  return rows.filter((r) => {
+    const ts = parseStartedAtTs(r.startedAt);
+    if (ts == null) return true;
+    return ts >= startTs && ts <= endTs;
+  });
+}
+function stableRowKey(r: Row): string {
+  const anyR: any = r as any;
+  if (typeof anyR.logIndex === 'number' && !isNaN(anyR.logIndex)) return `${r.txHash}:${anyR.logIndex}`;
+  if (r.gameId) return `gid:${r.gameId}`;
+  return `${r.txHash}:${r.blockNumber}`;
+}
+
 async function buildDay(dayStartTs: number, dayEndTs: number, latestTs: number) {
   const key = Math.floor(dayStartTs / 86400);
   const endTs = Math.min(Math.max(dayEndTs, 0), latestTs);
@@ -205,11 +248,18 @@ async function buildDay(dayStartTs: number, dayEndTs: number, latestTs: number) 
   try {
     const logs = await getLogsSingle(fromBlock, toBlock);
     const rows = (logs as any[]).map(decode).filter(Boolean) as Row[];
-    return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
+    // Extra safety: dedupe by (txHash, logIndex)
+    const uniq = new Map<string, Row>();
+    for (const r of rows) uniq.set(`${r.txHash}:${r.logIndex}`, r);
+    const uniqueRows = Array.from(uniq.values());
+    return { key, entry: { fromBlock, toBlock, rows: uniqueRows, lastUpdate: Date.now() } };
   } catch {
     const logs = await getLogsChunked(fromBlock, toBlock);
     const rows = (logs as any[]).map(decode).filter(Boolean) as Row[];
-    return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
+    const uniq = new Map<string, Row>();
+    for (const r of rows) uniq.set(`${r.txHash}:${r.logIndex}`, r);
+    const uniqueRows = Array.from(uniq.values());
+    return { key, entry: { fromBlock, toBlock, rows: uniqueRows, lastUpdate: Date.now() } };
   }
 }
 
@@ -226,7 +276,10 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
   const newRows = (newLogs as any[]).map(decode).filter(Boolean) as Row[];
   const merged = [...existing.rows, ...newRows];
   const uniq = new Map<string, Row>();
-  for (const r of merged) uniq.set(r.txHash + ':' + r.blockNumber, r);
+  for (const r of merged) {
+    const idxOrBlock = (typeof (r as any).logIndex === 'number' && !isNaN((r as any).logIndex)) ? (r as any).logIndex : r.blockNumber;
+    uniq.set(`${r.txHash}:${idxOrBlock}`, r);
+  }
   return { fromBlock: existing.fromBlock, toBlock, rows: Array.from(uniq.values()), lastUpdate: Date.now() };
 }
 
@@ -294,8 +347,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await Promise.all(slice);
     }
 
-    resultRows.sort((a,b)=> a.blockNumber - b.blockNumber);
-    res.status(200).json({ ok: true, rows: resultRows });
+    // First constrain precisely to the requested [sTs, eTs] window (even if cached full days were used)
+    const windowed = filterRowsByTs(resultRows, sTs, eTs);
+
+    // Final defensive pass: dedupe across days and cache formats
+    const byKey = new Map<string, Row>();
+    for (const r of windowed) byKey.set(stableRowKey(r), r);
+    const out = Array.from(byKey.values());
+    out.sort((a,b)=> a.blockNumber - b.blockNumber);
+    res.status(200).json({ ok: true, rows: out });
   } catch (e:any) {
     res.status(200).json({ ok: false, error: e?.message || String(e) });
   }

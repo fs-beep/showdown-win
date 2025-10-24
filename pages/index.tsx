@@ -31,15 +31,31 @@ function fmtDate(d: Date) {
   const day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
+function parseDateFlexible(dateStr?: string): { y:number; m:number; d:number } | null {
+  if (!dateStr) return null;
+  const s = dateStr.trim();
+  // YYYY-MM-DD
+  let m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(s);
+  if (m) return { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) };
+  // DD.MM.YYYY
+  m = /^([0-9]{2})\.([0-9]{2})\.([0-9]{4})$/.exec(s);
+  if (m) return { y: Number(m[3]), m: Number(m[2]), d: Number(m[1]) };
+  // MM/DD/YYYY
+  m = /^([0-9]{1,2})\/([0-9]{1,2})\/([0-9]{4})$/.exec(s);
+  if (m) return { y: Number(m[3]), m: Number(m[1]), d: Number(m[2]) };
+  return null;
+}
 function toStartOfDayEpoch(dateStr?: string): number | undefined {
-  if (!dateStr) return undefined;
-  const d = new Date(`${dateStr}T00:00`);
+  const p = parseDateFlexible(dateStr);
+  if (!p) return undefined;
+  const d = new Date(p.y, p.m-1, p.d, 0, 0, 0);
   if (isNaN(d.getTime())) return undefined;
   return Math.floor(d.getTime()/1000);
 }
 function toEndOfDayEpoch(dateStr?: string): number | undefined {
-  if (!dateStr) return undefined;
-  const d = new Date(`${dateStr}T23:59:59`);
+  const p = parseDateFlexible(dateStr);
+  if (!p) return undefined;
+  const d = new Date(p.y, p.m-1, p.d, 23, 59, 59);
   if (isNaN(d.getTime())) return undefined;
   return Math.floor(d.getTime()/1000);
 }
@@ -228,14 +244,14 @@ export default function Home() {
                 <label className="block text-xs text-gray-500">Start date</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="date" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={startDate} min={MIN_DATE} onChange={e=>setStartDate(e.target.value < MIN_DATE ? MIN_DATE : e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={startDate} onChange={e=>setStartDate(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-gray-500">End date (empty = latest)</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="date" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={endDate} min={MIN_DATE} onChange={e=>setEndDate(e.target.value && e.target.value < MIN_DATE ? MIN_DATE : e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={endDate} onChange={e=>setEndDate(e.target.value)} />
                 </div>
               </div>
             </div>
