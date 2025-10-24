@@ -559,7 +559,7 @@ export default function Home() {
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
             </label>
           </div>
-          <div className="mt-1 text-xs text-gray-500">Only dual-classes (with a <code>/</code>) are included. Cell = win rate of row‑class vs column‑class, with sample size in parentheses. “—” = no matches (or same class).</div>
+          <div className="mt-1 text-xs text-gray-500">Only dual-classes (with a <code>/</code>) are included. Cell = win rate of row‑class vs column‑class, with sample size in parentheses. “—” = no data (same class or fewer than 5 matches).</div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead>
@@ -575,15 +575,20 @@ export default function Home() {
                   <tr key={row.rowClass} className="border-b dark:border-gray-700">
                     <td className="p-2 font-medium whitespace-nowrap">{row.rowClass}</td>
                     {row.cells.map((cell) => {
-                      const bgStyle = cell.pct === null ? {} : { backgroundColor: `hsl(${Math.round((cell.pct as number) * 120)}, 85%, 60%)` };
+                      const pct = cell.pct as number | null;
+                      const enough = (cell.total || 0) >= 5;
+                      const bgStyle = pct === null || !enough
+                        ? {}
+                        : { backgroundColor: `hsl(${Math.round((pct as number) * 120)}, 50%, 45%)` };
+                      const label = pct === null || !enough ? '—' : `${Math.round((pct as number)*100)}% (${cell.total})`;
                       return (
                         <td
                           key={row.rowClass + '->' + cell.colClass}
                           className="p-2 tabular-nums text-center align-middle"
                           style={bgStyle}
-                          title={`${cell.wins}/${cell.total} wins`}
+                          title={pct === null ? '' : `${cell.wins}/${cell.total} wins`}
                         >
-                          {cell.pct === null ? '—' : `${Math.round((cell.pct as number)*100)}% (${cell.total})`}
+                          {label}
                         </td>
                       );
                     })}
@@ -597,7 +602,7 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-          <div className="mt-2 text-[10px] text-gray-500">Color scale: 0% → red, 50% → yellow, 100% → green.</div>
+          <div className="mt-2 text-[10px] text-gray-500">Cells with fewer than 5 matches are hidden. Colors toned: 0% → red, 50% → muted yellow, 100% → green.</div>
         </div>
 
         {/* Player-specific matches */}
