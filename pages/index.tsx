@@ -520,7 +520,7 @@ export default function Home() {
       <Head><title>Showdown Meta Tracker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
-          This tool was brought to you by <span className="font-semibold">megaflop</span>.{' '}
+          This tool was brought to you by <span className="font-semibold">fisiroky</span>.{' '}
           <a className="underline" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">Follow on X</a>
         </div>
 
@@ -613,10 +613,7 @@ export default function Home() {
               <span className="text-gray-500 mr-1">Presets:</span>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('today')}>Today</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last7')}>Last 7 days</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last30')}>Last 30 days</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('prevMonth')}>Previous month</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
             </div>
 
