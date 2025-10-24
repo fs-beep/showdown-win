@@ -1,8 +1,8 @@
 
 import Head from 'next/head';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -64,6 +64,23 @@ export default function Home() {
   const [startDate, setStartDate] = useState<string>(MIN_DATE);
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('megaflop');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
+      const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initial: 'light' | 'dark' = stored === 'dark' || (!stored && prefersDark) ? 'dark' : 'light';
+      setTheme(initial);
+      if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', initial === 'dark');
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', theme === 'dark');
+      if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
+    } catch {}
+  }, [theme]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -239,7 +256,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       <Head><title>Showdown Winrate Checker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
@@ -247,9 +264,19 @@ export default function Home() {
           <a className="underline" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">Follow on X</a>
         </div>
 
-        <div className="flex items-center gap-3">
-          <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
-          <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
+            <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Winrate Checker</motion.h1>
+          </div>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
+            {theme === 'dark' ? 'Light' : 'Dark'}
+          </button>
         </div>
         <p className="mt-2 text-gray-600">Pick a <b>start</b> and <b>end</b> date (local). I’ll resolve them to the right block numbers and fetch on-chain <code>GameResultEvent</code> logs. Historic days are served from cache; today updates incrementally.</p>
 
@@ -258,37 +285,37 @@ export default function Home() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
-            <input className="mt-1 w-full rounded-xl border p-2 text-sm" value={player} onChange={e=>setPlayer(e.target.value)} placeholder="megaflop" />
+            <input className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={player} onChange={e=>setPlayer(e.target.value)} placeholder="megaflop" />
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500">Start date</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={startDate} onChange={e=>setStartDate(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-gray-500">End date (empty = latest)</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={endDate} onChange={e=>setEndDate(e.target.value)} />
                 </div>
               </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="text-gray-500 mr-1">Presets:</span>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('today')}>Today</button>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('last7')}>Last 7 days</button>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('last30')}>Last 30 days</button>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('thisMonth')}>This month</button>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('prevMonth')}>Previous month</button>
-              <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('allTime')}>All time</button>
-                <button className="rounded-full border px-3 py-1" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('today')}>Today</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last7')}>Last 7 days</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('last30')}>Last 30 days</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('prevMonth')}>Previous month</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
+              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
             </div>
 
             <button onClick={run} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
@@ -309,19 +336,19 @@ export default function Home() {
 
         {/* Stats */}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
             <div className="text-xs uppercase tracking-wide text-gray-500">Wins</div>
             <div className="mt-1 text-3xl font-semibold">{stats.wins}</div>
           </div>
-          <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
             <div className="text-xs uppercase tracking-wide text-gray-500">Losses</div>
             <div className="mt-1 text-3xl font-semibold">{stats.losses}</div>
           </div>
-          <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
             <div className="text-xs uppercase tracking-wide text-gray-500">Win Rate</div>
             <div className="mt-1 text-3xl font-semibold">{(stats.winrate*100).toFixed(2)}%</div>
           </div>
-          <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
             <div className="text-xs uppercase tracking-wide text-gray-500">Dominant Class</div>
             <div className="mt-1 text-base font-medium">{stats.dominantClass || '—'}</div>
             {stats.dominantClass && <div className="text-xs text-gray-500 mt-1">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
@@ -329,7 +356,7 @@ export default function Home() {
         </div>
 
         {/* All matches per-class performance (global) */}
-        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
@@ -341,7 +368,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2">Class</th>
                   <th className="p-2">Wins</th>
                   <th className="p-2">Losses</th>
@@ -351,7 +378,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {overallClassStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b">
+                  <tr key={r.klass + i} className="border-b dark:border-gray-700">
                     <td className="p-2">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
@@ -370,7 +397,7 @@ export default function Home() {
         </div>
 
         {/* Per-class performance (player specific) */}
-        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
@@ -382,7 +409,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2">Class</th>
                   <th className="p-2">Wins</th>
                   <th className="p-2">Losses</th>
@@ -392,7 +419,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {classStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b">
+                  <tr key={r.klass + i} className="border-b dark:border-gray-700">
                     <td className="p-2">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
@@ -411,7 +438,7 @@ export default function Home() {
         </div>
 
         {/* Class-vs-Class matrix with toggle */}
-        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Class vs Class — Win rate of <span className="font-semibold">class</span> vs <span className="font-semibold">class</span></div>
             <label className="flex items-center gap-2 text-xs text-gray-600">
@@ -423,7 +450,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2">Class \ Class</th>
                   {classVsClass.classes.map((c) => (
                     <th key={c} className="p-2 whitespace-nowrap">{c}</th>
@@ -432,7 +459,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {classVsClass.matrix.map((row) => (
-                  <tr key={row.rowClass} className="border-b">
+                  <tr key={row.rowClass} className="border-b dark:border-gray-700">
                     <td className="p-2 font-medium whitespace-nowrap">{row.rowClass}</td>
                     {row.cells.map((cell) => {
                       const bgStyle = cell.pct === null ? {} : { backgroundColor: `hsl(${Math.round((cell.pct as number) * 120)}, 85%, 60%)` };
@@ -461,7 +488,7 @@ export default function Home() {
         </div>
 
         {/* Player-specific matches */}
-        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
             {filtered.length > 0 && (
@@ -473,7 +500,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2">Block</th>
                   <th className="p-2">Game #</th>
                   <th className="p-2">Result</th>
@@ -485,7 +512,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {filtered.map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b">
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2 font-medium">{r.result}</td>
@@ -506,7 +533,7 @@ export default function Home() {
         </div>
 
         {/* All decoded list (newest first) */}
-        <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700">All Decoded Matches ({rows.length})</div>
             {rows.length > 0 && (
@@ -518,7 +545,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                   <th className="p-2">Block</th>
                   <th className="p-2">Game #</th>
                   <th className="p-2">Game ID</th>
@@ -531,7 +558,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {rows.slice().sort((a,b)=>b.blockNumber - a.blockNumber).map((r, i) => (
-                  <tr key={r.txHash + i} className="border-b">
+                  <tr key={r.txHash + i} className="border-b dark:border-gray-700">
                     <td className="p-2 tabular-nums">{r.blockNumber}</td>
                     <td className="p-2 tabular-nums">{r.gameNumber}</td>
                     <td className="p-2">{r.gameId}</td>
