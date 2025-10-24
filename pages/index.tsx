@@ -342,6 +342,62 @@ export default function Home() {
     return out;
   }, [rows, aggByClass, overallSort]);
 
+  // Trend helpers (mini sparkline per class over time)
+  function parseTs(str: string): number | null {
+    if (!str) return null;
+    const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\s*(?:UTC|Z))?$/i.exec(str.trim());
+    if (m) {
+      const ms = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+      return Math.floor(ms/1000);
+    }
+    const iso = str.replace(' ', 'T').replace(/\s*UTC$/i, 'Z');
+    const ms = Date.parse(iso);
+    return isNaN(ms) ? null : Math.floor(ms/1000);
+  }
+  const dayIndicesAll = useMemo(() => {
+    const s = new Set<number>();
+    for (const r of rows) {
+      const ts = parseTs(r.startedAt); if (ts==null) continue; s.add(Math.floor(ts/86400));
+    }
+    return Array.from(s).sort((a,b)=>a-b);
+  }, [rows]);
+  const dayIndicesPlayer = useMemo(() => {
+    const p = player.trim().toLowerCase();
+    const s = new Set<number>();
+    for (const r of rows) {
+      if (r.winningPlayer?.trim?.().toLowerCase() !== p && r.losingPlayer?.trim?.().toLowerCase() !== p) continue;
+      const ts = parseTs(r.startedAt); if (ts==null) continue; s.add(Math.floor(ts/86400));
+    }
+    return Array.from(s).sort((a,b)=>a-b);
+  }, [rows, player]);
+  function buildTrend(rowsSubset: Row[], classes: string[], dayIdxs: number[]) {
+    const idxMap = new Map<number, number>(); dayIdxs.forEach((d,i)=>idxMap.set(d,i));
+    const out = new Map<string, number[]>(classes.map(c=>[c, Array(dayIdxs.length).fill(0)]));
+    for (const r of rowsSubset) {
+      const ts = parseTs(r.startedAt); if (ts==null) continue; const di = Math.floor(ts/86400); const pos = idxMap.get(di); if (pos==null) continue;
+      const w = (r.winningClasses||'').trim(); const l=(r.losingClasses||'').trim();
+      if (w && out.has(w)) out.get(w)![pos] += 1;
+      if (l && out.has(l)) out.get(l)![pos] += 1;
+    }
+    return out;
+  }
+  const overallTrends = useMemo(() => buildTrend(rows, overallClassStats.map(x=>x.klass), dayIndicesAll), [rows, overallClassStats, dayIndicesAll]);
+  const playerRowsSubset = useMemo(()=>{
+    const p = player.trim().toLowerCase();
+    return rows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p);
+  }, [rows, player]);
+  const playerTrends = useMemo(() => buildTrend(playerRowsSubset, classStats.map(x=>x.klass), dayIndicesPlayer), [playerRowsSubset, classStats, dayIndicesPlayer]);
+
+  function Spark({ data }: { data: number[] }) {
+    const w = 60, h = 14; const max = Math.max(1, ...data); const step = data.length>1 ? (w/(data.length-1)) : w;
+    const pts = data.map((v,i)=> `${i*step},${h - (v/max)*h}`).join(' ');
+    return (
+      <svg width={w} height={h} aria-hidden="true">
+        <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1" opacity={0.6} />
+      </svg>
+    );
+  }
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -652,7 +708,7 @@ export default function Home() {
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
-                    <td className="p-2 tabular-nums">{(r.winrate*100).toFixed(1)}%</td>
+                    <td className="p-2 tabular-nums flex items-center gap-2">{(r.winrate*100).toFixed(1)}% <span className="text-gray-400"><Spark data={overallTrends.get(r.klass) || []} /></span></td>
                   </tr>
                 ))}
                 {loading && overallClassStats.length === 0 && (
@@ -687,7 +743,7 @@ export default function Home() {
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-52 cursor-pointer" aria-sort={playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='wins' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {playerClassSort.key==='wins' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='losses' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {playerClassSort.key==='losses' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='total' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {playerClassSort.key==='total' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -697,11 +753,11 @@ export default function Home() {
               <tbody>
                 {classStats.map((r, i) => (
                   <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2">{r.klass}</td>
+                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
-                    <td className="p-2 tabular-nums">{(r.winrate*100).toFixed(1)}%</td>
+                    <td className="p-2 tabular-nums flex items-center gap-2">{(r.winrate*100).toFixed(1)}% <span className="text-gray-400"><Spark data={playerTrends.get(r.klass) || []} /></span></td>
                   </tr>
                 ))}
                 {loading && classStats.length === 0 && (
