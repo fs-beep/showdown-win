@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Globe, Clipboard, Check, ArrowUp } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Clipboard, Check, ArrowUp } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -74,7 +74,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
-  const [useUtc, setUseUtc] = useState<boolean>(true);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -112,14 +111,13 @@ export default function Home() {
     const p = typeof q.player === 'string' ? q.player : undefined;
     const only = typeof q.only === 'string' ? q.only : undefined;
     const t = typeof q.theme === 'string' ? q.theme : undefined;
-    const tz = typeof q.tz === 'string' ? q.tz : undefined;
+    
     const cmp = typeof q.compare === 'string' ? q.compare : undefined;
     if (s) setStartDate(s);
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (t === 'dark') setTheme('dark');
-    if (tz === 'local') setUseUtc(false);
     if (cmp) setPlayer2(cmp);
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,10 +132,9 @@ export default function Home() {
     if (player) nextQuery.player = player;
     if (matrixOnlyPlayer) nextQuery.only = '1';
     if (theme === 'dark') nextQuery.theme = 'dark';
-    nextQuery.tz = useUtc ? 'utc' : 'local';
     if (player2.trim()) nextQuery.compare = player2.trim();
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
-  }, [startDate, endDate, player, player2, matrixOnlyPlayer, theme, useUtc]);
+  }, [startDate, endDate, player, player2, matrixOnlyPlayer, theme]);
 
   
 
@@ -488,8 +485,8 @@ export default function Home() {
     setError(null); setRows([]); setLoading(true);
     try {
       const body = {
-        startTs: useUtc ? toStartOfDayEpoch(startDate) : toStartOfDayEpoch(startDate),
-        endTs: useUtc ? toEndOfDayEpoch(endDate) : toEndOfDayEpoch(endDate),
+        startTs: toStartOfDayEpoch(startDate),
+        endTs: toEndOfDayEpoch(endDate),
         wantAgg: true,
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -561,14 +558,6 @@ export default function Home() {
             </a>
             {/* Share link button removed per request */}
               {/* Compact/comfort toggle removed */}
-              <button
-                onClick={() => setUseUtc(!useUtc)}
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
-                title={useUtc ? 'Showing UTC times' : 'Showing local times'}
-              >
-                <Globe className="h-4 w-4"/>
-                {useUtc ? 'UTC' : 'Local'}
-              </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
@@ -589,7 +578,7 @@ export default function Home() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm sticky top-0 z-20 backdrop-blur bg-white/90 dark:bg-gray-800/90">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><Server className="h-4 w-4"/> Filters</div>
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-100"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
             <input
               className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
@@ -922,7 +911,7 @@ export default function Home() {
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
-                  <th className="p-2 w-40 whitespace-nowrap">Started ({useUtc ? 'UTC' : 'Local'})</th>
+                  <th className="p-2 w-40 whitespace-nowrap">Started</th>
                   <th className="p-2 w-36">Reason</th>
                   <th className="p-2 w-16">Tx</th>
                 </tr>
@@ -1011,7 +1000,7 @@ export default function Home() {
                   <th className="p-2 w-28 cursor-pointer" aria-sort={decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40">Game ID</th>
-                  <th className="p-2 w-40 whitespace-nowrap">Started ({useUtc ? 'UTC' : 'Local'})</th>
+                  <th className="p-2 w-40 whitespace-nowrap">Started</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'winningPlayer' as any, dir: s.key==='winningPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Winner</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'losingPlayer' as any, dir: s.key==='losingPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Loser</th>
                   <th className="p-2 w-36">Reason</th>
