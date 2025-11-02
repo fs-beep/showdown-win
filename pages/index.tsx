@@ -141,10 +141,15 @@ export default function Home() {
 
   
 
+  // Only count matches with endReason === 'Win' for statistics
+  const statRows = useMemo(() => {
+    return rows.filter(r => (r.endReason || '').trim().toLowerCase() === 'win');
+  }, [rows]);
+
   const stats = useMemo(() => {
     const p = player.trim().toLowerCase();
-    const winRows = rows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p);
-    const loseRows = rows.filter(r => r.losingPlayer?.trim?.().toLowerCase() === p);
+    const winRows = statRows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p);
+    const loseRows = statRows.filter(r => r.losingPlayer?.trim?.().toLowerCase() === p);
 
     const wins = winRows.length;
     const losses = loseRows.length;
@@ -165,7 +170,7 @@ export default function Home() {
     const dominantClassPct = wins ? (dominantClassCount / wins) : 0;
 
     return { wins, losses, total, winrate, dominantClass, dominantClassPct };
-  }, [rows, player]);
+  }, [statRows, player]);
 
   const filtered = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -183,23 +188,23 @@ export default function Home() {
   const stats2 = useMemo(() => {
     const p2 = player2.trim().toLowerCase();
     if (!p2) return null as null | { wins:number; losses:number; total:number; winrate:number };
-    const winRows = rows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p2);
-    const loseRows = rows.filter(r => r.losingPlayer?.trim?.().toLowerCase() === p2);
+    const winRows = statRows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p2);
+    const loseRows = statRows.filter(r => r.losingPlayer?.trim?.().toLowerCase() === p2);
     const wins = winRows.length; const losses = loseRows.length; const total = wins + losses; const winrate = total ? (wins/total) : 0;
     return { wins, losses, total, winrate };
-  }, [rows, player2]);
+  }, [statRows, player2]);
   const h2h = useMemo(() => {
     const p1 = player.trim().toLowerCase();
     const p2 = player2.trim().toLowerCase();
     if (!p1 || !p2) return null as null | { p1Wins:number; p2Wins:number; total:number };
     let p1Wins = 0, p2Wins = 0;
-    for (const r of rows) {
+    for (const r of statRows) {
       const w = r.winningPlayer?.trim?.().toLowerCase();
       const l = r.losingPlayer?.trim?.().toLowerCase();
       if ((w===p1 && l===p2)) p1Wins++; else if ((w===p2 && l===p1)) p2Wins++;
     }
     return { p1Wins, p2Wins, total: p1Wins + p2Wins };
-  }, [rows, player, player2]);
+  }, [statRows, player, player2]);
 
   // Pagination state
   const [pageAll, setPageAll] = useState(1);
@@ -290,7 +295,7 @@ export default function Home() {
   const classStats: ClassRow[] = useMemo(() => {
     const p = player.trim().toLowerCase();
     const map = new Map<string, { wins: number; losses: number; total: number }>();
-    for (const r of rows) {
+    for (const r of statRows) {
       if (r.winningPlayer?.trim?.().toLowerCase() === p) {
         const cls = (r.winningClasses ?? '').trim() || '(unknown)';
         const s = map.get(cls) || { wins: 0, losses: 0, total: 0 };
@@ -308,21 +313,12 @@ export default function Home() {
       return dir === 'asc' ? cmp : -cmp;
     });
     return out;
-  }, [rows, player, playerClassSort]);
+  }, [statRows, player, playerClassSort]);
 
   // Overall per-class stats for all matches in the selected date window
   const overallClassStats: ClassRow[] = useMemo(() => {
-    if (aggByClass) {
-      const out = Object.entries(aggByClass).map(([klass, s]) => ({ klass, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }));
-      out.sort((a:any,b:any) => {
-        const k = overallSort.key as any; const dir = overallSort.dir;
-        const cmp = a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0;
-        return dir === 'asc' ? cmp : -cmp;
-      });
-      return out;
-    }
     const map = new Map<string, { wins: number; losses: number; total: number }>();
-    for (const r of rows) {
+    for (const r of statRows) {
       const w = (r.winningClasses ?? '').trim();
       const l = (r.losingClasses ?? '').trim();
       if (w) {
@@ -341,7 +337,7 @@ export default function Home() {
       return dir === 'asc' ? cmp : -cmp;
     });
     return out;
-  }, [rows, aggByClass, overallSort]);
+  }, [statRows, overallSort]);
 
   // Trend helpers (mini sparkline per class over time)
   function parseTs(str: string): number | null {
@@ -357,20 +353,20 @@ export default function Home() {
   }
   const dayIndicesAll = useMemo(() => {
     const s = new Set<number>();
-    for (const r of rows) {
+    for (const r of statRows) {
       const ts = parseTs(r.startedAt); if (ts==null) continue; s.add(Math.floor(ts/86400));
     }
     return Array.from(s).sort((a,b)=>a-b);
-  }, [rows]);
+  }, [statRows]);
   const dayIndicesPlayer = useMemo(() => {
     const p = player.trim().toLowerCase();
     const s = new Set<number>();
-    for (const r of rows) {
+    for (const r of statRows) {
       if (r.winningPlayer?.trim?.().toLowerCase() !== p && r.losingPlayer?.trim?.().toLowerCase() !== p) continue;
       const ts = parseTs(r.startedAt); if (ts==null) continue; s.add(Math.floor(ts/86400));
     }
     return Array.from(s).sort((a,b)=>a-b);
-  }, [rows, player]);
+  }, [statRows, player]);
   function buildTrend(rowsSubset: Row[], classes: string[], dayIdxs: number[]) {
     const idxMap = new Map<number, number>(); dayIdxs.forEach((d,i)=>idxMap.set(d,i));
     const out = new Map<string, number[]>(classes.map(c=>[c, Array(dayIdxs.length).fill(0)]));
@@ -382,11 +378,11 @@ export default function Home() {
     }
     return out;
   }
-  const overallTrends = useMemo(() => buildTrend(rows, overallClassStats.map(x=>x.klass), dayIndicesAll), [rows, overallClassStats, dayIndicesAll]);
+  const overallTrends = useMemo(() => buildTrend(statRows, overallClassStats.map(x=>x.klass), dayIndicesAll), [statRows, overallClassStats, dayIndicesAll]);
   const playerRowsSubset = useMemo(()=>{
     const p = player.trim().toLowerCase();
-    return rows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p);
-  }, [rows, player]);
+    return statRows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p);
+  }, [statRows, player]);
   const playerTrends = useMemo(() => buildTrend(playerRowsSubset, classStats.map(x=>x.klass), dayIndicesPlayer), [playerRowsSubset, classStats, dayIndicesPlayer]);
 
   function Spark({ data }: { data: number[] }) {
@@ -403,8 +399,8 @@ export default function Home() {
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
     const subset = matrixOnlyPlayer
-      ? rows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p)
-      : rows;
+      ? statRows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p)
+      : statRows;
 
     const classesSet = new Set<string>();
     const wins: Record<string, Record<string, number>> = {};
@@ -430,12 +426,12 @@ export default function Home() {
       return { rowClass, cells };
     });
     return { classes, matrix };
-  }, [rows, player, matrixOnlyPlayer]);
+  }, [statRows, player, matrixOnlyPlayer]);
 
   // Top players by win rate across all rows (min 15 games)
   const topPlayers: PlayerRow[] = useMemo(() => {
     const byPlayer = new Map<string, { wins: number; losses: number; total: number }>();
-    for (const r of rows) {
+    for (const r of statRows) {
       const w = (r.winningPlayer ?? '').trim();
       const l = (r.losingPlayer ?? '').trim();
       if (w) {
@@ -454,7 +450,7 @@ export default function Home() {
       .filter(p => p.total >= 15)
       .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
       .slice(0, 20);
-  }, [rows]);
+  }, [statRows]);
 
   const applyPreset = (kind: 'today'|'last7'|'last30'|'thisMonth'|'prevMonth'|'allTime'|'sincePatch') => {
     const now = new Date();
