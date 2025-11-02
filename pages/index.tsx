@@ -20,6 +20,7 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
+type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
 type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
@@ -431,6 +432,30 @@ export default function Home() {
     return { classes, matrix };
   }, [rows, player, matrixOnlyPlayer]);
 
+  // Top players by win rate across all rows (min 15 games)
+  const topPlayers: PlayerRow[] = useMemo(() => {
+    const byPlayer = new Map<string, { wins: number; losses: number; total: number }>();
+    for (const r of rows) {
+      const w = (r.winningPlayer ?? '').trim();
+      const l = (r.losingPlayer ?? '').trim();
+      if (w) {
+        const key = w.toLowerCase();
+        const s = byPlayer.get(key) || { wins: 0, losses: 0, total: 0 };
+        s.wins += 1; s.total += 1; byPlayer.set(key, s);
+      }
+      if (l) {
+        const key = l.toLowerCase();
+        const s = byPlayer.get(key) || { wins: 0, losses: 0, total: 0 };
+        s.losses += 1; s.total += 1; byPlayer.set(key, s);
+      }
+    }
+    return Array.from(byPlayer.entries())
+      .map(([playerKey, s]) => ({ player: playerKey, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }))
+      .filter(p => p.total >= 15)
+      .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
+      .slice(0, 20);
+  }, [rows]);
+
   const applyPreset = (kind: 'today'|'last7'|'last30'|'thisMonth'|'prevMonth'|'allTime'|'sincePatch') => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -769,6 +794,54 @@ export default function Home() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Top Players by Win Rate (min 15 games) */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 15 games)</span></div>
+              {topPlayers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                    <Download className="h-4 w-4"/> JSON
+                  </button>
+                  <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                    <Download className="h-4 w-4"/> CSV
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                    <th className="p-2 w-10">#</th>
+                    <th className="p-2">Player</th>
+                    <th className="p-2">Wins</th>
+                    <th className="p-2">Losses</th>
+                    <th className="p-2">Games</th>
+                    <th className="p-2">Win Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topPlayers.map((p, i) => (
+                    <tr key={p.player + i} className="border-b dark:border-gray-700">
+                      <td className="p-2 tabular-nums">{i+1}</td>
+                      <td className="p-2">{p.player}</td>
+                      <td className="p-2 tabular-nums">{p.wins}</td>
+                      <td className="p-2 tabular-nums">{p.losses}</td>
+                      <td className="p-2 tabular-nums">{p.total}</td>
+                      <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                  {topPlayers.length === 0 && (
+                    <tr>
+                      <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 15‑game threshold yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
