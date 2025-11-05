@@ -175,7 +175,12 @@ export default function Home() {
       .filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p)
       .map(r => ({
         ...r,
-        result: r.winningPlayer?.trim?.().toLowerCase() === p ? 'W' : 'L',
+        result: (() => {
+          const win = r.winningPlayer?.trim?.().toLowerCase() === p;
+          const isTimeout = (r.endReason || '').toLowerCase().includes('timeout');
+          const base = win ? 'Win' : 'Loss';
+          return isTimeout ? base + ' Timeout' : base;
+        })(),
         opponent: r.winningPlayer?.trim?.().toLowerCase() === p ? r.losingPlayer : r.winningPlayer,
       }))
       .sort((a, b) => b.blockNumber - a.blockNumber); // newest first
@@ -912,7 +917,6 @@ export default function Home() {
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
                   <th className="p-2 w-40 whitespace-nowrap">Started</th>
-                  <th className="p-2 w-36">Reason</th>
                   <th className="p-2 w-16">Tx</th>
                 </tr>
               </thead>
@@ -925,7 +929,6 @@ export default function Home() {
                     <td className="p-2 font-medium">{r.result}</td>
                     <td className="p-2">{r.opponent}</td>
                     <td className="p-2">{r.startedAt}</td>
-                    <td className="p-2">{r.endReason}</td>
                     <td className="p-2 flex items-center gap-2">
                       <a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a>
                       <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
@@ -935,7 +938,7 @@ export default function Home() {
                   </tr>
                   {expandedFiltered.has(r.txHash) && (
                     <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                      <td colSpan={7} className="p-3 text-xs">
+                      <td colSpan={6} className="p-3 text-xs">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                           <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
@@ -949,7 +952,7 @@ export default function Home() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>
                       {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
                     </td>
                   </tr>
