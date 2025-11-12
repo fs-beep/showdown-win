@@ -38,3 +38,21 @@ Notes:
 No schema or migrations are required.
 
 Images are in `/public/images`.
+
+## Discord thread cleanup (optional)
+
+To keep Discord under the 1000-threads cap, this project includes an API route that deletes old threads across configured channels.
+
+Setup:
+- Add env vars:
+  - `DISCORD_BOT_TOKEN` — bot token with Manage Threads permission
+  - `DISCORD_CHANNEL_IDS` — comma‑separated channel IDs to clean (e.g. `123,456,789`)
+  - `THREAD_TTL_HOURS` — how old a thread must be to delete (default 168 = 7 days)
+- Create a Vercel Cron (Project → Settings → Cron Jobs) to POST the cleanup endpoint on a schedule, for example:
+  - `0 3 * * *` → POST to `/api/discord_cleanup`
+
+You can also run it manually:
+
+```bash
+curl -X POST https://<your-deployment>/api/discord_cleanup
+```
