@@ -5,6 +5,7 @@ const DISCORD_API = 'https://discord.com/api/v10';
 type DiscordThread = {
   id: string;
   name?: string;
+  type?: number; // Discord channel type (e.g., 12 = private thread)
   thread_metadata?: {
     archived?: boolean;
     archive_timestamp?: string; // ISO
@@ -103,10 +104,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const token = process.env.DISCORD_BOT_TOKEN || '';
     const channelsCsv = process.env.DISCORD_CHANNEL_IDS || '';
     const ttlHours = Number(process.env.THREAD_TTL_HOURS || req.body?.ttlHours || 168); // default 7 days
+    const privateOnly = !!(req.body?.privateOnly);
+    // Optional override of channels via body for one-off runs
+    // Accepts array or comma-separated string
+    let overrideChannels: string[] | null = null;
+    const bodyChannels = req.body?.channelIds;
+    if (Array.isArray(bodyChannels)) {
+      overrideChannels = bodyChannels.map((s: any) => String(s)).filter(Boolean);
+    } else if (typeof bodyChannels === 'string') {
+      overrideChannels = bodyChannels.split(',').map(s => s.trim()).filter(Boolean);
+    }
     if (!token || !channelsCsv) {
       return res.status(200).json({ ok: false, error: 'Missing DISCORD_BOT_TOKEN or DISCORD_CHANNEL_IDS' });
     }
-    const channelIds = channelsCsv.split(',').map(s => s.trim()).filter(Boolean);
+    const channelIds = (overrideChannels && overrideChannels.length > 0
+      ? overrideChannels
+      : channelsCsv.split(',').map(s => s.trim()).filter(Boolean));
     const cutoffMs = Date.now() - ttlHours * 3600 * 1000;
 
     let scanned = 0;
@@ -115,16 +128,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const ch of channelIds) {
       // Active threads
       const active = await listActiveThreads(ch, token);
-      scanned += active.length;
-      for (const t of active) {
+      const activeFiltered = privateOnly ? active.filter(t => t.type === 12) : active;
+      scanned += activeFiltered.length;
+      for (const t of activeFiltered) {
         const createdMs = snowflakeToTimestampMs(t.id);
         if (createdMs && createdMs < cutoffMs) toDelete.push(t.id);
       }
-      // Archived public + private
-      const archPub = await listArchivedThreadsAll(ch, token, 'public', cutoffMs);
+      // Archived threads
       const archPriv = await listArchivedThreadsAll(ch, token, 'private', cutoffMs);
-      scanned += archPub.length + archPriv.length;
-      for (const t of [...archPub, ...archPriv]) {
+      const archPub = privateOnly ? [] : await listArchivedThreadsAll(ch, token, 'public', cutoffMs);
+      const archived = [...archPriv, ...archPub];
+      scanned += archived.length;
+      for (const t of archived) {
         const createdMs = snowflakeToTimestampMs(t.id);
         if (createdMs && createdMs < cutoffMs) toDelete.push(t.id);
       }
