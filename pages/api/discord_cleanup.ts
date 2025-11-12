@@ -114,12 +114,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else if (typeof bodyChannels === 'string') {
       overrideChannels = bodyChannels.split(',').map(s => s.trim()).filter(Boolean);
     }
-    if (!token || !channelsCsv) {
-      return res.status(200).json({ ok: false, error: 'Missing DISCORD_BOT_TOKEN or DISCORD_CHANNEL_IDS' });
+    if (!token) {
+      return res.status(200).json({ ok: false, error: 'Missing DISCORD_BOT_TOKEN' });
     }
     const channelIds = (overrideChannels && overrideChannels.length > 0
       ? overrideChannels
       : channelsCsv.split(',').map(s => s.trim()).filter(Boolean));
+    if (!channelIds.length) {
+      return res.status(200).json({ ok: false, error: 'No channelIds provided (set DISCORD_CHANNEL_IDS or pass channelIds in body)' });
+    }
     const cutoffMs = Date.now() - ttlHours * 3600 * 1000;
 
     let scanned = 0;
