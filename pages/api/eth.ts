@@ -28,6 +28,8 @@ type Row = {
 };
 type DayEntry = { fromBlock: number; toBlock: number; rows: Row[]; lastUpdate: number };
 type DayAgg = { byClass: Record<string, { wins: number; losses: number; total: number }>; lastUpdate: number };
+type BlockInfo = { num: number; ts: number };
+type BlockBounds = { earliest: BlockInfo; latest: BlockInfo };
 
 const dayCache = new Map<number, DayEntry>();
 const dayOrder: number[] = [];
@@ -141,29 +143,31 @@ async function getBlockByNumber(n: number) { return getBlockByTag(toHex(n)); }
 async function getEarliest() { return getBlockByTag('earliest'); }
 async function getLatest() { return getBlockByTag('latest'); }
 
-async function findBlockAtOrAfter(targetTs: number): Promise<number> {
-  const earliest = await getEarliest();
-  const latest = await getLatest();
-  if (targetTs <= earliest.ts) return earliest.num;
-  if (targetTs > latest.ts) return latest.num;
+async function findBlockAtOrAfter(targetTs: number, bounds?: BlockBounds): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest();
+  const latest = bounds?.latest ?? await getLatest();
+  const clamped = Math.max(targetTs, earliest.ts);
+  if (clamped <= earliest.ts) return earliest.num;
+  if (clamped > latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
     const b = await getBlockByNumber(mid);
-    if (b.ts >= targetTs) hi = mid; else lo = mid + 1;
+    if (b.ts >= clamped) hi = mid; else lo = mid + 1;
   }
   return lo;
 }
-async function findBlockAtOrBefore(targetTs: number): Promise<number> {
-  const earliest = await getEarliest();
-  const latest = await getLatest();
-  if (targetTs < earliest.ts) return earliest.num;
-  if (targetTs >= latest.ts) return latest.num;
+async function findBlockAtOrBefore(targetTs: number, bounds?: BlockBounds): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest();
+  const latest = bounds?.latest ?? await getLatest();
+  const clamped = Math.min(targetTs, latest.ts);
+  if (clamped < earliest.ts) return earliest.num;
+  if (clamped >= latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo + 1) / 2);
     const b = await getBlockByNumber(mid);
-    if (b.ts <= targetTs) lo = mid; else hi = mid - 1;
+    if (b.ts <= clamped) lo = mid; else hi = mid - 1;
   }
   return lo;
 }
@@ -232,6 +236,19 @@ function decode(log: any): Row | null {
   } catch { return null; }
 }
 
+function decodeLogs(logs: any[]): Row[] {
+  return (logs as any[]).map(decode).filter(Boolean) as Row[];
+}
+
+function dedupeRows(rows: Row[]): Row[] {
+  const uniq = new Map<string, Row>();
+  for (const r of rows) {
+    const idxOrBlock = (typeof (r as any).logIndex === 'number' && !isNaN((r as any).logIndex)) ? (r as any).logIndex : r.blockNumber;
+    uniq.set(`${r.txHash}:${idxOrBlock}`, r);
+  }
+  return Array.from(uniq.values());
+}
+
 function parseStartedAtTs(str: string): number | null {
   if (!str) return null;
   // Common on-chain string: "YYYY-MM-DD HH:mm:ss UTC"
@@ -266,33 +283,27 @@ function stableRowKey(r: Row): string {
   return `${r.txHash}:${r.blockNumber}`;
 }
 
-async function buildDay(dayStartTs: number, dayEndTs: number, latestTs: number) {
+async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBounds) {
   const key = Math.floor(dayStartTs / 86400);
-  const endTs = Math.min(Math.max(dayEndTs, 0), latestTs);
-  const fromBlock = await findBlockAtOrAfter(dayStartTs);
-  const toBlock = await findBlockAtOrBefore(endTs);
+  const safeStart = Math.max(dayStartTs, bounds.earliest.ts);
+  const endTs = Math.min(Math.max(dayEndTs, 0), bounds.latest.ts);
+  const fromBlock = await findBlockAtOrAfter(safeStart, bounds);
+  const toBlock = await findBlockAtOrBefore(endTs, bounds);
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
   try {
     const logs = await getLogsSingle(fromBlock, toBlock);
-    const rows = (logs as any[]).map(decode).filter(Boolean) as Row[];
-    // Extra safety: dedupe by (txHash, logIndex)
-    const uniq = new Map<string, Row>();
-    for (const r of rows) uniq.set(`${r.txHash}:${r.logIndex}`, r);
-    const uniqueRows = Array.from(uniq.values());
-    return { key, entry: { fromBlock, toBlock, rows: uniqueRows, lastUpdate: Date.now() } };
+    const rows = dedupeRows(decodeLogs(logs));
+    return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   } catch {
     const logs = await getLogsChunked(fromBlock, toBlock);
-    const rows = (logs as any[]).map(decode).filter(Boolean) as Row[];
-    const uniq = new Map<string, Row>();
-    for (const r of rows) uniq.set(`${r.txHash}:${r.logIndex}`, r);
-    const uniqueRows = Array.from(uniq.values());
-    return { key, entry: { fromBlock, toBlock, rows: uniqueRows, lastUpdate: Date.now() } };
+    const rows = dedupeRows(decodeLogs(logs));
+    return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   }
 }
 
-async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: number, latestTs: number): Promise<DayEntry> {
+async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: number, bounds: BlockBounds): Promise<DayEntry> {
   const fromBlock = existing.toBlock + 1;
-  const toBlock = await findBlockAtOrBefore(Math.min(Math.max(dayEndTs, 0), latestTs));
+  const toBlock = await findBlockAtOrBefore(Math.min(Math.max(dayEndTs, 0), bounds.latest.ts), bounds);
   if (toBlock < fromBlock) return existing;
   let newLogs: any[] = [];
   try {
@@ -310,78 +321,102 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
   return { fromBlock: existing.fromBlock, toBlock, rows: Array.from(uniq.values()), lastUpdate: Date.now() };
 }
 
+async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: BlockBounds): Promise<Row[]> {
+  const clampedStart = Math.max(startTs, bounds.earliest.ts);
+  const clampedEnd = Math.min(Math.max(endTs, clampedStart), bounds.latest.ts);
+  const fromBlock = await findBlockAtOrAfter(clampedStart, bounds);
+  const toBlock = await findBlockAtOrBefore(clampedEnd, bounds);
+  if (toBlock < fromBlock) return [];
+  let logs: any[] = [];
+  try {
+    logs = await getLogsSingle(fromBlock, toBlock);
+  } catch {
+    logs = await getLogsChunked(fromBlock, toBlock);
+  }
+  const rows = dedupeRows(decodeLogs(logs));
+  rows.sort((a, b) => a.blockNumber - b.blockNumber);
+  return rows;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { startTs, endTs, rebuildDay, wantAgg } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
+      const earliest = await getEarliest();
       const latest = await getLatest();
+      const bounds: BlockBounds = { earliest, latest };
       const start = rebuildDay * 86400;
       const end = start + 86399;
-      const built = await buildDay(start, end, latest.ts);
+      const built = await buildDay(start, end, bounds);
       remember(built.key, built.entry);
       await kvSetDay(built.key, built.entry);
       return res.status(200).json({ ok: true, rebuilt: built.key, fromBlock: built.entry.fromBlock, toBlock: built.entry.toBlock, rows: built.entry.rows.length });
     }
     const earliest = await getEarliest();
     const latest = await getLatest();
+    const bounds: BlockBounds = { earliest, latest };
 
     const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
     const eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
     if (eTs < sTs) return res.status(200).json({ ok: true, rows: [] });
 
-    const startDay = Math.floor(sTs / 86400);
-    const endDay = Math.floor(eTs / 86400);
-    const todayDay = Math.floor(latest.ts / 86400);
+    let resultRows: Row[] = [];
 
-    const dayRanges: Array<{ key:number, start:number, end:number }> = [];
-    for (let d = startDay; d <= endDay; d++) {
-      const dayStart = d * 86400;
-      const dayEnd = dayStart + 86399;
-      dayRanges.push({ key: d, start: Math.max(dayStart, sTs), end: Math.min(dayEnd, eTs) });
-    }
+    if (!KV_ENV_PRESENT) {
+      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+    } else {
+      const startDay = Math.floor(sTs / 86400);
+      const endDay = Math.floor(eTs / 86400);
+      const todayDay = Math.floor(latest.ts / 86400);
 
-    const resultRows: Row[] = [];
+      const dayRanges: Array<{ key:number, start:number, end:number }> = [];
+      for (let d = startDay; d <= endDay; d++) {
+        const dayStart = d * 86400;
+        const dayEnd = dayStart + 86399;
+        dayRanges.push({ key: d, start: Math.max(dayStart, sTs), end: Math.min(dayEnd, eTs) });
+      }
 
-    const CONC = Math.max(1, DAY_RANGE_CONCURRENCY);
-    for (let i=0; i<dayRanges.length; i+=CONC) {
-      const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
-        // 1) Try in-memory first (fast)
-        const mem = dayCache.get(r.key);
-        if (mem && r.key < todayDay) {
-          resultRows.push(...mem.rows);
-          return;
-        }
-        if (mem && r.key === todayDay) {
-          const updated = await extendToday(mem, r.start, r.end, latest.ts);
-          remember(r.key, updated);
-          await kvSetDay(r.key, updated);
-          resultRows.push(...updated.rows);
-          return;
-        }
+      const CONC = Math.max(1, DAY_RANGE_CONCURRENCY);
+      for (let i=0; i<dayRanges.length; i+=CONC) {
+        const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
+          // 1) Try in-memory first (fast)
+          const mem = dayCache.get(r.key);
+          if (mem && r.key < todayDay) {
+            resultRows.push(...mem.rows);
+            return;
+          }
+          if (mem && r.key === todayDay) {
+            const updated = await extendToday(mem, r.start, r.end, bounds);
+            remember(r.key, updated);
+            await kvSetDay(r.key, updated);
+            resultRows.push(...updated.rows);
+            return;
+          }
 
-        // 2) Try persistent KV
-        const fromKv = await kvGetDay(r.key);
-        if (fromKv && r.key < todayDay) {
-          remember(r.key, fromKv);
-          resultRows.push(...fromKv.rows);
-          return;
-        }
-        if (fromKv && r.key === todayDay) {
-          const updated = await extendToday(fromKv, r.start, r.end, latest.ts);
-          remember(r.key, updated);
-          await kvSetDay(r.key, updated);
-          resultRows.push(...updated.rows);
-          return;
-        }
+          // 2) Try persistent KV
+          const fromKv = await kvGetDay(r.key);
+          if (fromKv && r.key < todayDay) {
+            remember(r.key, fromKv);
+            resultRows.push(...fromKv.rows);
+            return;
+          }
+          if (fromKv && r.key === todayDay) {
+            const updated = await extendToday(fromKv, r.start, r.end, bounds);
+            remember(r.key, updated);
+            await kvSetDay(r.key, updated);
+            resultRows.push(...updated.rows);
+            return;
+          }
 
-        // 3) Build fresh and persist
-        const built = await buildDay(r.start, r.end, latest.ts);
-        remember(built.key, built.entry);
-        await kvSetDay(built.key, built.entry);
-        resultRows.push(...built.entry.rows);
-      });
-      await Promise.all(slice);
+          // 3) Build fresh and persist
+          const built = await buildDay(r.start, r.end, bounds);
+          remember(built.key, built.entry);
+          await kvSetDay(built.key, built.entry);
+          resultRows.push(...built.entry.rows);
+        });
+        await Promise.all(slice);
+      }
     }
 
     // First constrain precisely to the requested [sTs, eTs] window (even if cached full days were used)
