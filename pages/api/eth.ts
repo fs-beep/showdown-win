@@ -7,6 +7,10 @@ const CONTRACT = (process.env.CONTRACT_ADDRESS || '0xae2afe4d192127e6617cfa638a9
 const TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
+const RPC_RETRY_ATTEMPTS = 6;
+const RPC_BASE_DELAY_MS = 800;
+const DAY_RANGE_CONCURRENCY = 2;
+const LOG_RANGE_CONCURRENCY = 2;
 
 type Row = {
   blockNumber: number;
@@ -98,11 +102,18 @@ const iface = new Interface([
 function toHex(n: number) { return '0x' + n.toString(16); }
 function sleep(ms: number) { return new Promise(r=>setTimeout(r, ms)); }
 
-async function rpc(body: any, attempts = 4, baseDelay = 250) {
+async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
   let lastErr: any = null;
   for (let i=0;i<attempts;i++) {
     try {
       const res = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.status === 429 || res.status === 503) {
+        lastErr = new Error('RPC HTTP ' + res.status);
+        const retryAfter = Number(res.headers.get('retry-after'));
+        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.round(baseDelay * Math.pow(1.8, i));
+        await sleep(wait);
+        continue;
+      }
       if (!res.ok) throw new Error('RPC HTTP ' + res.status);
       const j = await res.json();
       if (Array.isArray(j)) {
@@ -182,7 +193,7 @@ async function getLogsSingle(fromBlock: number, toBlock: number) {
 async function getLogsChunked(fromBlock: number, toBlock: number) {
   const ranges = buildRanges(fromBlock, toBlock);
   let all: any[] = [];
-  const CONCURRENCY = 8;
+  const CONCURRENCY = Math.max(1, LOG_RANGE_CONCURRENCY);
   for (let i=0; i<ranges.length; i+=CONCURRENCY) {
     const slice = ranges.slice(i, i+CONCURRENCY);
     const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: CONTRACT, topics: [TOPIC0] }] }));
@@ -332,7 +343,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const resultRows: Row[] = [];
 
-    const CONC = 6;
+    const CONC = Math.max(1, DAY_RANGE_CONCURRENCY);
     for (let i=0; i<dayRanges.length; i+=CONC) {
       const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
         // 1) Try in-memory first (fast)
