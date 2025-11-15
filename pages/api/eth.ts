@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 
-const RPC = 'https://eth-mainnet.g.alchemy.com/v2/GbUbepWOUJZ2Y_Ctx07mqXj3fGNZ0Quo';
+const RPC = 'https://megaeth-testnet.g.alchemy.com/v2/GbUbepWOUJZ2Y_Ctx07mqXj3fGNZ0Quo';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0xae2afe4d192127e6617cfa638a94384b53facec1').toLowerCase();
 const TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const MAX_SPAN = 100_000;
