@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 
-const RPC = 'https://megaeth-testnet.g.alchemy.com/v2/GbUbepWOUJZ2Y_Ctx07mqXj3fGNZ0Quo';
+const RPC = 'https://timothy.megaeth.com/mafia/rpc/l1z4x7c0v3b6n9m2a5s8d1f4g7h0j3k6q9w2e5r8';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0xae2afe4d192127e6617cfa638a94384b53facec1').toLowerCase();
 const TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const MAX_SPAN = 100_000;
