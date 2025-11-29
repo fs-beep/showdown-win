@@ -30,6 +30,12 @@ const MIN_DATE = '2025-07-25';
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
 const SHOWDOWN_BANNER = '/images/showdown_large.jpeg';
 const PLAY_URL = 'https://alpha.showdown.game/';
+const stripPlayerSuffix = (name?: string) => {
+  if (!name) return '';
+  const trimmed = name.trim();
+  const idx = trimmed.indexOf('#');
+  return idx === -1 ? trimmed : trimmed.slice(0, idx);
+};
 
 function fmtDate(d: Date) {
   const y = d.getFullYear();
@@ -501,9 +507,14 @@ export default function Home() {
       const j: ApiResponse = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
-      setRows(sorted);
+      const normalized = sorted.map(r => ({
+        ...r,
+        winningPlayer: stripPlayerSuffix(r.winningPlayer),
+        losingPlayer: stripPlayerSuffix(r.losingPlayer),
+      }));
+      setRows(normalized);
       const setP = new Set<string>(recentPlayers);
-      for (const r of sorted) { setP.add((r.winningPlayer||'').trim()); setP.add((r.losingPlayer||'').trim()); }
+      for (const r of normalized) { setP.add((r.winningPlayer||'').trim()); setP.add((r.losingPlayer||'').trim()); }
       const next = Array.from(setP).filter(Boolean).slice(0, 200);
       setRecentPlayers(next);
       try { localStorage.setItem('recentPlayers', JSON.stringify(next)); } catch {}
