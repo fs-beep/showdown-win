@@ -273,6 +273,26 @@ function dedupeRows(rows: Row[]): Row[] {
   }
   return Array.from(uniq.values());
 }
+function hasMegaRows(entry: DayEntry | null | undefined) {
+  return Boolean(entry?.rows?.some(r => r.network === 'megaeth-testnet-v2'));
+}
+function mergeDayEntries(a: DayEntry | null, b: DayEntry | null): DayEntry | null {
+  if (!a) return b;
+  if (!b) return a;
+  const rows = dedupeRows([...a.rows, ...b.rows]).sort((x, y) => x.blockNumber - y.blockNumber);
+  return {
+    fromBlock: Math.min(a.fromBlock, b.fromBlock),
+    toBlock: Math.max(a.toBlock, b.toBlock),
+    rows,
+    lastUpdate: Date.now(),
+  };
+}
+async function ensureMegaRows(entry: DayEntry | null, dayStartTs: number, dayEndTs: number, bounds: BlockBounds) {
+  if (hasMegaRows(entry)) return entry!;
+  const built = await buildDay(dayStartTs, dayEndTs, bounds);
+  const merged = mergeDayEntries(entry, built.entry);
+  return merged || built.entry;
+}
 
 function parseStartedAtTs(str: string): number | null {
   if (!str) return null;
@@ -408,29 +428,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
           if (mem && r.key < todayDay) {
-            resultRows.push(...mem.rows);
+            const upgraded = await ensureMegaRows(mem, r.start, r.end, bounds);
+            if (upgraded !== mem) {
+              remember(r.key, upgraded);
+              await kvSetDay(r.key, upgraded);
+            }
+            resultRows.push(...upgraded.rows);
             return;
           }
           if (mem && r.key === todayDay) {
             const updated = await extendToday(mem, r.start, r.end, bounds);
-            remember(r.key, updated);
-            await kvSetDay(r.key, updated);
-            resultRows.push(...updated.rows);
+            const upgraded = hasMegaRows(updated) ? updated : await ensureMegaRows(updated, r.start, r.end, bounds);
+            remember(r.key, upgraded);
+            await kvSetDay(r.key, upgraded);
+            resultRows.push(...upgraded.rows);
             return;
           }
 
           // 2) Try persistent KV
           const fromKv = await kvGetDay(r.key);
           if (fromKv && r.key < todayDay) {
-            remember(r.key, fromKv);
-            resultRows.push(...fromKv.rows);
+            const upgraded = await ensureMegaRows(fromKv, r.start, r.end, bounds);
+            remember(r.key, upgraded);
+            await kvSetDay(r.key, upgraded);
+            resultRows.push(...upgraded.rows);
             return;
           }
           if (fromKv && r.key === todayDay) {
             const updated = await extendToday(fromKv, r.start, r.end, bounds);
-            remember(r.key, updated);
-            await kvSetDay(r.key, updated);
-            resultRows.push(...updated.rows);
+            const upgraded = hasMegaRows(updated) ? updated : await ensureMegaRows(updated, r.start, r.end, bounds);
+            remember(r.key, upgraded);
+            await kvSetDay(r.key, upgraded);
+            resultRows.push(...upgraded.rows);
             return;
           }
 
