@@ -14,7 +14,7 @@ const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
 const RPC_BASE_DELAY_MS = 800;
-const DAY_RANGE_CONCURRENCY = 2;
+const DAY_RANGE_CONCURRENCY = 10; // Increased for faster KV cache retrieval
 const LOG_RANGE_CONCURRENCY = 2;
 
 type Row = {
@@ -82,12 +82,12 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
     if (!client) return null;
-    const keys = [kvKey(dayIndex), legacyKvKey(dayIndex)];
-    for (const key of keys) {
-      const v = await client.get(key);
-      if (v) return v as DayEntry;
-    }
-    return null;
+    // Try both keys in parallel for faster lookup
+    const [newKey, legacyKey] = await Promise.all([
+      client.get(kvKey(dayIndex)),
+      client.get(legacyKvKey(dayIndex)),
+    ]);
+    return (newKey || legacyKey) as DayEntry | null;
   } catch {
     return null;
   }
@@ -519,42 +519,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const CONC = Math.max(1, DAY_RANGE_CONCURRENCY);
       for (let i=0; i<dayRanges.length; i+=CONC) {
         const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
+          const isHistorical = r.key < todayDay;
+          
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
-          if (mem && r.key < todayDay) {
-            const upgraded = await ensureMegaRows(mem, r.start, r.end, bounds);
-            if (upgraded !== mem) {
-              remember(r.key, upgraded);
-              await kvSetDay(r.key, upgraded);
+          if (mem) {
+            if (isHistorical) {
+              // Historical days: use cache as-is, no need to upgrade (data won't change)
+              resultRows.push(...mem.rows);
+              return;
+            } else {
+              // Today: extend with latest data
+              const updated = await extendToday(mem, r.start, r.end, bounds);
+              remember(r.key, updated);
+              await kvSetDay(r.key, updated);
+              resultRows.push(...updated.rows);
+              return;
             }
-            resultRows.push(...upgraded.rows);
-            return;
-          }
-          if (mem && r.key === todayDay) {
-            const updated = await extendToday(mem, r.start, r.end, bounds);
-            const upgraded = hasMegaRows(updated) ? updated : await ensureMegaRows(updated, r.start, r.end, bounds);
-            remember(r.key, upgraded);
-            await kvSetDay(r.key, upgraded);
-            resultRows.push(...upgraded.rows);
-            return;
           }
 
           // 2) Try persistent KV
           const fromKv = await kvGetDay(r.key);
-          if (fromKv && r.key < todayDay) {
-            const upgraded = await ensureMegaRows(fromKv, r.start, r.end, bounds);
-            remember(r.key, upgraded);
-            await kvSetDay(r.key, upgraded);
-            resultRows.push(...upgraded.rows);
-            return;
-          }
-          if (fromKv && r.key === todayDay) {
-            const updated = await extendToday(fromKv, r.start, r.end, bounds);
-            const upgraded = hasMegaRows(updated) ? updated : await ensureMegaRows(updated, r.start, r.end, bounds);
-            remember(r.key, upgraded);
-            await kvSetDay(r.key, upgraded);
-            resultRows.push(...upgraded.rows);
-            return;
+          if (fromKv) {
+            if (isHistorical) {
+              // Historical days: use cache as-is, load into memory for next time
+              remember(r.key, fromKv);
+              resultRows.push(...fromKv.rows);
+              return;
+            } else {
+              // Today: extend with latest data
+              const updated = await extendToday(fromKv, r.start, r.end, bounds);
+              remember(r.key, updated);
+              await kvSetDay(r.key, updated);
+              resultRows.push(...updated.rows);
+              return;
+            }
           }
 
           // 3) Build fresh and persist
