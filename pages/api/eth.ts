@@ -393,7 +393,8 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
   
   // Optimize: only query the contract that has data for this day
-  const isLegacyDay = endTs < NEW_CONTRACT_START_TS;
+  // Use dayStartTs (not endTs) to determine which contract, since a day should use one contract
+  const isLegacyDay = dayStartTs < NEW_CONTRACT_START_TS;
   const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
   const topic0 = isLegacyDay ? LEGACY_TOPIC0 : TOPIC0;
   const isLegacy = isLegacyDay;
