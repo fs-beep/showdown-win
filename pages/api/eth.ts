@@ -3,8 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 
 const RPC = 'https://timothy.megaeth.com/mafia/rpc/l1z4x7c0v3b6n9m2a5s8d1f4g7h0j3k6q9w2e5r8';
-const CONTRACT = (process.env.CONTRACT_ADDRESS || '0xae2afe4d192127e6617cfa638a94384b53facec1').toLowerCase();
-const TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
+const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
+const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
@@ -25,6 +25,9 @@ type Row = {
   losingClasses: string;
   gameLength: string;
   endReason: string;
+  gameType?: string;
+  metadata?: string;
+  network?: 'legacy' | 'megaeth-testnet-v2';
 };
 type DayEntry = { fromBlock: number; toBlock: number; rows: Row[]; lastUpdate: number };
 type DayAgg = { byClass: Record<string, { wins: number; losses: number; total: number }>; lastUpdate: number };
@@ -98,7 +101,7 @@ async function kvSetDay(dayIndex: number, entry: DayEntry): Promise<void> {
 }
 
 const iface = new Interface([
-  'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason)',
+  'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason, string gameType, string metadata)',
 ]);
 
 function toHex(n: number) { return '0x' + n.toString(16); }
@@ -214,11 +217,8 @@ async function getLogsChunked(fromBlock: number, toBlock: number) {
 
 function decode(log: any): Row | null {
   try {
-    const ifaceObj = new Interface([
-      'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason)',
-    ]);
-    const parsed = ifaceObj.parseLog({ topics: log.topics, data: log.data });
-    const [gameNumber, gameId, startedAt, winningPlayer, winningClasses, losingPlayer, losingClasses, gameLength, endReason] = (parsed as any).args as any[];
+    const parsed = iface.parseLog({ topics: log.topics, data: log.data });
+    const [gameNumber, gameId, startedAt, winningPlayer, winningClasses, losingPlayer, losingClasses, gameLength, endReason, gameType, metadata] = (parsed as any).args as any[];
     return {
       blockNumber: parseInt(log.blockNumber, 16),
       txHash: log.transactionHash,
@@ -232,6 +232,9 @@ function decode(log: any): Row | null {
       losingClasses: String(losingClasses),
       gameLength: String(gameLength),
       endReason: String(endReason),
+      gameType: gameType != null ? String(gameType) : undefined,
+      metadata: metadata != null ? String(metadata) : undefined,
+      network: 'megaeth-testnet-v2',
     };
   } catch { return null; }
 }

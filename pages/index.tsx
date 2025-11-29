@@ -1,6 +1,6 @@
 
 import Head from 'next/head';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Clipboard, Check, ArrowUp } from 'lucide-react';
@@ -17,6 +17,9 @@ type Row = {
   losingClasses: string;
   gameLength: string;
   endReason: string;
+  gameType?: string;
+  metadata?: string;
+  network?: 'legacy' | 'megaeth-testnet-v2';
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
@@ -519,6 +522,21 @@ export default function Home() {
     const a = document.createElement('a'); a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
   };
+  const prettyMetadata = (meta?: string) => {
+    if (!meta) return null;
+    try {
+      const parsed = JSON.parse(meta);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return meta;
+    }
+  };
+  const txExplorer = (hash: string, network?: Row['network']) => {
+    if (network === 'megaeth-testnet-v2') {
+      return `https://megaeth-testnet-v2.blockscout.com/tx/${hash}`;
+    }
+    return `https://web3.okx.com/explorer/megaeth-testnet/tx/${hash}`;
+  };
   const toCsv = (rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
     const keys = columns?.map(c => c.key) || (rows[0] ? Object.keys(rows[0]) : []);
     const header = (columns?.map(c => c.label) || keys).join(',');
@@ -921,35 +939,47 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedFiltered.map((r, i) => (
-                  <>
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
-                    <td className="p-2 tabular-nums">{r.blockNumber}</td>
-                    <td className="p-2 tabular-nums">{r.gameNumber}</td>
-                    <td className="p-2 font-medium">{r.result}</td>
-                    <td className="p-2">{r.opponent}</td>
-                    <td className="p-2">{r.startedAt}</td>
-                    <td className="p-2 flex items-center gap-2">
-                      <a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a>
-                      <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
-                        {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedFiltered.has(r.txHash) && (
-                    <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                      <td colSpan={6} className="p-3 text-xs">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
-                          <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
-                          <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
-                          <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </>
-                ))}
+                {paginatedFiltered.map((r, i) => {
+                  const metadataPretty = prettyMetadata(r.metadata);
+                  return (
+                    <Fragment key={r.txHash + i}>
+                      <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
+                        <td className="p-2 tabular-nums">{r.blockNumber}</td>
+                        <td className="p-2 tabular-nums">{r.gameNumber}</td>
+                        <td className="p-2 font-medium">{r.result}</td>
+                        <td className="p-2">{r.opponent}</td>
+                        <td className="p-2">{r.startedAt}</td>
+                        <td className="p-2 flex items-center gap-2">
+                          <a className="text-blue-600 underline" href={txExplorer(r.txHash, r.network)} target="_blank" rel="noreferrer">tx</a>
+                          <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
+                            {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedFiltered.has(r.txHash) && (
+                        <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                          <td colSpan={6} className="p-3 text-xs">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
+                              <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
+                              <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
+                              <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
+                              <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
+                              <div className="md:col-span-3 col-span-2">
+                                <span className="text-gray-500">Metadata:</span>{' '}
+                                {metadataPretty ? (
+                                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
+                                    {metadataPretty}
+                                  </pre>
+                                ) : '—'}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {filtered.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={6}>
@@ -1011,37 +1041,49 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedAll.map((r, i) => (
-                  <>
-                  <tr key={r.txHash + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
-                    <td className="p-2 tabular-nums">{r.blockNumber}</td>
-                    <td className="p-2 tabular-nums">{r.gameNumber}</td>
-                    <td className="p-2">{r.gameId}</td>
-                    <td className="p-2">{r.startedAt}</td>
-                    <td className="p-2 font-medium">{r.winningPlayer}</td>
-                    <td className="p-2">{r.losingPlayer}</td>
-                    <td className="p-2">{r.endReason}</td>
-                    <td className="p-2 flex items-center gap-2">
-                      <a className="text-blue-600 underline" href={`https://web3.okx.com/explorer/megaeth-testnet/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx</a>
-                      <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
-                        {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedAll.has(r.txHash) && (
-                    <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                      <td colSpan={8} className="p-3 text-xs">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
-                          <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
-                          <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
-                          <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </>
-                ))}
+                {paginatedAll.map((r, i) => {
+                  const metadataPretty = prettyMetadata(r.metadata);
+                  return (
+                    <Fragment key={r.txHash + i}>
+                      <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
+                        <td className="p-2 tabular-nums">{r.blockNumber}</td>
+                        <td className="p-2 tabular-nums">{r.gameNumber}</td>
+                        <td className="p-2">{r.gameId}</td>
+                        <td className="p-2">{r.startedAt}</td>
+                        <td className="p-2 font-medium">{r.winningPlayer}</td>
+                        <td className="p-2">{r.losingPlayer}</td>
+                        <td className="p-2">{r.endReason}</td>
+                        <td className="p-2 flex items-center gap-2">
+                          <a className="text-blue-600 underline" href={txExplorer(r.txHash, r.network)} target="_blank" rel="noreferrer">tx</a>
+                          <button className="rounded border px-1 py-0.5 text-[10px]" title="Copy tx hash" onClick={()=>copyTx(r.txHash)}>
+                            {copiedTx === r.txHash ? <Check className="h-3 w-3"/> : <Clipboard className="h-3 w-3"/>}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedAll.has(r.txHash) && (
+                        <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                          <td colSpan={8} className="p-3 text-xs">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
+                              <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
+                              <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
+                              <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
+                              <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
+                              <div className="md:col-span-3 col-span-2">
+                                <span className="text-gray-500">Metadata:</span>{' '}
+                                {metadataPretty ? (
+                                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
+                                    {metadataPretty}
+                                  </pre>
+                                ) : '—'}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={8}>{loading ? <SkeletonTableRows rows={10} cols={8} /> : "No rows yet. Pick a date range and click Compute."}</td>
