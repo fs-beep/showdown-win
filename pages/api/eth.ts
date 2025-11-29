@@ -545,16 +545,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const mem = dayCache.get(memKey(r.key));
           if (mem) {
             if (isHistorical) {
-              // Historical days: check if we need to merge new contract data
-              if (needsNewContract && (!hasMegaRows(mem) || mem.rows.length === 0)) {
-                // Day is after Nov 15 but cache doesn't have new contract data or is empty
-                // Rebuild completely using full day range to ensure we get all data
+              // Historical days: check if we need to rebuild from new contract
+              if (needsNewContract && !hasMegaRows(mem)) {
+                // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
                 const built = await buildDay(rebuildStart, rebuildEnd, bounds);
                 remember(built.key, built.entry);
                 await kvSetDay(built.key, built.entry);
                 resultRows.push(...built.entry.rows);
               } else {
-                // Use cache as-is (either before Nov 15 or already has both contracts)
+                // Use cache as-is (either before Nov 15 or already has new contract data)
                 resultRows.push(...mem.rows);
               }
               return;
@@ -572,10 +571,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const fromKv = await kvGetDay(r.key);
           if (fromKv) {
             if (isHistorical) {
-              // Historical days: check if we need to merge new contract data
-              if (needsNewContract && (!hasMegaRows(fromKv) || fromKv.rows.length === 0)) {
-                // Day is after Nov 15 but cache doesn't have new contract data or is empty
-                // Rebuild completely using full day range to ensure we get all data
+              // Historical days: check if we need to rebuild from new contract
+              if (needsNewContract && !hasMegaRows(fromKv)) {
+                // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
                 const built = await buildDay(rebuildStart, rebuildEnd, bounds);
                 remember(built.key, built.entry);
                 await kvSetDay(built.key, built.entry);
