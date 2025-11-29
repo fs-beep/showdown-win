@@ -529,11 +529,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (isHistorical) {
               // Historical days: check if we need to merge new contract data
               if (needsNewContract && !hasMegaRows(mem)) {
-                // Day is after Nov 15 but cache doesn't have new contract data - merge it
-                const upgraded = await ensureMegaRows(mem, r.start, r.end, bounds);
-                remember(r.key, upgraded);
-                await kvSetDay(r.key, upgraded);
-                resultRows.push(...upgraded.rows);
+                // Day is after Nov 15 but cache doesn't have new contract data
+                // Rebuild completely to ensure we get all data
+                const built = await buildDay(r.start, r.end, bounds);
+                remember(built.key, built.entry);
+                await kvSetDay(built.key, built.entry);
+                resultRows.push(...built.entry.rows);
               } else {
                 // Use cache as-is (either before Nov 15 or already has both contracts)
                 resultRows.push(...mem.rows);
@@ -555,11 +556,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (isHistorical) {
               // Historical days: check if we need to merge new contract data
               if (needsNewContract && !hasMegaRows(fromKv)) {
-                // Day is after Nov 15 but cache doesn't have new contract data - merge it
-                const upgraded = await ensureMegaRows(fromKv, r.start, r.end, bounds);
-                remember(r.key, upgraded);
-                await kvSetDay(r.key, upgraded);
-                resultRows.push(...upgraded.rows);
+                // Day is after Nov 15 but cache doesn't have new contract data
+                // Rebuild completely to ensure we get all data
+                const built = await buildDay(r.start, r.end, bounds);
+                remember(built.key, built.entry);
+                await kvSetDay(built.key, built.entry);
+                resultRows.push(...built.entry.rows);
               } else {
                 // Use cache as-is, load into memory for next time
                 remember(r.key, fromKv);
