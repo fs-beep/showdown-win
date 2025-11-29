@@ -540,30 +540,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const isHistorical = r.key < todayDay;
           const dayStartTs = r.key * 86400;
           const dayEndTs = dayStartTs + 86399;
+          // Days after Nov 14 need new contract data
           const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
           
-          // For days after Nov 15, always use full day range when rebuilding to ensure we get all data
+          // For days after Nov 14, always use full day range when rebuilding
           const rebuildStart = needsNewContract ? dayStartTs : r.start;
           const rebuildEnd = needsNewContract ? dayEndTs : r.end;
           
+          // For days after Nov 14: ensure we have cached data from new contract
+          if (needsNewContract && isHistorical) {
+            // Check cache first
+            let cached: DayEntry | null = null;
+            
+            // 1) Try in-memory cache
+            const mem = dayCache.get(memKey(r.key));
+            if (mem && hasMegaRows(mem)) {
+              // Cache has new contract data - use it
+              resultRows.push(...mem.rows);
+              return;
+            }
+            if (mem) cached = mem; // Remember for later
+            
+            // 2) Try persistent KV cache
+            if (!cached) {
+              const fromKv = await kvGetDay(r.key);
+              if (fromKv && hasMegaRows(fromKv)) {
+                // KV cache has new contract data - use it and load into memory
+                remember(r.key, fromKv);
+                resultRows.push(...fromKv.rows);
+                return;
+              }
+              if (fromKv) cached = fromKv; // Remember for later
+            }
+            
+            // 3) Cache doesn't exist or doesn't have new contract data - fetch and cache
+            const built = await buildDay(rebuildStart, rebuildEnd, bounds);
+            // Always cache the result (even if empty) so we don't keep retrying
+            remember(built.key, built.entry);
+            await kvSetDay(built.key, built.entry);
+            resultRows.push(...built.entry.rows);
+            return;
+          }
+          
+          // For days before Nov 15 or today: use existing logic
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
           if (mem) {
             if (isHistorical) {
-              // Historical days: check if we need to rebuild from new contract
-              if (needsNewContract && !hasMegaRows(mem)) {
-                // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
-                const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-                // Only cache if we got data - don't cache empty results for days after Nov 15
-                if (built.entry.rows.length > 0 || !needsNewContract) {
-                  remember(built.key, built.entry);
-                  await kvSetDay(built.key, built.entry);
-                }
-                resultRows.push(...built.entry.rows);
-              } else {
-                // Use cache as-is (either before Nov 15 or already has new contract data)
-                resultRows.push(...mem.rows);
-              }
+              // Use cache as-is
+              resultRows.push(...mem.rows);
               return;
             } else {
               // Today: extend with latest data
@@ -579,21 +604,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const fromKv = await kvGetDay(r.key);
           if (fromKv) {
             if (isHistorical) {
-              // Historical days: check if we need to rebuild from new contract
-              if (needsNewContract && !hasMegaRows(fromKv)) {
-                // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
-                const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-                // Only cache if we got data - don't cache empty results for days after Nov 15
-                if (built.entry.rows.length > 0 || !needsNewContract) {
-                  remember(built.key, built.entry);
-                  await kvSetDay(built.key, built.entry);
-                }
-                resultRows.push(...built.entry.rows);
-              } else {
-                // Use cache as-is, load into memory for next time
-                remember(r.key, fromKv);
-                resultRows.push(...fromKv.rows);
-              }
+              // Use cache as-is, load into memory for next time
+              remember(r.key, fromKv);
+              resultRows.push(...fromKv.rows);
               return;
             } else {
               // Today: extend with latest data
@@ -605,13 +618,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           }
 
-          // 3) Build fresh and persist - use full day range for days after Nov 15
+          // 3) Build fresh and persist
           const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-          // Only cache if we got data - don't cache empty results for days after Nov 15
-          if (built.entry.rows.length > 0 || !needsNewContract) {
-            remember(built.key, built.entry);
-            await kvSetDay(built.key, built.entry);
-          }
+          remember(built.key, built.entry);
+          await kvSetDay(built.key, built.entry);
           resultRows.push(...built.entry.rows);
         });
         await Promise.all(slice);
