@@ -567,21 +567,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               return;
             }
             
-            // 3) Cache doesn't exist or doesn't have new contract data - fetch using fetchRangeRowsDirect
-            // This is the same method used for today, which we know works
-            const fetchedRows = await fetchRangeRowsDirect(rebuildStart, rebuildEnd, bounds);
-            
-            // Calculate block range for caching (use actual blocks from data if available, otherwise estimate)
-            let fromBlock: number;
-            let toBlock: number;
-            if (fetchedRows.length > 0) {
-              fromBlock = Math.min(...fetchedRows.map(r => r.blockNumber));
-              toBlock = Math.max(...fetchedRows.map(r => r.blockNumber));
-            } else {
-              // No data found - use estimated block range
-              fromBlock = await findBlockAtOrAfter(rebuildStart, bounds);
-              toBlock = await findBlockAtOrBefore(rebuildEnd, bounds);
+            // 3) Cache doesn't exist or doesn't have new contract data - fetch using EXACT same method as extendToday
+            // This is the proven method that works for today
+            const fromBlock = await findBlockAtOrAfter(rebuildStart, bounds);
+            const toBlock = await findBlockAtOrBefore(rebuildEnd, bounds);
+            if (toBlock < fromBlock) {
+              // No blocks in range - cache empty result
+              const emptyEntry: DayEntry = { fromBlock, toBlock, rows: [], lastUpdate: Date.now() };
+              remember(r.key, emptyEntry);
+              await kvSetDay(r.key, emptyEntry);
+              return;
             }
+            
+            // Use EXACT same method as extendToday: getLogsSingle/getLogsChunked with defaults (CONTRACT/TOPIC0)
+            let newLogs: any[] = [];
+            try {
+              newLogs = await getLogsSingle(fromBlock, toBlock);
+            } catch {
+              newLogs = await getLogsChunked(fromBlock, toBlock);
+            }
+            // Use EXACT same decode method as extendToday
+            const newRows = (newLogs as any[]).map(decode).filter(Boolean) as Row[];
+            // Dedupe same way as extendToday
+            const uniq = new Map<string, Row>();
+            for (const r of newRows) {
+              const idxOrBlock = (typeof (r as any).logIndex === 'number' && !isNaN((r as any).logIndex)) ? (r as any).logIndex : r.blockNumber;
+              uniq.set(`${r.txHash}:${idxOrBlock}`, r);
+            }
+            const fetchedRows = Array.from(uniq.values());
             
             const entry: DayEntry = {
               fromBlock,
