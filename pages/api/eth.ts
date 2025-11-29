@@ -533,7 +533,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
           const isHistorical = r.key < todayDay;
           const dayStartTs = r.key * 86400;
+          const dayEndTs = dayStartTs + 86399;
           const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
+          
+          // For days after Nov 15, always use full day range when rebuilding to ensure we get all data
+          const rebuildStart = needsNewContract ? dayStartTs : r.start;
+          const rebuildEnd = needsNewContract ? dayEndTs : r.end;
           
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
@@ -542,8 +547,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               // Historical days: check if we need to merge new contract data
               if (needsNewContract && (!hasMegaRows(mem) || mem.rows.length === 0)) {
                 // Day is after Nov 15 but cache doesn't have new contract data or is empty
-                // Rebuild completely to ensure we get all data
-                const built = await buildDay(r.start, r.end, bounds);
+                // Rebuild completely using full day range to ensure we get all data
+                const built = await buildDay(rebuildStart, rebuildEnd, bounds);
                 remember(built.key, built.entry);
                 await kvSetDay(built.key, built.entry);
                 resultRows.push(...built.entry.rows);
@@ -569,8 +574,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               // Historical days: check if we need to merge new contract data
               if (needsNewContract && (!hasMegaRows(fromKv) || fromKv.rows.length === 0)) {
                 // Day is after Nov 15 but cache doesn't have new contract data or is empty
-                // Rebuild completely to ensure we get all data
-                const built = await buildDay(r.start, r.end, bounds);
+                // Rebuild completely using full day range to ensure we get all data
+                const built = await buildDay(rebuildStart, rebuildEnd, bounds);
                 remember(built.key, built.entry);
                 await kvSetDay(built.key, built.entry);
                 resultRows.push(...built.entry.rows);
@@ -590,8 +595,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           }
 
-          // 3) Build fresh and persist
-          const built = await buildDay(r.start, r.end, bounds);
+          // 3) Build fresh and persist - use full day range for days after Nov 15
+          const built = await buildDay(rebuildStart, rebuildEnd, bounds);
           remember(built.key, built.entry);
           await kvSetDay(built.key, built.entry);
           resultRows.push(...built.entry.rows);
