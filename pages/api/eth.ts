@@ -520,13 +520,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (let i=0; i<dayRanges.length; i+=CONC) {
         const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
           const isHistorical = r.key < todayDay;
+          const dayStartTs = r.key * 86400;
+          const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
           
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
           if (mem) {
             if (isHistorical) {
-              // Historical days: use cache as-is, no need to upgrade (data won't change)
-              resultRows.push(...mem.rows);
+              // Historical days: check if we need to merge new contract data
+              if (needsNewContract && !hasMegaRows(mem)) {
+                // Day is after Nov 15 but cache doesn't have new contract data - merge it
+                const upgraded = await ensureMegaRows(mem, r.start, r.end, bounds);
+                remember(r.key, upgraded);
+                await kvSetDay(r.key, upgraded);
+                resultRows.push(...upgraded.rows);
+              } else {
+                // Use cache as-is (either before Nov 15 or already has both contracts)
+                resultRows.push(...mem.rows);
+              }
               return;
             } else {
               // Today: extend with latest data
@@ -542,9 +553,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const fromKv = await kvGetDay(r.key);
           if (fromKv) {
             if (isHistorical) {
-              // Historical days: use cache as-is, load into memory for next time
-              remember(r.key, fromKv);
-              resultRows.push(...fromKv.rows);
+              // Historical days: check if we need to merge new contract data
+              if (needsNewContract && !hasMegaRows(fromKv)) {
+                // Day is after Nov 15 but cache doesn't have new contract data - merge it
+                const upgraded = await ensureMegaRows(fromKv, r.start, r.end, bounds);
+                remember(r.key, upgraded);
+                await kvSetDay(r.key, upgraded);
+                resultRows.push(...upgraded.rows);
+              } else {
+                // Use cache as-is, load into memory for next time
+                remember(r.key, fromKv);
+                resultRows.push(...fromKv.rows);
+              }
               return;
             } else {
               // Today: extend with latest data
