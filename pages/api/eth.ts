@@ -567,9 +567,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Always merge with a live fetch to guarantee we have the latest chain data
-    const liveRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
-    resultRows = mergeRows(resultRows, liveRows);
+    // Only do live fetch for today's data (to get latest matches), skip for historical dates
+    const todayDay = Math.floor(latest.ts / 86400);
+    const endDay = Math.floor(eTs / 86400);
+    if (endDay >= todayDay) {
+      // Request includes today - fetch live data for today only
+      const todayStartTs = todayDay * 86400;
+      const liveStartTs = Math.max(sTs, todayStartTs);
+      if (liveStartTs <= eTs) {
+        const liveRows = await fetchRangeRowsDirect(liveStartTs, eTs, bounds);
+        resultRows = mergeRows(resultRows, liveRows);
+      }
+    }
     resultRows.sort(sortByTimestamp);
 
     // First constrain precisely to the requested [sTs, eTs] window (even if cached full days were used)
