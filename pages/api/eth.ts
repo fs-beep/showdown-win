@@ -531,16 +531,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const afterNewContractStart = Math.max(sTs, NEW_CONTRACT_START_TS);
       
       // Fetch days before Nov 15 using cache
+      // IMPORTANT: Skip days after Nov 14 - they're fetched directly below
       if (sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
         const startDay = Math.floor(sTs / 86400);
         const endDay = Math.floor(beforeNewContractEnd / 86400);
         const todayDay = Math.floor(latest.ts / 86400);
+        const newContractStartDay = Math.floor(NEW_CONTRACT_START_TS / 86400);
 
       const dayRanges: Array<{ key:number, start:number, end:number }> = [];
       for (let d = startDay; d <= endDay; d++) {
+        // Skip days after Nov 14 - they're fetched directly, not through cache
+        if (d >= newContractStartDay) continue;
         const dayStart = d * 86400;
         const dayEnd = dayStart + 86399;
-        dayRanges.push({ key: d, start: Math.max(dayStart, sTs), end: Math.min(dayEnd, eTs) });
+        dayRanges.push({ key: d, start: Math.max(dayStart, sTs), end: Math.min(dayEnd, beforeNewContractEnd) });
       }
 
       const CONC = Math.max(1, DAY_RANGE_CONCURRENCY);
@@ -666,14 +670,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // ALWAYS fetch days after Nov 14 directly (bypass cache completely)
       // This guarantees we get the data using the same method that works for today
-      // Exclude today - it's handled by the live fetch section below
-      const todayDay = Math.floor(latest.ts / 86400);
-      const todayStartTs = todayDay * 86400;
-      const historicalNewContractEnd = Math.min(eTs, todayStartTs - 1);
-      
-      if (historicalNewContractEnd >= NEW_CONTRACT_START_TS && afterNewContractStart <= historicalNewContractEnd) {
-        const newContractRows = await fetchRangeRowsDirect(afterNewContractStart, historicalNewContractEnd, bounds);
-        resultRows = mergeRows(resultRows, newContractRows);
+      if (eTs >= NEW_CONTRACT_START_TS) {
+        // Fetch all days after Nov 14 up to end of query (excluding today, which is handled below)
+        const todayDay = Math.floor(latest.ts / 86400);
+        const todayStartTs = todayDay * 86400;
+        const fetchEnd = Math.min(eTs, todayStartTs - 1); // Exclude today
+        
+        if (fetchEnd >= afterNewContractStart) {
+          // Fetch directly - this is the proven method that works
+          const newContractRows = await fetchRangeRowsDirect(afterNewContractStart, fetchEnd, bounds);
+          resultRows = mergeRows(resultRows, newContractRows);
+        }
       }
     }
 
