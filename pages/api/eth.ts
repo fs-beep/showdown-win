@@ -1,6 +1,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
+import { gzipSync } from 'zlib';
 
 const RPC = 'https://timothy.megaeth.com/mafia/rpc/l1z4x7c0v3b6n9m2a5s8d1f4g7h0j3k6q9w2e5r8';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
@@ -106,6 +107,13 @@ const iface = new Interface([
 
 function toHex(n: number) { return '0x' + n.toString(16); }
 function sleep(ms: number) { return new Promise(r=>setTimeout(r, ms)); }
+function sendJson(res: NextApiResponse, status: number, payload: any) {
+  const json = JSON.stringify(payload);
+  const gz = gzipSync(json);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Encoding', 'gzip');
+  res.status(status).send(gz);
+}
 
 async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
   let lastErr: any = null;
@@ -354,7 +362,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const built = await buildDay(start, end, bounds);
       remember(built.key, built.entry);
       await kvSetDay(built.key, built.entry);
-      return res.status(200).json({ ok: true, rebuilt: built.key, fromBlock: built.entry.fromBlock, toBlock: built.entry.toBlock, rows: built.entry.rows.length });
+      return sendJson(res, 200, { ok: true, rebuilt: built.key, fromBlock: built.entry.fromBlock, toBlock: built.entry.toBlock, rows: built.entry.rows.length });
     }
     const earliest = await getEarliest();
     const latest = await getLatest();
@@ -362,7 +370,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
     const eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
-    if (eTs < sTs) return res.status(200).json({ ok: true, rows: [] });
+    if (eTs < sTs) return sendJson(res, 200, { ok: true, rows: [] });
 
     let resultRows: Row[] = [];
 
@@ -432,10 +440,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     out.sort((a,b)=> a.blockNumber - b.blockNumber);
     if (wantAgg) {
       const agg = computeAgg(out);
-      return res.status(200).json({ ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
+      return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
     }
-    res.status(200).json({ ok: true, rows: out });
+    sendJson(res, 200, { ok: true, rows: out });
   } catch (e:any) {
-    res.status(200).json({ ok: false, error: e?.message || String(e) });
+    sendJson(res, 200, { ok: false, error: e?.message || String(e) });
   }
 }
