@@ -313,7 +313,7 @@ function hasMegaRows(entry: DayEntry | null | undefined) {
 function mergeDayEntries(a: DayEntry | null, b: DayEntry | null): DayEntry | null {
   if (!a) return b;
   if (!b) return a;
-  const rows = dedupeRows([...a.rows, ...b.rows]).sort((x, y) => x.blockNumber - y.blockNumber);
+  const rows = dedupeRows([...a.rows, ...b.rows]).sort(sortByTimestamp);
   return {
     fromBlock: Math.min(a.fromBlock, b.fromBlock),
     toBlock: Math.max(a.toBlock, b.toBlock),
@@ -347,6 +347,14 @@ function parseStartedAtTs(str: string): number | null {
   const ms = Date.parse(iso);
   if (isNaN(ms)) return null;
   return Math.floor(ms / 1000);
+}
+function sortByTimestamp(a: Row, b: Row): number {
+  const tsA = parseStartedAtTs(a.startedAt);
+  const tsB = parseStartedAtTs(b.startedAt);
+  if (tsA !== null && tsB !== null) return tsB - tsA; // newest first
+  if (tsA !== null) return -1; // a has timestamp, b doesn't - a comes first
+  if (tsB !== null) return 1; // b has timestamp, a doesn't - b comes first
+  return b.blockNumber - a.blockNumber; // fallback to blockNumber (newest first)
 }
 function filterRowsByTs(rows: Row[], startTs: number, endTs: number): Row[] {
   return rows.filter((r) => {
@@ -428,7 +436,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   const newRows = dedupeRows(decodeLogs(newLogs, false));
   const legacyRows = dedupeRows(decodeLogs(legacyLogs, true));
   const allRows = mergeRows(newRows, legacyRows);
-  allRows.sort((a, b) => a.blockNumber - b.blockNumber);
+  allRows.sort(sortByTimestamp);
   return allRows;
 }
 
@@ -525,7 +533,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Always merge with a live fetch to guarantee we have the latest chain data
     const liveRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
     resultRows = mergeRows(resultRows, liveRows);
-    resultRows.sort((a, b) => a.blockNumber - b.blockNumber);
+    resultRows.sort(sortByTimestamp);
 
     // First constrain precisely to the requested [sTs, eTs] window (even if cached full days were used)
     const windowed = filterRowsByTs(resultRows, sTs, eTs);
@@ -534,7 +542,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const byKey = new Map<string, Row>();
     for (const r of windowed) byKey.set(stableRowKey(r), r);
     const out = Array.from(byKey.values());
-    out.sort((a,b)=> a.blockNumber - b.blockNumber);
+    out.sort(sortByTimestamp);
     if (wantAgg) {
       const agg = computeAgg(out);
       return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
