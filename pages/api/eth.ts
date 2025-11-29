@@ -549,33 +549,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           // For days after Nov 14: ensure we have cached data from new contract
           if (needsNewContract && isHistorical) {
-            // Check cache first
+            // Check cache first - but be aggressive: if cache is empty or doesn't have mega rows, always fetch fresh
             // 1) Try in-memory cache
             const mem = dayCache.get(memKey(r.key));
-            if (mem && hasMegaRows(mem)) {
-              // Cache has new contract data - use it
+            if (mem && hasMegaRows(mem) && mem.rows.length > 0) {
+              // Cache has new contract data with actual rows - use it
               resultRows.push(...mem.rows);
               return;
             }
             
             // 2) Try persistent KV cache
             const fromKv = await kvGetDay(r.key);
-            if (fromKv && hasMegaRows(fromKv)) {
-              // KV cache has new contract data - use it and load into memory
+            if (fromKv && hasMegaRows(fromKv) && fromKv.rows.length > 0) {
+              // KV cache has new contract data with actual rows - use it and load into memory
               remember(r.key, fromKv);
               resultRows.push(...fromKv.rows);
               return;
             }
             
-            // 3) Cache doesn't exist or doesn't have new contract data - fetch using EXACT same method as extendToday
+            // 3) Cache doesn't exist, is empty, or doesn't have new contract data - ALWAYS fetch fresh using EXACT same method as extendToday
             // This is the proven method that works for today
             const fromBlock = await findBlockAtOrAfter(rebuildStart, bounds);
             const toBlock = await findBlockAtOrBefore(rebuildEnd, bounds);
             if (toBlock < fromBlock) {
-              // No blocks in range - cache empty result
-              const emptyEntry: DayEntry = { fromBlock, toBlock, rows: [], lastUpdate: Date.now() };
-              remember(r.key, emptyEntry);
-              await kvSetDay(r.key, emptyEntry);
+              // No blocks in range - don't cache, just return empty (will retry next time)
               return;
             }
             
@@ -603,9 +600,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               lastUpdate: Date.now()
             };
             
-            // Always cache the result (even if empty) so we don't keep retrying
-            remember(r.key, entry);
-            await kvSetDay(r.key, entry);
+            // Only cache if we got data - don't cache empty results for days after Nov 14
+            // This ensures we keep retrying until we get the data
+            if (fetchedRows.length > 0) {
+              remember(r.key, entry);
+              await kvSetDay(r.key, entry);
+            }
             resultRows.push(...fetchedRows);
             return;
           }
