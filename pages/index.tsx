@@ -974,7 +974,6 @@ export default function Home() {
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-28 cursor-pointer" aria-sort={filteredSort.key==='blockNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {filteredSort.key==='blockNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
@@ -988,7 +987,6 @@ export default function Home() {
                   return (
                     <Fragment key={r.txHash + i}>
                       <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
-                        <td className="p-2 tabular-nums">{r.blockNumber}</td>
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2 font-medium">{r.result}</td>
                         <td className="p-2">{r.opponent}</td>
@@ -1002,7 +1000,7 @@ export default function Home() {
                       </tr>
                       {expandedFiltered.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                          <td colSpan={6} className="p-3 text-xs">
+                          <td colSpan={5} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
@@ -1026,7 +1024,7 @@ export default function Home() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>
+                    <td className="p-6 text-center text-gray-500" colSpan={5}>
                       {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
                     </td>
                   </tr>
@@ -1074,7 +1072,6 @@ export default function Home() {
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-28 cursor-pointer" aria-sort={decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40">Game ID</th>
                   <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -1090,7 +1087,6 @@ export default function Home() {
                   return (
                     <Fragment key={r.txHash + i}>
                       <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
-                        <td className="p-2 tabular-nums">{r.blockNumber}</td>
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2">{r.gameId}</td>
                         <td className="p-2">{r.startedAt}</td>
@@ -1106,7 +1102,7 @@ export default function Home() {
                       </tr>
                       {expandedAll.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                          <td colSpan={8} className="p-3 text-xs">
+                          <td colSpan={7} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
@@ -1130,7 +1126,7 @@ export default function Home() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={8}>{loading ? <SkeletonTableRows rows={10} cols={8} /> : "No rows yet. Pick a date range and click Compute."}</td>
+                    <td className="p-6 text-center text-gray-500" colSpan={7}>{loading ? <SkeletonTableRows rows={10} cols={7} /> : "No rows yet. Pick a date range and click Compute."}</td>
                   </tr>
                 )}
               </tbody>
