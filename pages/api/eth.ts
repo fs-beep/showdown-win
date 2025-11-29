@@ -396,6 +396,14 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   const topic0 = isLegacyDay ? LEGACY_TOPIC0 : TOPIC0;
   const isLegacy = isLegacyDay;
   
+  // Safety: For days after Nov 15, ensure we're using the new contract
+  if (dayStartTs >= NEW_CONTRACT_START_TS && contract !== CONTRACT) {
+    // This should never happen, but if it does, use new contract
+    const logs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
+    const rows = dedupeRows(decodeLogs(logs, false));
+    return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
+  }
+  
   try {
     const logs = await getLogsSingle(fromBlock, toBlock, contract, topic0);
     const rows = dedupeRows(decodeLogs(logs, isLegacy));
