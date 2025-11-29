@@ -107,6 +107,11 @@ const iface = new Interface([
 
 function toHex(n: number) { return '0x' + n.toString(16); }
 function sleep(ms: number) { return new Promise(r=>setTimeout(r, ms)); }
+function normalizePlayer(raw: string): string {
+  const val = (raw || '').trim();
+  const idx = val.indexOf('#');
+  return idx === -1 ? val : val.slice(0, idx);
+}
 function sendJson(res: NextApiResponse, status: number, payload: any) {
   const json = JSON.stringify(payload);
   const gz = gzipSync(json);
@@ -234,9 +239,9 @@ function decode(log: any): Row | null {
       gameNumber: Number(gameNumber?.toString?.() ?? gameNumber),
       gameId: String(gameId),
       startedAt: String(startedAt),
-      winningPlayer: String(winningPlayer),
+      winningPlayer: normalizePlayer(String(winningPlayer)),
       winningClasses: String(winningClasses),
-      losingPlayer: String(losingPlayer),
+      losingPlayer: normalizePlayer(String(losingPlayer)),
       losingClasses: String(losingClasses),
       gameLength: String(gameLength),
       endReason: String(endReason),
