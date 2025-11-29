@@ -550,8 +550,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // For days after Nov 14: ensure we have cached data from new contract
           if (needsNewContract && isHistorical) {
             // Check cache first
-            let cached: DayEntry | null = null;
-            
             // 1) Try in-memory cache
             const mem = dayCache.get(memKey(r.key));
             if (mem && hasMegaRows(mem)) {
@@ -559,26 +557,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               resultRows.push(...mem.rows);
               return;
             }
-            if (mem) cached = mem; // Remember for later
             
             // 2) Try persistent KV cache
-            if (!cached) {
-              const fromKv = await kvGetDay(r.key);
-              if (fromKv && hasMegaRows(fromKv)) {
-                // KV cache has new contract data - use it and load into memory
-                remember(r.key, fromKv);
-                resultRows.push(...fromKv.rows);
-                return;
-              }
-              if (fromKv) cached = fromKv; // Remember for later
+            const fromKv = await kvGetDay(r.key);
+            if (fromKv && hasMegaRows(fromKv)) {
+              // KV cache has new contract data - use it and load into memory
+              remember(r.key, fromKv);
+              resultRows.push(...fromKv.rows);
+              return;
             }
             
-            // 3) Cache doesn't exist or doesn't have new contract data - fetch and cache
-            const built = await buildDay(rebuildStart, rebuildEnd, bounds);
+            // 3) Cache doesn't exist or doesn't have new contract data - fetch using fetchRangeRowsDirect
+            // This is the same method used for today, which we know works
+            const fetchedRows = await fetchRangeRowsDirect(rebuildStart, rebuildEnd, bounds);
+            
+            // Calculate block range for caching (use actual blocks from data if available, otherwise estimate)
+            let fromBlock: number;
+            let toBlock: number;
+            if (fetchedRows.length > 0) {
+              fromBlock = Math.min(...fetchedRows.map(r => r.blockNumber));
+              toBlock = Math.max(...fetchedRows.map(r => r.blockNumber));
+            } else {
+              // No data found - use estimated block range
+              fromBlock = await findBlockAtOrAfter(rebuildStart, bounds);
+              toBlock = await findBlockAtOrBefore(rebuildEnd, bounds);
+            }
+            
+            const entry: DayEntry = {
+              fromBlock,
+              toBlock,
+              rows: fetchedRows,
+              lastUpdate: Date.now()
+            };
+            
             // Always cache the result (even if empty) so we don't keep retrying
-            remember(built.key, built.entry);
-            await kvSetDay(built.key, built.entry);
-            resultRows.push(...built.entry.rows);
+            remember(r.key, entry);
+            await kvSetDay(r.key, entry);
+            resultRows.push(...fetchedRows);
             return;
           }
           
