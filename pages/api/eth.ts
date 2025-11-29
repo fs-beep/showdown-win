@@ -8,6 +8,8 @@ const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bb
 const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
+// New contract started around Nov 15, 2025 00:00:00 UTC (legacy contract stopped around then)
+const NEW_CONTRACT_START_TS = Math.floor(new Date('2025-11-15T00:00:00Z').getTime() / 1000);
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
@@ -377,13 +379,20 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   const fromBlock = await findBlockAtOrAfter(safeStart, bounds);
   const toBlock = await findBlockAtOrBefore(endTs, bounds);
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
+  
+  // Optimize: only query the contract that has data for this day
+  const isLegacyDay = endTs < NEW_CONTRACT_START_TS;
+  const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
+  const topic0 = isLegacyDay ? LEGACY_TOPIC0 : TOPIC0;
+  const isLegacy = isLegacyDay;
+  
   try {
-    const logs = await getLogsSingle(fromBlock, toBlock);
-    const rows = dedupeRows(decodeLogs(logs));
+    const logs = await getLogsSingle(fromBlock, toBlock, contract, topic0);
+    const rows = dedupeRows(decodeLogs(logs, isLegacy));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   } catch {
-    const logs = await getLogsChunked(fromBlock, toBlock);
-    const rows = dedupeRows(decodeLogs(logs));
+    const logs = await getLogsChunked(fromBlock, toBlock, contract, topic0);
+    const rows = dedupeRows(decodeLogs(logs, isLegacy));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   }
 }
@@ -411,31 +420,59 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
 async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: BlockBounds): Promise<Row[]> {
   const clampedStart = Math.max(startTs, bounds.earliest.ts);
   const clampedEnd = Math.min(Math.max(endTs, clampedStart), bounds.latest.ts);
-  const fromBlock = await findBlockAtOrAfter(clampedStart, bounds);
-  const toBlock = await findBlockAtOrBefore(clampedEnd, bounds);
-  if (toBlock < fromBlock) return [];
+  if (clampedEnd < clampedStart) return [];
   
-  // Query both contracts in parallel to get all data
-  const [newLogs, legacyLogs] = await Promise.all([
-    (async () => {
-      try {
-        return await getLogsSingle(fromBlock, toBlock, CONTRACT, TOPIC0);
-      } catch {
-        return await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
-      }
-    })(),
-    (async () => {
-      try {
-        return await getLogsSingle(fromBlock, toBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
-      } catch {
-        return await getLogsChunked(fromBlock, toBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
-      }
-    })(),
-  ]);
+  // Optimize: only query contracts that have data for this date range
+  const needsLegacy = clampedStart < NEW_CONTRACT_START_TS;
+  const needsNew = clampedEnd >= NEW_CONTRACT_START_TS;
   
-  const newRows = dedupeRows(decodeLogs(newLogs, false));
-  const legacyRows = dedupeRows(decodeLogs(legacyLogs, true));
-  const allRows = mergeRows(newRows, legacyRows);
+  const queries: Promise<Row[]>[] = [];
+  
+  if (needsLegacy) {
+    // Query legacy contract for dates before new contract started
+    const legacyEndTs = Math.min(clampedEnd, NEW_CONTRACT_START_TS - 1);
+    const legacyFromBlock = await findBlockAtOrAfter(clampedStart, bounds);
+    const legacyToBlock = await findBlockAtOrBefore(legacyEndTs, bounds);
+    if (legacyToBlock >= legacyFromBlock) {
+      queries.push((async () => {
+        try {
+          const logs = await getLogsSingle(legacyFromBlock, legacyToBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+          return dedupeRows(decodeLogs(logs, true));
+        } catch {
+          const logs = await getLogsChunked(legacyFromBlock, legacyToBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+          return dedupeRows(decodeLogs(logs, true));
+        }
+      })());
+    }
+  }
+  
+  if (needsNew) {
+    // Query new contract for dates after it started
+    const newStartTs = Math.max(clampedStart, NEW_CONTRACT_START_TS);
+    const newFromBlock = await findBlockAtOrAfter(newStartTs, bounds);
+    const newToBlock = await findBlockAtOrBefore(clampedEnd, bounds);
+    if (newToBlock >= newFromBlock) {
+      queries.push((async () => {
+        try {
+          const logs = await getLogsSingle(newFromBlock, newToBlock, CONTRACT, TOPIC0);
+          return dedupeRows(decodeLogs(logs, false));
+        } catch {
+          const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, TOPIC0);
+          return dedupeRows(decodeLogs(logs, false));
+        }
+      })());
+    }
+  }
+  
+  if (queries.length === 0) return [];
+  
+  // Execute queries in parallel
+  const results = await Promise.all(queries);
+  // Merge all results
+  let allRows: Row[] = [];
+  for (const rows of results) {
+    allRows = mergeRows(allRows, rows);
+  }
   allRows.sort(sortByTimestamp);
   return allRows;
 }
