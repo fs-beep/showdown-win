@@ -82,12 +82,24 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
     if (!client) return null;
-    // Try both keys in parallel for faster lookup
-    const [newKey, legacyKey] = await Promise.all([
-      client.get(kvKey(dayIndex)),
-      client.get(legacyKvKey(dayIndex)),
-    ]);
-    return (newKey || legacyKey) as DayEntry | null;
+    const dayStartTs = dayIndex * 86400;
+    const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
+    
+    if (needsNewContract) {
+      // For days after Nov 15, prioritize new contract cache
+      const newKey = await client.get(kvKey(dayIndex));
+      if (newKey) return newKey as DayEntry;
+      // Fall back to legacy only if new doesn't exist (shouldn't happen, but be safe)
+      const legacyKey = await client.get(legacyKvKey(dayIndex));
+      return legacyKey as DayEntry | null;
+    } else {
+      // For days before Nov 15, try both keys (legacy might have data)
+      const [newKey, legacyKey] = await Promise.all([
+        client.get(kvKey(dayIndex)),
+        client.get(legacyKvKey(dayIndex)),
+      ]);
+      return (newKey || legacyKey) as DayEntry | null;
+    }
   } catch {
     return null;
   }
