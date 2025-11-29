@@ -725,81 +725,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await Promise.all(slice);
       }
       
-      // Fetch days after Nov 14: ALWAYS fetch to guarantee data, then cache day-by-day for speed
+      // Fetch days after Nov 14: fetch day-by-day to avoid block range limits, then cache
       if (eTs >= NEW_CONTRACT_START_TS) {
         const todayDay = Math.floor(latest.ts / 86400);
         const todayStartTs = todayDay * 86400;
         const fetchEnd = Math.min(eTs, todayStartTs - 1); // Exclude today
         
         if (fetchEnd >= afterNewContractStart) {
-          // ALWAYS fetch the entire range first (guarantees we get data)
-          let newContractRows: Row[] = [];
-          try {
-            newContractRows = await fetchRangeRowsDirect(afterNewContractStart, fetchEnd, bounds);
-          } catch (fetchError: any) {
-            console.error('fetchRangeRowsDirect failed, trying fallback', { error: fetchError?.message || String(fetchError) });
-            // Fallback: use direct method like extendToday
-            try {
-              const fromBlock = await findBlockAtOrAfter(afterNewContractStart, bounds);
-              const toBlock = await findBlockAtOrBefore(fetchEnd, bounds);
-              if (toBlock >= fromBlock) {
-                let newLogs: any[] = [];
-                try {
-                  newLogs = await getLogsSingle(fromBlock, toBlock, CONTRACT, TOPIC0);
-                } catch {
-                  newLogs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
-                }
-                const newRows = (newLogs as any[]).map(decode).filter(Boolean) as Row[];
-                const uniq = new Map<string, Row>();
-                for (const r of newRows) {
-                  const idxOrBlock = (typeof (r as any).logIndex === 'number' && !isNaN((r as any).logIndex)) ? (r as any).logIndex : r.blockNumber;
-                  uniq.set(`${r.txHash}:${idxOrBlock}`, r);
-                }
-                newContractRows = Array.from(uniq.values());
-              }
-            } catch (fallbackError: any) {
-              console.error('Fallback also failed', { error: fallbackError?.message || String(fallbackError) });
-            }
-          }
-          
-          // Add fetched rows to results
-          resultRows = mergeRows(resultRows, newContractRows);
-          
-          // Now cache day-by-day for future speed (but don't block on it)
           const newContractStartDay = Math.floor(afterNewContractStart / 86400);
           const newContractEndDay = Math.floor(fetchEnd / 86400);
           
-          // Cache each day's data in background (don't await - let it happen async)
-          for (let d = newContractStartDay; d <= newContractEndDay; d++) {
-            const dayStartTs = d * 86400;
-            const dayEndTs = dayStartTs + 86399;
-            // Filter rows for this day
-            const dayRows = newContractRows.filter(r => {
-              const ts = parseStartedAtTs(r.startedAt);
-              return ts !== null && ts >= dayStartTs && ts <= dayEndTs;
-            });
+          // Fetch day-by-day in parallel (but limit concurrency to avoid overwhelming RPC)
+          const CONC = Math.min(5, newContractEndDay - newContractStartDay + 1);
+          for (let i = 0; i <= newContractEndDay - newContractStartDay; i += CONC) {
+            const slice = [];
+            for (let j = 0; j < CONC && (newContractStartDay + i + j) <= newContractEndDay; j++) {
+              const d = newContractStartDay + i + j;
+              const dayStartTs = d * 86400;
+              const dayEndTs = dayStartTs + 86399;
+              const dayStart = Math.max(dayStartTs, afterNewContractStart);
+              const dayEnd = Math.min(dayEndTs, fetchEnd);
+              
+              slice.push((async () => {
+                // Check cache first
+                let cached: DayEntry | null = null;
+                const mem = dayCache.get(memKey(d));
+                if (mem && hasMegaRows(mem) && mem.rows.length > 0) {
+                  return mem.rows;
+                }
+                const fromKv = await kvGetDay(d);
+                if (fromKv && hasMegaRows(fromKv) && fromKv.rows.length > 0) {
+                  remember(d, fromKv);
+                  return fromKv.rows;
+                }
+                
+                // Not in cache - fetch this day
+                try {
+                  const fetchedRows = await fetchRangeRowsDirect(dayStart, dayEnd, bounds);
+                  
+                  // Cache the results
+                  if (fetchedRows.length > 0) {
+                    let fromBlock: number;
+                    let toBlock: number;
+                    fromBlock = Math.min(...fetchedRows.map(r => r.blockNumber));
+                    toBlock = Math.max(...fetchedRows.map(r => r.blockNumber));
+                    
+                    const entry: DayEntry = {
+                      fromBlock,
+                      toBlock,
+                      rows: fetchedRows,
+                      lastUpdate: Date.now()
+                    };
+                    
+                    remember(d, entry);
+                    await kvSetDay(d, entry);
+                  }
+                  
+                  return fetchedRows;
+                } catch (err: any) {
+                  console.error(`Failed to fetch day ${d}`, { error: err?.message || String(err), dayStart, dayEnd });
+                  return [] as Row[];
+                }
+              })());
+            }
             
-            if (dayRows.length > 0) {
-              // Cache this day's data
-              let fromBlock: number;
-              let toBlock: number;
-              if (dayRows.length > 0) {
-                fromBlock = Math.min(...dayRows.map(r => r.blockNumber));
-                toBlock = Math.max(...dayRows.map(r => r.blockNumber));
-              } else {
-                fromBlock = await findBlockAtOrAfter(dayStartTs, bounds);
-                toBlock = await findBlockAtOrBefore(dayEndTs, bounds);
-              }
-              
-              const entry: DayEntry = {
-                fromBlock,
-                toBlock,
-                rows: dayRows,
-                lastUpdate: Date.now()
-              };
-              
-              remember(d, entry);
-              kvSetDay(d, entry).catch(err => console.error(`Failed to cache day ${d}`, err)); // Don't block
+            const dayResults = await Promise.all(slice);
+            for (const rows of dayResults) {
+              resultRows = mergeRows(resultRows, rows);
             }
           }
         }
