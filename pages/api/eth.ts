@@ -86,12 +86,9 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
     const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
     
     if (needsNewContract) {
-      // For days after Nov 15, prioritize new contract cache
+      // For days after Nov 15, ONLY use new contract cache - never fall back to legacy
       const newKey = await client.get(kvKey(dayIndex));
-      if (newKey) return newKey as DayEntry;
-      // Fall back to legacy only if new doesn't exist (shouldn't happen, but be safe)
-      const legacyKey = await client.get(legacyKvKey(dayIndex));
-      return legacyKey as DayEntry | null;
+      return newKey as DayEntry | null;
     } else {
       // For days before Nov 15, try both keys (legacy might have data)
       const [newKey, legacyKey] = await Promise.all([
@@ -392,8 +389,8 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   const toBlock = await findBlockAtOrBefore(endTs, bounds);
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
   
-  // Optimize: only query the contract that has data for this day
-  // Use dayStartTs (not endTs) to determine which contract, since a day should use one contract
+  // Determine which contract to use based on the day start timestamp
+  // For Nov 15 and later, use new contract; before Nov 15, use legacy
   const isLegacyDay = dayStartTs < NEW_CONTRACT_START_TS;
   const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
   const topic0 = isLegacyDay ? LEGACY_TOPIC0 : TOPIC0;
