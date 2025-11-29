@@ -537,10 +537,11 @@ export default function Home() {
         wantAgg: true,
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const j: ApiResponse = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
-      const sorted = (j.rows || []).sort((a,b)=>a.blockNumber-b.blockNumber);
-      const normalized = sorted.map(r => ({
+      // Rows are already sorted by timestamp from API
+      const normalized = (j.rows || []).map(r => ({
         ...r,
         winningPlayer: stripPlayerSuffix(r.winningPlayer),
         losingPlayer: stripPlayerSuffix(r.losingPlayer),
