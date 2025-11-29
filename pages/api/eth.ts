@@ -5,6 +5,8 @@ import { gzipSync } from 'zlib';
 
 const RPC = process.env.RPC_URL || 'https://timothy.megaeth.com/mafia/rpc/l1z4x7c0v3b6n9m2a5s8d1f4g7h0j3k6q9w2e5r8';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
+const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
+const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -113,6 +115,9 @@ async function kvSetDay(dayIndex: number, entry: DayEntry): Promise<void> {
 const iface = new Interface([
   'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason, string gameType, string metadata)',
 ]);
+const legacyIface = new Interface([
+  'event GameResultEvent(uint256 gameNumber, string gameId, string startedAt, string winningPlayer, string winningClasses, string losingPlayer, string losingClasses, string gameLength, string endReason)',
+]);
 
 function toHex(n: number) { return '0x' + n.toString(16); }
 function sleep(ms: number) { return new Promise(r=>setTimeout(r, ms)); }
@@ -208,8 +213,8 @@ function buildRanges(fromBlock: number, toBlock: number) {
   return ranges;
 }
 
-async function getLogsSingle(fromBlock: number, toBlock: number) {
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: CONTRACT, topics: [TOPIC0] }] });
+async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics: [topic0] }] });
   const arr = j?.result || [];
   // Defensive: some RPC providers can occasionally return duplicate logs in large ranges
   const uniq = new Map<string, any>();
@@ -219,13 +224,13 @@ async function getLogsSingle(fromBlock: number, toBlock: number) {
   }
   return Array.from(uniq.values());
 }
-async function getLogsChunked(fromBlock: number, toBlock: number) {
+async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
   const ranges = buildRanges(fromBlock, toBlock);
   let all: any[] = [];
   const CONCURRENCY = Math.max(1, LOG_RANGE_CONCURRENCY);
   for (let i=0; i<ranges.length; i+=CONCURRENCY) {
     const slice = ranges.slice(i, i+CONCURRENCY);
-    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: CONTRACT, topics: [TOPIC0] }] }));
+    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics: [topic0] }] }));
     const parts = await Promise.all(reqs);
     for (const p of parts) all.push(...(p?.result || []));
   }
@@ -261,8 +266,31 @@ function decode(log: any): Row | null {
   } catch { return null; }
 }
 
-function decodeLogs(logs: any[]): Row[] {
-  return (logs as any[]).map(decode).filter(Boolean) as Row[];
+function decodeLegacy(log: any): Row | null {
+  try {
+    const parsed = legacyIface.parseLog({ topics: log.topics, data: log.data });
+    const [gameNumber, gameId, startedAt, winningPlayer, winningClasses, losingPlayer, losingClasses, gameLength, endReason] = (parsed as any).args as any[];
+    return {
+      blockNumber: parseInt(log.blockNumber, 16),
+      txHash: log.transactionHash,
+      logIndex: parseInt(log.logIndex, 16),
+      gameNumber: Number(gameNumber?.toString?.() ?? gameNumber),
+      gameId: String(gameId),
+      startedAt: String(startedAt),
+      winningPlayer: normalizePlayer(String(winningPlayer)),
+      winningClasses: String(winningClasses),
+      losingPlayer: normalizePlayer(String(losingPlayer)),
+      losingClasses: String(losingClasses),
+      gameLength: String(gameLength),
+      endReason: String(endReason),
+      network: 'legacy',
+    };
+  } catch { return null; }
+}
+
+function decodeLogs(logs: any[], isLegacy: boolean = false): Row[] {
+  const decoder = isLegacy ? decodeLegacy : decode;
+  return (logs as any[]).map(decoder).filter(Boolean) as Row[];
 }
 
 function dedupeRows(rows: Row[]): Row[] {
@@ -378,15 +406,30 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   const fromBlock = await findBlockAtOrAfter(clampedStart, bounds);
   const toBlock = await findBlockAtOrBefore(clampedEnd, bounds);
   if (toBlock < fromBlock) return [];
-  let logs: any[] = [];
-  try {
-    logs = await getLogsSingle(fromBlock, toBlock);
-  } catch {
-    logs = await getLogsChunked(fromBlock, toBlock);
-  }
-  const rows = dedupeRows(decodeLogs(logs));
-  rows.sort((a, b) => a.blockNumber - b.blockNumber);
-  return rows;
+  
+  // Query both contracts in parallel to get all data
+  const [newLogs, legacyLogs] = await Promise.all([
+    (async () => {
+      try {
+        return await getLogsSingle(fromBlock, toBlock, CONTRACT, TOPIC0);
+      } catch {
+        return await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
+      }
+    })(),
+    (async () => {
+      try {
+        return await getLogsSingle(fromBlock, toBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+      } catch {
+        return await getLogsChunked(fromBlock, toBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+      }
+    })(),
+  ]);
+  
+  const newRows = dedupeRows(decodeLogs(newLogs, false));
+  const legacyRows = dedupeRows(decodeLogs(legacyLogs, true));
+  const allRows = mergeRows(newRows, legacyRows);
+  allRows.sort((a, b) => a.blockNumber - b.blockNumber);
+  return allRows;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
