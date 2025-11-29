@@ -224,16 +224,32 @@ export default function Home() {
   const [jumpAll, setJumpAll] = useState<string>('');
   const [jumpFiltered, setJumpFiltered] = useState<string>('');
   // Sorting state
-  const [decodedSort, setDecodedSort] = useState<{ key: keyof Row; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
-  const [filteredSort, setFilteredSort] = useState<{ key: keyof Row | 'result'; dir: 'asc'|'desc' }>({ key: 'blockNumber', dir: 'desc' });
+  const [decodedSort, setDecodedSort] = useState<{ key: keyof Row; dir: 'asc'|'desc' }>({ key: 'startedAt', dir: 'desc' });
+  const [filteredSort, setFilteredSort] = useState<{ key: keyof Row | 'result'; dir: 'asc'|'desc' }>({ key: 'startedAt', dir: 'desc' });
   const [overallSort, setOverallSort] = useState<{ key: keyof ClassRow; dir: 'asc'|'desc' }>({ key: 'total', dir: 'desc' });
   const [playerClassSort, setPlayerClassSort] = useState<{ key: keyof ClassRow; dir: 'asc'|'desc' }>({ key: 'total', dir: 'desc' });
   const sortedAll = useMemo(() => {
     const arr = rows.slice();
     arr.sort((a,b)=>{
       const k = decodedSort.key;
-      const va = (a as any)[k];
-      const vb = (b as any)[k];
+      let va = (a as any)[k];
+      let vb = (b as any)[k];
+      // Special handling for startedAt - parse timestamp for proper comparison
+      if (k === 'startedAt') {
+        const parseTs = (str: string): number => {
+          if (!str) return 0;
+          const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\s*(?:UTC|Z))?$/i.exec(str.trim());
+          if (m) {
+            const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+            return Math.floor(ms / 1000);
+          }
+          const iso = str.replace(' ', 'T').replace(/\s*UTC$/i, 'Z');
+          const parsed = Date.parse(iso);
+          return isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
+        };
+        va = parseTs(va);
+        vb = parseTs(vb);
+      }
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return decodedSort.dir === 'asc' ? cmp : -cmp;
     });
@@ -247,7 +263,24 @@ export default function Home() {
     const arr = filtered.slice();
     arr.sort((a:any,b:any)=>{
       const k = filteredSort.key as any;
-      const va = a[k]; const vb = b[k];
+      let va = a[k];
+      let vb = b[k];
+      // Special handling for startedAt - parse timestamp for proper comparison
+      if (k === 'startedAt') {
+        const parseTs = (str: string): number => {
+          if (!str) return 0;
+          const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\s*(?:UTC|Z))?$/i.exec(str.trim());
+          if (m) {
+            const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+            return Math.floor(ms / 1000);
+          }
+          const iso = str.replace(' ', 'T').replace(/\s*UTC$/i, 'Z');
+          const parsed = Date.parse(iso);
+          return isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
+        };
+        va = parseTs(va);
+        vb = parseTs(vb);
+      }
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return filteredSort.dir === 'asc' ? cmp : -cmp;
     });
@@ -945,7 +978,7 @@ export default function Home() {
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
-                  <th className="p-2 w-40 whitespace-nowrap">Started</th>
+                  <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-16">Tx</th>
                 </tr>
               </thead>
@@ -1044,7 +1077,7 @@ export default function Home() {
                   <th className="p-2 w-28 cursor-pointer" aria-sort={decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'blockNumber' as any, dir: s.key==='blockNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Block {decodedSort.key==='blockNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40">Game ID</th>
-                  <th className="p-2 w-40 whitespace-nowrap">Started</th>
+                  <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'winningPlayer' as any, dir: s.key==='winningPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Winner</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setDecodedSort(s=>({ key:'losingPlayer' as any, dir: s.key==='losingPlayer' && s.dir==='asc' ? 'desc' : 'asc' }))}>Loser</th>
                   <th className="p-2 w-36">Reason</th>
