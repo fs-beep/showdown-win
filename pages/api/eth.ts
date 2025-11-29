@@ -273,6 +273,12 @@ function dedupeRows(rows: Row[]): Row[] {
   }
   return Array.from(uniq.values());
 }
+function mergeRows(a: Row[], b: Row[]): Row[] {
+  const map = new Map<string, Row>();
+  for (const r of a) map.set(stableRowKey(r), r);
+  for (const r of b) map.set(stableRowKey(r), r);
+  return Array.from(map.values());
+}
 function hasMegaRows(entry: DayEntry | null | undefined) {
   return Boolean(entry?.rows?.some(r => r.network === 'megaeth-testnet-v2'));
 }
@@ -472,6 +478,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await Promise.all(slice);
       }
     }
+
+    // Always merge with a live fetch to guarantee we have the latest chain data
+    const liveRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+    resultRows = mergeRows(resultRows, liveRows);
+    resultRows.sort((a, b) => a.blockNumber - b.blockNumber);
 
     // First constrain precisely to the requested [sTs, eTs] window (even if cached full days were used)
     const windowed = filterRowsByTs(resultRows, sTs, eTs);
