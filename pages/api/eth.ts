@@ -546,8 +546,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               if (needsNewContract && !hasMegaRows(mem)) {
                 // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
                 const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-                remember(built.key, built.entry);
-                await kvSetDay(built.key, built.entry);
+                // Only cache if we got data - don't cache empty results for days after Nov 15
+                if (built.entry.rows.length > 0 || !needsNewContract) {
+                  remember(built.key, built.entry);
+                  await kvSetDay(built.key, built.entry);
+                }
                 resultRows.push(...built.entry.rows);
               } else {
                 // Use cache as-is (either before Nov 15 or already has new contract data)
@@ -572,8 +575,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               if (needsNewContract && !hasMegaRows(fromKv)) {
                 // Day is after Nov 15 but cache doesn't have new contract data - rebuild completely
                 const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-                remember(built.key, built.entry);
-                await kvSetDay(built.key, built.entry);
+                // Only cache if we got data - don't cache empty results for days after Nov 15
+                if (built.entry.rows.length > 0 || !needsNewContract) {
+                  remember(built.key, built.entry);
+                  await kvSetDay(built.key, built.entry);
+                }
                 resultRows.push(...built.entry.rows);
               } else {
                 // Use cache as-is, load into memory for next time
@@ -593,8 +599,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           // 3) Build fresh and persist - use full day range for days after Nov 15
           const built = await buildDay(rebuildStart, rebuildEnd, bounds);
-          remember(built.key, built.entry);
-          await kvSetDay(built.key, built.entry);
+          // Only cache if we got data - don't cache empty results for days after Nov 15
+          if (built.entry.rows.length > 0 || !needsNewContract) {
+            remember(built.key, built.entry);
+            await kvSetDay(built.key, built.entry);
+          }
           resultRows.push(...built.entry.rows);
         });
         await Promise.all(slice);
