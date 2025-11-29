@@ -35,11 +35,14 @@ type DayAgg = { byClass: Record<string, { wins: number; losses: number; total: n
 type BlockInfo = { num: number; ts: number };
 type BlockBounds = { earliest: BlockInfo; latest: BlockInfo };
 
-const dayCache = new Map<number, DayEntry>();
-const dayOrder: number[] = [];
+const CACHE_NAMESPACE = (process.env.CACHE_NAMESPACE || `${CONTRACT}:${TOPIC0}`).toLowerCase();
+function memKey(dayIndex: number) { return `${CACHE_NAMESPACE}:${dayIndex}`; }
+const dayCache = new Map<string, DayEntry>();
+const dayOrder: string[] = [];
 function remember(dayIndex: number, entry: DayEntry) {
-  if (!dayCache.has(dayIndex)) dayOrder.push(dayIndex);
-  dayCache.set(dayIndex, entry);
+  const key = memKey(dayIndex);
+  if (!dayCache.has(key)) dayOrder.push(key);
+  dayCache.set(key, entry);
   while (dayOrder.length > MAX_DAYS_CACHE) {
     const evict = dayOrder.shift();
     if (evict !== undefined) dayCache.delete(evict);
@@ -51,8 +54,10 @@ function clamp(n: number, a: number, b: number) { return Math.max(a, Math.min(b,
 // Optional persistent cache (Vercel KV or Upstash for Redis via REST). Falls back to in-memory only if not configured.
 // We lazily import '@vercel/kv' after normalizing envs so it works with either KV_* or UPSTASH_*.
 const KV_ENV_PRESENT = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-function kvKey(dayIndex: number) { return `day:${dayIndex}`; }
-function kvAggKey(dayIndex: number) { return `dayAgg:${dayIndex}`; }
+function kvKey(dayIndex: number) { return `${CACHE_NAMESPACE}:day:${dayIndex}`; }
+function kvAggKey(dayIndex: number) { return `${CACHE_NAMESPACE}:dayAgg:${dayIndex}`; }
+function legacyKvKey(dayIndex: number) { return `day:${dayIndex}`; }
+function legacyKvAggKey(dayIndex: number) { return `dayAgg:${dayIndex}`; }
 let _kvClient: any | null = null;
 async function getKv() {
   if (!KV_ENV_PRESENT) return null;
@@ -73,8 +78,12 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
     if (!client) return null;
-    const v = await client.get(kvKey(dayIndex));
-    return (v as DayEntry | null) || null;
+    const keys = [kvKey(dayIndex), legacyKvKey(dayIndex)];
+    for (const key of keys) {
+      const v = await client.get(key);
+      if (v) return v as DayEntry;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -397,7 +406,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (let i=0; i<dayRanges.length; i+=CONC) {
         const slice = dayRanges.slice(i, i+CONC).map(async (r) => {
           // 1) Try in-memory first (fast)
-          const mem = dayCache.get(r.key);
+          const mem = dayCache.get(memKey(r.key));
           if (mem && r.key < todayDay) {
             resultRows.push(...mem.rows);
             return;
