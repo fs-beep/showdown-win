@@ -540,8 +540,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (mem) {
             if (isHistorical) {
               // Historical days: check if we need to merge new contract data
-              if (needsNewContract && !hasMegaRows(mem)) {
-                // Day is after Nov 15 but cache doesn't have new contract data
+              if (needsNewContract && (!hasMegaRows(mem) || mem.rows.length === 0)) {
+                // Day is after Nov 15 but cache doesn't have new contract data or is empty
                 // Rebuild completely to ensure we get all data
                 const built = await buildDay(r.start, r.end, bounds);
                 remember(built.key, built.entry);
@@ -567,8 +567,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (fromKv) {
             if (isHistorical) {
               // Historical days: check if we need to merge new contract data
-              if (needsNewContract && !hasMegaRows(fromKv)) {
-                // Day is after Nov 15 but cache doesn't have new contract data
+              if (needsNewContract && (!hasMegaRows(fromKv) || fromKv.rows.length === 0)) {
+                // Day is after Nov 15 but cache doesn't have new contract data or is empty
                 // Rebuild completely to ensure we get all data
                 const built = await buildDay(r.start, r.end, bounds);
                 remember(built.key, built.entry);
