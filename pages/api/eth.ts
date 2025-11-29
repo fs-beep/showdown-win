@@ -523,9 +523,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!KV_ENV_PRESENT) {
       resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
     } else {
-      const startDay = Math.floor(sTs / 86400);
-      const endDay = Math.floor(eTs / 86400);
-      const todayDay = Math.floor(latest.ts / 86400);
+      // SIMPLIFIED APPROACH: Split query into two parts
+      // 1. Days before Nov 15: use cache (fast, proven to work)
+      // 2. Days after Nov 14: ALWAYS fetch directly using fetchRangeRowsDirect (guaranteed to work)
+      
+      const beforeNewContractEnd = Math.min(eTs, NEW_CONTRACT_START_TS - 1);
+      const afterNewContractStart = Math.max(sTs, NEW_CONTRACT_START_TS);
+      
+      // Fetch days before Nov 15 using cache
+      if (sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
+        const startDay = Math.floor(sTs / 86400);
+        const endDay = Math.floor(beforeNewContractEnd / 86400);
+        const todayDay = Math.floor(latest.ts / 86400);
 
       const dayRanges: Array<{ key:number, start:number, end:number }> = [];
       for (let d = startDay; d <= endDay; d++) {
@@ -653,6 +662,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           resultRows.push(...built.entry.rows);
         });
         await Promise.all(slice);
+      }
+      
+      // ALWAYS fetch days after Nov 14 directly (bypass cache completely)
+      // This guarantees we get the data using the same method that works for today
+      // Exclude today - it's handled by the live fetch section below
+      const todayDay = Math.floor(latest.ts / 86400);
+      const todayStartTs = todayDay * 86400;
+      const historicalNewContractEnd = Math.min(eTs, todayStartTs - 1);
+      
+      if (historicalNewContractEnd >= NEW_CONTRACT_START_TS && afterNewContractStart <= historicalNewContractEnd) {
+        const newContractRows = await fetchRangeRowsDirect(afterNewContractStart, historicalNewContractEnd, bounds);
+        resultRows = mergeRows(resultRows, newContractRows);
       }
     }
 
