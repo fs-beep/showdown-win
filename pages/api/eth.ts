@@ -472,26 +472,83 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
     if (newToBlock >= newFromBlock) {
       queries.push((async () => {
         try {
+          // Ensure we're using the correct contract and topic
+          if (CONTRACT !== '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53') {
+            throw new Error(`Wrong contract address: ${CONTRACT}`);
+          }
           const logs = await getLogsSingle(newFromBlock, newToBlock, CONTRACT, TOPIC0);
-          return dedupeRows(decodeLogs(logs, false));
-        } catch {
-          const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, TOPIC0);
-          return dedupeRows(decodeLogs(logs, false));
+          const decoded = decodeLogs(logs, false);
+          const deduped = dedupeRows(decoded);
+          if (deduped.length === 0 && logs.length > 0) {
+            console.error('Decoded logs but got 0 rows', { logsLength: logs.length, fromBlock: newFromBlock, toBlock: newToBlock });
+          }
+          return deduped;
+        } catch (err: any) {
+          console.error('getLogsSingle failed, trying chunked', { 
+            error: err?.message || String(err),
+            fromBlock: newFromBlock,
+            toBlock: newToBlock,
+            contract: CONTRACT,
+            topic0: TOPIC0
+          });
+          try {
+            const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, TOPIC0);
+            const decoded = decodeLogs(logs, false);
+            const deduped = dedupeRows(decoded);
+            return deduped;
+          } catch (chunkErr: any) {
+            console.error('getLogsChunked also failed', {
+              error: chunkErr?.message || String(chunkErr),
+              fromBlock: newFromBlock,
+              toBlock: newToBlock
+            });
+            return []; // Return empty instead of throwing
+          }
         }
       })());
     }
   }
   
-  if (queries.length === 0) return [];
+  if (queries.length === 0) {
+    console.error('fetchRangeRowsDirect: No queries to execute', { startTs, endTs, needsLegacy, needsNew });
+    return [];
+  }
   
-  // Execute queries in parallel
-  const results = await Promise.all(queries);
+  // Execute queries in parallel with error handling
+  let results: Row[][];
+  try {
+    results = await Promise.all(queries);
+  } catch (err: any) {
+    console.error('fetchRangeRowsDirect: Promise.all failed', {
+      error: err?.message || String(err),
+      startTs,
+      endTs,
+      queriesCount: queries.length
+    });
+    return [];
+  }
+  
   // Merge all results
   let allRows: Row[] = [];
   for (const rows of results) {
-    allRows = mergeRows(allRows, rows);
+    if (Array.isArray(rows)) {
+      allRows = mergeRows(allRows, rows);
+    } else {
+      console.error('fetchRangeRowsDirect: Invalid rows result', { rows });
+    }
   }
   allRows.sort(sortByTimestamp);
+  
+  if (allRows.length === 0 && endTs >= NEW_CONTRACT_START_TS) {
+    console.error('fetchRangeRowsDirect: Got 0 rows for new contract range', {
+      startTs,
+      endTs,
+      needsNew,
+      queriesCount: queries.length,
+      resultsLengths: results.map(r => Array.isArray(r) ? r.length : 'invalid')
+    });
+  }
+  
   return allRows;
 }
 
@@ -677,9 +734,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const fetchEnd = Math.min(eTs, todayStartTs - 1); // Exclude today
         
         if (fetchEnd >= afterNewContractStart) {
-          // Fetch directly - this is the proven method that works
-          const newContractRows = await fetchRangeRowsDirect(afterNewContractStart, fetchEnd, bounds);
-          resultRows = mergeRows(resultRows, newContractRows);
+          try {
+            // Fetch directly - this is the proven method that works
+            console.log('Fetching new contract data directly', {
+              start: afterNewContractStart,
+              end: fetchEnd,
+              startDate: new Date(afterNewContractStart * 1000).toISOString(),
+              endDate: new Date(fetchEnd * 1000).toISOString(),
+              contract: CONTRACT,
+              topic0: TOPIC0
+            });
+            const newContractRows = await fetchRangeRowsDirect(afterNewContractStart, fetchEnd, bounds);
+            console.log('Fetched new contract rows', { count: newContractRows.length });
+            resultRows = mergeRows(resultRows, newContractRows);
+            console.log('Merged result rows', { totalCount: resultRows.length });
+          } catch (fetchError: any) {
+            console.error('Direct fetch failed, trying fallback', {
+              error: fetchError?.message || String(fetchError),
+              stack: fetchError?.stack
+            });
+            // If fetchRangeRowsDirect fails, try direct method like extendToday uses
+            try {
+              const fromBlock = await findBlockAtOrAfter(afterNewContractStart, bounds);
+              const toBlock = await findBlockAtOrBefore(fetchEnd, bounds);
+              if (toBlock >= fromBlock) {
+                let newLogs: any[] = [];
+                try {
+                  newLogs = await getLogsSingle(fromBlock, toBlock, CONTRACT, TOPIC0);
+                } catch {
+                  newLogs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
+                }
+                const newRows = (newLogs as any[]).map(decode).filter(Boolean) as Row[];
+                const uniq = new Map<string, Row>();
+                for (const r of newRows) {
+                  const idxOrBlock = (typeof (r as any).logIndex === 'number' && !isNaN((r as any).logIndex)) ? (r as any).logIndex : r.blockNumber;
+                  uniq.set(`${r.txHash}:${idxOrBlock}`, r);
+                }
+                const fallbackRows = Array.from(uniq.values());
+                resultRows = mergeRows(resultRows, fallbackRows);
+              }
+            } catch (fallbackError: any) {
+              // Last resort: return error in response so we can debug
+              console.error('Failed to fetch new contract data:', {
+                start: afterNewContractStart,
+                end: fetchEnd,
+                fetchError: fetchError?.message || String(fetchError),
+                fallbackError: fallbackError?.message || String(fallbackError),
+                contract: CONTRACT,
+                topic0: TOPIC0
+              });
+            }
+          }
         }
       }
     }
