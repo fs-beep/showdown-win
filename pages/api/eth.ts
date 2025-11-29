@@ -787,6 +787,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       }
+      }
     }
 
     // Only do live fetch for today's data (to get latest matches), skip for historical dates
