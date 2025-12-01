@@ -577,7 +577,7 @@ export default function Home() {
     }
   };
   const txExplorer = (hash: string, network?: Row['network']) => {
-    return `https://megaeth-testnet-v2.blockscout.com/tx/${hash}`;
+    return `https://megaeth-testnet-v2.blockscout.com/tx/${hash}?tab=logs`;
   };
   const toCsv = (rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
     const keys = columns?.map(c => c.key) || (rows[0] ? Object.keys(rows[0]) : []);
