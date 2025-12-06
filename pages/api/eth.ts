@@ -724,6 +724,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         await Promise.all(slice);
       }
+      }
       
       // Fetch days after Nov 14: fetch day-by-day to avoid block range limits, then cache
       if (eTs >= NEW_CONTRACT_START_TS) {
@@ -795,7 +796,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           }
         }
-      }
       }
     }
 
