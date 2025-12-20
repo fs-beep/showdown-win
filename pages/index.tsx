@@ -235,7 +235,7 @@ export default function Home() {
   // Pagination state
   const [pageAll, setPageAll] = useState(1);
   const [pageFiltered, setPageFiltered] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(15);
   const [jumpAll, setJumpAll] = useState<string>('');
   const [jumpFiltered, setJumpFiltered] = useState<string>('');
   // Sorting state
@@ -541,6 +541,53 @@ export default function Home() {
       .filter(p => p.total >= 15)
       .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
       .slice(0, 20);
+  }, [statRows]);
+
+  // Top player by class (dual-classes only, min 5 games)
+  const topPlayersByClass = useMemo(() => {
+    // Map: class -> player -> { wins, losses, total }
+    const byClassPlayer = new Map<string, Map<string, { wins: number; losses: number; total: number }>>();
+    
+    for (const r of statRows) {
+      const winCls = (r.winningClasses ?? '').trim();
+      const loseCls = (r.losingClasses ?? '').trim();
+      const winner = (r.winningPlayer ?? '').trim().toLowerCase();
+      const loser = (r.losingPlayer ?? '').trim().toLowerCase();
+      
+      // Only consider dual-classes (contain /)
+      if (winCls && winCls.includes('/') && winner) {
+        if (!byClassPlayer.has(winCls)) byClassPlayer.set(winCls, new Map());
+        const playerMap = byClassPlayer.get(winCls)!;
+        const s = playerMap.get(winner) || { wins: 0, losses: 0, total: 0 };
+        s.wins += 1; s.total += 1;
+        playerMap.set(winner, s);
+      }
+      if (loseCls && loseCls.includes('/') && loser) {
+        if (!byClassPlayer.has(loseCls)) byClassPlayer.set(loseCls, new Map());
+        const playerMap = byClassPlayer.get(loseCls)!;
+        const s = playerMap.get(loser) || { wins: 0, losses: 0, total: 0 };
+        s.losses += 1; s.total += 1;
+        playerMap.set(loser, s);
+      }
+    }
+    
+    // For each class, find the top player (min 5 games, highest win rate)
+    const result: Array<{ klass: string; player: string; wins: number; losses: number; total: number; winrate: number }> = [];
+    for (const [klass, playerMap] of byClassPlayer.entries()) {
+      let best: { player: string; wins: number; losses: number; total: number; winrate: number } | null = null;
+      for (const [playerName, stats] of playerMap.entries()) {
+        if (stats.total < 5) continue;
+        const wr = stats.wins / stats.total;
+        if (!best || wr > best.winrate || (wr === best.winrate && stats.total > best.total)) {
+          best = { player: playerName, wins: stats.wins, losses: stats.losses, total: stats.total, winrate: wr };
+        }
+      }
+      if (best) {
+        result.push({ klass, ...best });
+      }
+    }
+    
+    return result.sort((a, b) => b.winrate - a.winrate || b.total - a.total || a.klass.localeCompare(b.klass));
   }, [statRows]);
 
   const applyPreset = (kind: 'today'|'last7'|'last30'|'thisMonth'|'prevMonth'|'allTime'|'sincePatch') => {
@@ -1122,6 +1169,66 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+
+          {/* Top Player by Class */}
+          <div className="mt-6 pt-4 border-t dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 5 games)</span></div>
+              {topPlayersByClass.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                    <Download className="h-4 w-4"/> JSON
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs md:text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                    <th className="p-2">Class</th>
+                    <th className="p-2">Best Player</th>
+                    <th className="p-2 text-center">W/L</th>
+                    <th className="p-2 text-center">Games</th>
+                    <th className="p-2 text-center">Win Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topPlayersByClass.map((row) => {
+                    const hue = Math.round(row.winrate * 120);
+                    return (
+                      <tr key={row.klass} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="p-2 font-medium">{row.klass}</td>
+                        <td className="p-2">{row.player}</td>
+                        <td className="p-2 text-center tabular-nums">
+                          <span className="text-green-600 dark:text-green-400">{row.wins}</span>
+                          <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-red-600 dark:text-red-400">{row.losses}</span>
+                        </td>
+                        <td className="p-2 text-center tabular-nums">{row.total}</td>
+                        <td className="p-2 text-center">
+                          <span
+                            className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
+                            style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                          >
+                            {(row.winrate * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {loading && topPlayersByClass.length === 0 && (
+                    <SkeletonTableRows rows={5} cols={5} />
+                  )}
+                  {!loading && topPlayersByClass.length === 0 && (
+                    <tr>
+                      <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Player-specific matches */}
@@ -1207,6 +1314,7 @@ export default function Home() {
               <div>Page {pageFiltered} / {Math.ceil(filtered.length / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / pageSize),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / pageSize)}>Next</button>
               <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={15}>15</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
@@ -1307,6 +1415,7 @@ export default function Home() {
               <div>Page {pageAll} / {Math.ceil((rows.length) / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / pageSize),p+1))} disabled={pageAll>=Math.ceil((rows.length) / pageSize)}>Next</button>
               <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={15}>15</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
