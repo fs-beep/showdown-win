@@ -930,54 +930,6 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-
-          {/* Top Players by Win Rate (min 15 games) */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 15 games)</span></div>
-              {topPlayers.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                    <Download className="h-4 w-4"/> JSON
-                  </button>
-                  <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                    <Download className="h-4 w-4"/> CSV
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="mt-3 overflow-x-auto">
-              <table className="min-w-full text-left text-xs md:text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                    <th className="p-2 w-10">#</th>
-                    <th className="p-2">Player</th>
-                    <th className="p-2">Wins</th>
-                    <th className="p-2">Losses</th>
-                    <th className="p-2">Games</th>
-                    <th className="p-2">Win Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topPlayers.map((p, i) => (
-                    <tr key={p.player + i} className="border-b dark:border-gray-700">
-                      <td className="p-2 tabular-nums">{i+1}</td>
-                      <td className="p-2">{p.player}</td>
-                      <td className="p-2 tabular-nums">{p.wins}</td>
-                      <td className="p-2 tabular-nums">{p.losses}</td>
-                      <td className="p-2 tabular-nums">{p.total}</td>
-                      <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                  {topPlayers.length === 0 && (
-                    <tr>
-                      <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 15‑game threshold yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         {/* Class-vs-Class matchups with base class selector */}
@@ -1119,6 +1071,57 @@ export default function Home() {
               {loading ? 'Loading...' : 'No dual-class data yet — run a query above.'}
             </div>
           )}
+        </div>
+
+        {/* Top Players by Win Rate (min 15 games) */}
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 15 games)</span></div>
+            {topPlayers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                  <th className="p-2 w-10">#</th>
+                  <th className="p-2">Player</th>
+                  <th className="p-2">Wins</th>
+                  <th className="p-2">Losses</th>
+                  <th className="p-2">Games</th>
+                  <th className="p-2">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPlayers.map((p, i) => (
+                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="p-2 tabular-nums">{i+1}</td>
+                    <td className="p-2">{p.player}</td>
+                    <td className="p-2 tabular-nums">{p.wins}</td>
+                    <td className="p-2 tabular-nums">{p.losses}</td>
+                    <td className="p-2 tabular-nums">{p.total}</td>
+                    <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+                {loading && topPlayers.length === 0 && (
+                  <SkeletonTableRows rows={5} cols={6} />
+                )}
+                {!loading && topPlayers.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 15‑game threshold yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Player-specific matches */}
