@@ -1,8 +1,7 @@
 {
   "/_app": "pages/_app.js",
-  "/api/eth": "pages/api/eth.js",
-  "/api/discord_cleanup": "pages/api/discord_cleanup.js",
-  "/": "pages/index.js",
   "/_error": "pages/_error.js",
-  "/_document": "pages/_document.js"
+  "/_document": "pages/_document.js",
+  "/": "pages/index.js",
+  "/api/eth": "pages/api/eth.js"
 }

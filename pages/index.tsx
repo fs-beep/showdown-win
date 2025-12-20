@@ -76,13 +76,14 @@ export default function Home() {
   const router = useRouter();
   const [startDate, setStartDate] = useState<string>('2025-10-03');
   const [endDate, setEndDate] = useState<string>('');
-  const [player, setPlayer] = useState<string>('megaflop');
+  const [player, setPlayer] = useState<string>('barry');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const hydrated = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -439,6 +440,9 @@ export default function Home() {
     );
   }
 
+  // The 6 base classes
+  const BASE_CLASSES = ['Bureaucrat', 'Cheater', 'Gambler', 'Inventor', 'Protector', 'Rebel'] as const;
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -458,19 +462,48 @@ export default function Home() {
       wins[w][l] = (wins[w][l] ?? 0) + 1;
     }
     const classes = Array.from(classesSet).sort();
-    const matrix = classes.map(rowClass => {
-      const cells = classes.map(colClass => {
-        if (rowClass === colClass) return { colClass, pct: null as number | null, wins: 0, losses: 0, total: 0 };
-        const w_rc_cc = (wins[rowClass]?.[colClass]) ?? 0; // row beats col
-        const w_cc_rc = (wins[colClass]?.[rowClass]) ?? 0; // col beats row
-        const total = w_rc_cc + w_cc_rc;
-        const pct = total > 0 ? w_rc_cc / total : null;
-        return { colClass, pct, wins: w_rc_cc, losses: w_cc_rc, total };
-      });
-      return { rowClass, cells };
-    });
-    return { classes, matrix };
+    
+    // Create matchups map for selected class view
+    const matchups: Record<string, Array<{ opponent: string; wins: number; losses: number; total: number; winRate: number }>> = {};
+    for (const cls of classes) {
+      const opponents: Array<{ opponent: string; wins: number; losses: number; total: number; winRate: number }> = [];
+      for (const opp of classes) {
+        if (cls === opp) continue;
+        const w = (wins[cls]?.[opp]) ?? 0;
+        const l = (wins[opp]?.[cls]) ?? 0;
+        const total = w + l;
+        if (total === 0) continue;
+        opponents.push({ opponent: opp, wins: w, losses: l, total, winRate: w / total });
+      }
+      // Sort by total games descending
+      opponents.sort((a, b) => b.total - a.total);
+      matchups[cls] = opponents;
+    }
+    
+    return { classes, matchups };
   }, [statRows, player, matrixOnlyPlayer]);
+
+  // Combine selected base classes into a dual-class name (sorted alphabetically)
+  const selectedDualClass = useMemo(() => {
+    if (selectedBaseClasses.length !== 2) return '';
+    return [...selectedBaseClasses].sort().join('/');
+  }, [selectedBaseClasses]);
+
+  // Toggle a base class selection
+  const toggleBaseClass = (cls: string) => {
+    setSelectedBaseClasses(prev => {
+      if (prev.includes(cls)) {
+        // Deselect
+        return prev.filter(c => c !== cls);
+      } else if (prev.length < 2) {
+        // Add if we have room
+        return [...prev, cls];
+      } else {
+        // Replace the first one if we already have 2
+        return [prev[1], cls];
+      }
+    });
+  };
 
   // Top players by win rate across all rows (min 15 games)
   const topPlayers: PlayerRow[] = useMemo(() => {
@@ -649,7 +682,7 @@ export default function Home() {
               className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
               value={player}
               onChange={e=>setPlayer(e.target.value)}
-              placeholder="megaflop"
+              placeholder="barry"
               list="player-suggestions"
             />
             <datalist id="player-suggestions">
@@ -895,62 +928,113 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Class-vs-Class matrix with toggle */}
+        {/* Class-vs-Class matchups with base class selector */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Class vs Class — Win rate of <span className="font-semibold">class</span> vs <span className="font-semibold">class</span></div>
-            <label className="flex items-center gap-2 text-xs text-gray-600">
-              <input type="checkbox" className="h-4 w-4" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Class vs Class — Win rates</div>
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <input type="checkbox" className="h-4 w-4 rounded" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
             </label>
           </div>
-          <div className="mt-1 text-xs text-gray-500">Only dual-classes (with a <code>/</code>) are included. Cell = win rate of row‑class vs column‑class, with sample size in parentheses. “—” = no data (same class or fewer than 5 matches).</div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2">Class \ Class</th>
-                  {classVsClass.classes.map((c) => (
-                    <th key={c} className="p-2 whitespace-nowrap">{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {classVsClass.matrix.map((row) => (
-                  <tr key={row.rowClass} className="border-b dark:border-gray-700">
-                    <td className="p-2 font-medium whitespace-nowrap">{row.rowClass}</td>
-                    {row.cells.map((cell) => {
-                      const pct = cell.pct as number | null;
-                      const enough = (cell.total || 0) >= 5;
-                      const bgStyle = pct === null || !enough
-                        ? {}
-                        : { backgroundColor: `hsl(${Math.round((pct as number) * 120)}, 50%, 45%)` };
-                      const label = pct === null || !enough ? '—' : `${Math.round((pct as number)*100)}% (${cell.total})`;
-                      return (
-                        <td
-                          key={row.rowClass + '->' + cell.colClass}
-                          className="p-2 tabular-nums text-center align-middle"
-                          style={bgStyle}
-                          title={pct === null ? '' : `${cell.wins}/${cell.total} wins`}
-                        >
-                          {label}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {loading && classVsClass.classes.length === 0 && (
-                  <SkeletonTableRows rows={8} cols={classVsClass.classes.length || 6} />
-                )}
-                {classVsClass.classes.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={1}>No data yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          
+          {/* Base class selector - pick exactly 2 */}
+          <div className="mt-4">
+            <div className="text-xs text-gray-500 mb-2">Select 2 classes to form a dual-class</div>
+            <div className="flex flex-wrap gap-2">
+              {BASE_CLASSES.map(cls => {
+                const isSelected = selectedBaseClasses.includes(cls);
+                return (
+                  <button
+                    key={cls}
+                    onClick={() => toggleBaseClass(cls)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      isSelected
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {cls}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedBaseClasses.length === 1 && (
+              <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Select one more class to see matchups
+              </div>
+            )}
           </div>
-          <div className="mt-2 text-[10px] text-gray-500">Cells with fewer than 5 matches are hidden. Colors toned: 0% → red, 50% → muted yellow, 100% → green.</div>
+
+          {/* Show selected dual-class and its matchups */}
+          {selectedDualClass && classVsClass.matchups[selectedDualClass] && (
+            <div className="mt-5">
+              <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                <div className="text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Showing win rates for </span>
+                  <span className="font-bold text-blue-700 dark:text-blue-300">{selectedDualClass}</span>
+                  <span className="text-gray-600 dark:text-gray-400"> vs opponents</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs md:text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                      <th className="p-2">Opponent Class</th>
+                      <th className="p-2 text-center">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">{selectedDualClass}</span> Win Rate
+                      </th>
+                      <th className="p-2 text-center">Wins</th>
+                      <th className="p-2 text-center">Losses</th>
+                      <th className="p-2 text-center">Games</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classVsClass.matchups[selectedDualClass].length === 0 ? (
+                      <tr>
+                        <td className="p-4 text-center text-gray-500" colSpan={5}>No matchup data for {selectedDualClass}.</td>
+                      </tr>
+                    ) : (
+                      classVsClass.matchups[selectedDualClass].map(m => {
+                        const hue = Math.round(m.winRate * 120);
+                        return (
+                          <tr key={m.opponent} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td className="p-2 font-medium">{m.opponent}</td>
+                            <td className="p-2 text-center">
+                              <span
+                                className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
+                                style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                              >
+                                {(m.winRate * 100).toFixed(0)}%
+                              </span>
+                            </td>
+                            <td className="p-2 text-center tabular-nums text-green-600 dark:text-green-400">{m.wins}</td>
+                            <td className="p-2 text-center tabular-nums text-red-600 dark:text-red-400">{m.losses}</td>
+                            <td className="p-2 text-center tabular-nums">{m.total}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {selectedDualClass && !classVsClass.matchups[selectedDualClass] && classVsClass.classes.length > 0 && (
+            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-xl dark:border-gray-700">
+              No data found for <span className="font-semibold">{selectedDualClass}</span> in the current dataset
+            </div>
+          )}
+          {!selectedDualClass && classVsClass.classes.length > 0 && (
+            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-xl dark:border-gray-700">
+              Select 2 classes above to see matchup win rates
+            </div>
+          )}
+          {classVsClass.classes.length === 0 && (
+            <div className="mt-4 p-4 text-center text-gray-500 text-sm">
+              {loading ? 'Loading...' : 'No dual-class data yet — run a query above.'}
+            </div>
+          )}
         </div>
 
         {/* Player-specific matches */}
