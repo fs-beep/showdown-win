@@ -540,7 +540,7 @@ export default function Home() {
       .map(([playerKey, s]) => ({ player: playerKey, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }))
       .filter(p => p.total >= 30)
       .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
-      .slice(0, 20);
+      .slice(0, 10);
   }, [statRows]);
 
   // Top player by class (dual-classes only, min 5 games)
