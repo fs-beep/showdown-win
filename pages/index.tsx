@@ -84,6 +84,10 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
+  const [classVsClassSort, setClassVsClassSort] = useState<{ key: 'opponent' | 'winRate' | 'wins' | 'losses' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
+  const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
+  const [playerInputFocused, setPlayerInputFocused] = useState(false);
+  const hasFetchedOnce = useRef(false);
   const [copiedTx, setCopiedTx] = useState<string | null>(null);
   const [showTop, setShowTop] = useState<boolean>(false);
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -130,6 +134,16 @@ export default function Home() {
     if (t === 'dark') setTheme('dark');
     if (cmp) setPlayer2(cmp);
     hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
+
+  // Auto-fetch on page load (once)
+  useEffect(() => {
+    if (!hydrated.current || hasFetchedOnce.current || loading) return;
+    if (router.isReady) {
+      hasFetchedOnce.current = true;
+      run();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
 
@@ -675,21 +689,39 @@ export default function Home() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm sticky top-0 z-20 backdrop-blur bg-white/90 dark:bg-gray-800/90">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm md:sticky md:top-4 z-20 backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-100"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
-            <input
-              className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-              value={player}
-              onChange={e=>setPlayer(e.target.value)}
-              placeholder="barry"
-              list="player-suggestions"
-            />
-            <datalist id="player-suggestions">
-              {recentPlayers.slice(0,50).map((p)=> (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <input
+                className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                value={player}
+                onChange={e => { setPlayer(e.target.value); setShowPlayerDropdown(true); }}
+                onFocus={() => { setPlayerInputFocused(true); setShowPlayerDropdown(true); }}
+                onBlur={() => { setPlayerInputFocused(false); setTimeout(() => setShowPlayerDropdown(false), 150); }}
+                placeholder="barry"
+              />
+              {showPlayerDropdown && playerInputFocused && recentPlayers.length > 0 && (
+                <div className="absolute z-30 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg">
+                  {recentPlayers
+                    .filter(p => p.toLowerCase().includes(player.toLowerCase()))
+                    .slice(0, 10)
+                    .map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-xl last:rounded-b-xl"
+                        onMouseDown={() => { setPlayer(p); setShowPlayerDropdown(false); }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  {recentPlayers.filter(p => p.toLowerCase().includes(player.toLowerCase())).length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500">No matching players</div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <label className="mt-3 block text-xs text-gray-500">Compare vs (optional)</label>
             <input
@@ -743,24 +775,44 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Wins</div>
-            <div className="mt-1 text-3xl font-semibold">{stats.wins}</div>
-          </div>
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Losses</div>
-            <div className="mt-1 text-3xl font-semibold">{stats.losses}</div>
-          </div>
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Win Rate</div>
-            <div className="mt-1 text-3xl font-semibold">{(stats.winrate*100).toFixed(2)}%</div>
-          </div>
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Dominant Class</div>
-            <div className="mt-1 text-base font-medium">{stats.dominantClass || '—'}</div>
-            {stats.dominantClass && <div className="text-xs text-gray-500 mt-1">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
+        {/* Stats - Compact horizontal layout */}
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Wins</div>
+              {loading && stats.wins === 0 ? (
+                <div className="mt-1 h-8 w-16 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+              ) : (
+                <div className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{stats.wins}</div>
+              )}
+            </div>
+            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Losses</div>
+              {loading && stats.losses === 0 ? (
+                <div className="mt-1 h-8 w-16 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+              ) : (
+                <div className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{stats.losses}</div>
+              )}
+            </div>
+            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Win Rate</div>
+              {loading && stats.wins === 0 && stats.losses === 0 ? (
+                <div className="mt-1 h-8 w-20 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+              ) : (
+                <div className="mt-1 text-2xl font-bold">{(stats.winrate*100).toFixed(1)}%</div>
+              )}
+            </div>
+            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Top Class</div>
+              {loading && !stats.dominantClass ? (
+                <div className="mt-1 h-6 w-24 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+              ) : (
+                <>
+                  <div className="mt-1 text-sm font-semibold truncate">{stats.dominantClass || '—'}</div>
+                  {stats.dominantClass && <div className="text-[10px] text-gray-500">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
+                </>
+              )}
+            </div>
           </div>
         </div>
         {/* Top classes chips removed per request */}
@@ -941,17 +993,17 @@ export default function Home() {
           {/* Base class selector - pick exactly 2 */}
           <div className="mt-4">
             <div className="text-xs text-gray-500 mb-2">Select 2 classes to form a dual-class</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {BASE_CLASSES.map(cls => {
                 const isSelected = selectedBaseClasses.includes(cls);
                 return (
                   <button
                     key={cls}
                     onClick={() => toggleBaseClass(cls)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    className={`px-2 py-2 sm:px-4 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                       isSelected
-                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-800'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
                     }`}
                   >
                     {cls}
@@ -980,13 +1032,36 @@ export default function Home() {
                 <table className="min-w-full text-left text-xs md:text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                      <th className="p-2">Opponent Class</th>
-                      <th className="p-2 text-center">
-                        <span className="font-bold text-blue-600 dark:text-blue-400">{selectedDualClass}</span> Win Rate
+                      <th 
+                        className="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => setClassVsClassSort(s => ({ key: 'opponent', dir: s.key === 'opponent' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Opponent {classVsClassSort.key === 'opponent' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
                       </th>
-                      <th className="p-2 text-center">Wins</th>
-                      <th className="p-2 text-center">Losses</th>
-                      <th className="p-2 text-center">Games</th>
+                      <th 
+                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => setClassVsClassSort(s => ({ key: 'winRate', dir: s.key === 'winRate' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      >
+                        <span className="font-bold text-blue-600 dark:text-blue-400">{selectedDualClass}</span> WR {classVsClassSort.key === 'winRate' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th 
+                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => setClassVsClassSort(s => ({ key: 'wins', dir: s.key === 'wins' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      >
+                        Wins {classVsClassSort.key === 'wins' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th 
+                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => setClassVsClassSort(s => ({ key: 'losses', dir: s.key === 'losses' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      >
+                        Losses {classVsClassSort.key === 'losses' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th 
+                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => setClassVsClassSort(s => ({ key: 'total', dir: s.key === 'total' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      >
+                        Games {classVsClassSort.key === 'total' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -995,25 +1070,34 @@ export default function Home() {
                         <td className="p-4 text-center text-gray-500" colSpan={5}>No matchup data for {selectedDualClass}.</td>
                       </tr>
                     ) : (
-                      classVsClass.matchups[selectedDualClass].map(m => {
-                        const hue = Math.round(m.winRate * 120);
-                        return (
-                          <tr key={m.opponent} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                            <td className="p-2 font-medium">{m.opponent}</td>
-                            <td className="p-2 text-center">
-                              <span
-                                className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
-                                style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
-                              >
-                                {(m.winRate * 100).toFixed(0)}%
-                              </span>
-                            </td>
-                            <td className="p-2 text-center tabular-nums text-green-600 dark:text-green-400">{m.wins}</td>
-                            <td className="p-2 text-center tabular-nums text-red-600 dark:text-red-400">{m.losses}</td>
-                            <td className="p-2 text-center tabular-nums">{m.total}</td>
-                          </tr>
-                        );
-                      })
+                      [...classVsClass.matchups[selectedDualClass]]
+                        .sort((a, b) => {
+                          const dir = classVsClassSort.dir === 'asc' ? 1 : -1;
+                          if (classVsClassSort.key === 'opponent') return dir * a.opponent.localeCompare(b.opponent);
+                          if (classVsClassSort.key === 'winRate') return dir * (a.winRate - b.winRate);
+                          if (classVsClassSort.key === 'wins') return dir * (a.wins - b.wins);
+                          if (classVsClassSort.key === 'losses') return dir * (a.losses - b.losses);
+                          return dir * (a.total - b.total);
+                        })
+                        .map(m => {
+                          const hue = Math.round(m.winRate * 120);
+                          return (
+                            <tr key={m.opponent} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <td className="p-2 font-medium">{m.opponent}</td>
+                              <td className="p-2 text-center">
+                                <span
+                                  className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
+                                  style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                                >
+                                  {(m.winRate * 100).toFixed(0)}%
+                                </span>
+                              </td>
+                              <td className="p-2 text-center tabular-nums text-green-600 dark:text-green-400">{m.wins}</td>
+                              <td className="p-2 text-center tabular-nums text-red-600 dark:text-red-400">{m.losses}</td>
+                              <td className="p-2 text-center tabular-nums">{m.total}</td>
+                            </tr>
+                          );
+                        })
                     )}
                   </tbody>
                 </table>
