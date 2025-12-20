@@ -576,7 +576,7 @@ export default function Home() {
     for (const [klass, playerMap] of byClassPlayer.entries()) {
       let best: { player: string; wins: number; losses: number; total: number; winrate: number } | null = null;
       for (const [playerName, stats] of playerMap.entries()) {
-        if (stats.total < 15) continue;
+        if (stats.total < 20) continue;
         const wr = stats.wins / stats.total;
         if (!best || wr > best.winrate || (wr === best.winrate && stats.total > best.total)) {
           best = { player: playerName, wins: stats.wins, losses: stats.losses, total: stats.total, winrate: wr };
@@ -1173,7 +1173,7 @@ export default function Home() {
           {/* Top Player by Class */}
           <div className="mt-6 pt-4 border-t dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 15 games)</span></div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
               {topPlayersByClass.length > 0 && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
