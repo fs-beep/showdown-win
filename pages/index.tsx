@@ -538,7 +538,7 @@ export default function Home() {
     }
     return Array.from(byPlayer.entries())
       .map(([playerKey, s]) => ({ player: playerKey, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }))
-      .filter(p => p.total >= 15)
+      .filter(p => p.total >= 30)
       .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
       .slice(0, 20);
   }, [statRows]);
@@ -576,7 +576,7 @@ export default function Home() {
     for (const [klass, playerMap] of byClassPlayer.entries()) {
       let best: { player: string; wins: number; losses: number; total: number; winrate: number } | null = null;
       for (const [playerName, stats] of playerMap.entries()) {
-        if (stats.total < 5) continue;
+        if (stats.total < 15) continue;
         const wr = stats.wins / stats.total;
         if (!best || wr > best.winrate || (wr === best.winrate && stats.total > best.total)) {
           best = { player: playerName, wins: stats.wins, losses: stats.losses, total: stats.total, winrate: wr };
@@ -1123,7 +1123,7 @@ export default function Home() {
         {/* Top Players by Win Rate (min 15 games) */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 15 games)</span></div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1163,7 +1163,7 @@ export default function Home() {
                 )}
                 {!loading && topPlayers.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 15‑game threshold yet.</td>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -1173,7 +1173,7 @@ export default function Home() {
           {/* Top Player by Class */}
           <div className="mt-6 pt-4 border-t dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 5 games)</span></div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 15 games)</span></div>
               {topPlayersByClass.length > 0 && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
