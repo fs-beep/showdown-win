@@ -1277,20 +1277,19 @@ export default function Home() {
                       {expandedFiltered.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
                           <td colSpan={5} className="p-3 text-xs">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
-                              <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
                               <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
-                              <div className="md:col-span-3 col-span-2">
-                                <span className="text-gray-500">Metadata:</span>{' '}
-                                {metadataPretty ? (
+                              {metadataPretty && (
+                                <div className="md:col-span-2 col-span-2">
+                                  <span className="text-gray-500">Metadata:</span>{' '}
                                   <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
                                     {metadataPretty}
                                   </pre>
-                                ) : '—'}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1380,20 +1379,19 @@ export default function Home() {
                       {expandedAll.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
                           <td colSpan={7} className="p-3 text-xs">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
-                              <div><span className="text-gray-500">Game ID:</span> {r.gameId}</div>
                               <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
-                              <div className="md:col-span-3 col-span-2">
-                                <span className="text-gray-500">Metadata:</span>{' '}
-                                {metadataPretty ? (
+                              {metadataPretty && (
+                                <div className="md:col-span-2 col-span-2">
+                                  <span className="text-gray-500">Metadata:</span>{' '}
                                   <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
                                     {metadataPretty}
                                   </pre>
-                                ) : '—'}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
