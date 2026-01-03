@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
-const RPC = process.env.RPC_URL || 'https://megaeth-testnet.g.alchemy.com/v2/v1TMT8DN24hpFVnPRLXdz';
+const RPC = process.env.RPC_URL || 'https://megaeth-testnet.g.alchemy.com/v2/lQvMx3CR5altjIp-4pXdP';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
 const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
