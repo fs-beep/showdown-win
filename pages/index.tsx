@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Clipboard, Check, ArrowUp, RefreshCw } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Clipboard, Check, ArrowUp } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -613,15 +613,14 @@ export default function Home() {
     }
   };
 
-  const run = async (clearCache = false) => {
+  const run = async () => {
     setError(null); setRows([]); setLoading(true);
     try {
-      const body: Record<string, any> = {
+      const body = {
         startTs: toStartOfDayEpoch(startDate),
         endTs: toEndOfDayEpoch(endDate),
         wantAgg: true,
       };
-      if (clearCache) body.clearCache = true;
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const j: ApiResponse = await res.json();
@@ -798,16 +797,10 @@ export default function Home() {
 
             {/* Removed class and end reason filters per request */}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={() => run(false)} disabled={loading} className="inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
-                {loading ? "Fetching..." : "Compute Winrate"}
-              </button>
-              <button onClick={() => run(true)} disabled={loading} className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-4 py-2 text-white shadow disabled:opacity-60 hover:bg-amber-700" title="Clear cache and fetch fresh data from blockchain">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
-                Rebuild Cache
-              </button>
-            </div>
+            <button onClick={() => run()} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
+              {loading ? "Fetching..." : "Compute Winrate"}
+            </button>
             {error && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700 flex items-start gap-2">
                 <ShieldAlert className="h-4 w-4 mt-0.5"/>

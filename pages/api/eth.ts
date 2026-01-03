@@ -3,15 +3,15 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
-const RPC = process.env.RPC_URL || 'https://megaeth-testnet.g.alchemy.com/v2/lQvMx3CR5altjIp-4pXdP';
+const RPC = process.env.RPC_URL || 'https://timothy.megaeth.com/mafia/rpc/l1z4x7c0v3b6n9m2a5s8d1f4g7h0j3k6q9w2e5r8';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
 const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started around Nov 15, 2025 00:00:00 UTC (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = Math.floor(new Date('2025-11-15T00:00:00Z').getTime() / 1000);
-// Alchemy paid plan allows up to 10,000 blocks per eth_getLogs request
-const MAX_SPAN = 10_000;
+// Block range limit for eth_getLogs requests
+const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
 const RPC_BASE_DELAY_MS = 800;
