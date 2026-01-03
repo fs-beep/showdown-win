@@ -10,8 +10,8 @@ const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started around Nov 15, 2025 00:00:00 UTC (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = Math.floor(new Date('2025-11-15T00:00:00Z').getTime() / 1000);
-// Alchemy paid plan supports large block ranges
-const MAX_SPAN = 100_000;
+// Alchemy paid plan allows up to 10,000 blocks per eth_getLogs request
+const MAX_SPAN = 10_000;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
 const RPC_BASE_DELAY_MS = 800;
