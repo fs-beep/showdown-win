@@ -740,14 +740,14 @@ export default function Home() {
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-100"><Server className="h-4 w-4"/> Filters</div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
             <div className="relative">
-              <input
-                className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                value={player}
+            <input
+              className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+              value={player}
                 onChange={e => { setPlayer(e.target.value); setShowPlayerDropdown(true); }}
                 onFocus={() => { setPlayerInputFocused(true); setShowPlayerDropdown(true); }}
                 onBlur={() => { setPlayerInputFocused(false); setTimeout(() => setShowPlayerDropdown(false), 150); }}
                 placeholder="barry"
-              />
+            />
               {showPlayerDropdown && playerInputFocused && recentPlayers.length > 0 && (
                 <div className="absolute z-30 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg">
                   {recentPlayers
@@ -762,7 +762,7 @@ export default function Home() {
                       >
                         {p}
                       </button>
-                    ))}
+              ))}
                   {recentPlayers.filter(p => p.toLowerCase().includes(player.toLowerCase())).length === 0 && (
                     <div className="px-3 py-2 text-sm text-gray-500">No matching players</div>
                   )}
@@ -832,7 +832,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{stats.wins}</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
               <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Losses</div>
               {loading && stats.losses === 0 ? (
@@ -840,7 +840,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{stats.losses}</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
               <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Win Rate</div>
               {loading && stats.wins === 0 && stats.losses === 0 ? (
@@ -848,7 +848,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold">{(stats.winrate*100).toFixed(1)}%</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
               <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Top Class</div>
               {loading && !stats.dominantClass ? (
@@ -1118,66 +1118,19 @@ export default function Home() {
               {loading ? 'Loading...' : 'No dual-class data yet — run a query above.'}
             </div>
           )}
-        </div>
+          </div>
 
-        {/* Top Players by Win Rate (min 15 games) */}
+          {/* Top Players by Win Rate (min 15 games) */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
-            {topPlayers.length > 0 && (
-              <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> JSON
-                </button>
-                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> CSV
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-10">#</th>
-                  <th className="p-2">Player</th>
-                  <th className="p-2">Wins</th>
-                  <th className="p-2">Losses</th>
-                  <th className="p-2">Games</th>
-                  <th className="p-2">Win Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topPlayers.map((p, i) => (
-                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2 tabular-nums">{i+1}</td>
-                    <td className="p-2">{p.player}</td>
-                    <td className="p-2 tabular-nums">{p.wins}</td>
-                    <td className="p-2 tabular-nums">{p.losses}</td>
-                    <td className="p-2 tabular-nums">{p.total}</td>
-                    <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
-                  </tr>
-                ))}
-                {loading && topPlayers.length === 0 && (
-                  <SkeletonTableRows rows={5} cols={6} />
-                )}
-                {!loading && topPlayers.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Top Player by Class */}
-          <div className="mt-6 pt-4 border-t dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
-              {topPlayersByClass.length > 0 && (
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
+              {topPlayers.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
                     <Download className="h-4 w-4"/> JSON
+                  </button>
+                  <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                    <Download className="h-4 w-4"/> CSV
                   </button>
                 </div>
               )}
@@ -1186,17 +1139,64 @@ export default function Home() {
               <table className="min-w-full text-left text-xs md:text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                    <th className="p-2 w-10">#</th>
+                    <th className="p-2">Player</th>
+                    <th className="p-2">Wins</th>
+                    <th className="p-2">Losses</th>
+                    <th className="p-2">Games</th>
+                    <th className="p-2">Win Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topPlayers.map((p, i) => (
+                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="p-2 tabular-nums">{i+1}</td>
+                      <td className="p-2">{p.player}</td>
+                      <td className="p-2 tabular-nums">{p.wins}</td>
+                      <td className="p-2 tabular-nums">{p.losses}</td>
+                      <td className="p-2 tabular-nums">{p.total}</td>
+                      <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                {loading && topPlayers.length === 0 && (
+                  <SkeletonTableRows rows={5} cols={6} />
+                )}
+                {!loading && topPlayers.length === 0 && (
+                    <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+        </div>
+
+          {/* Top Player by Class */}
+          <div className="mt-6 pt-4 border-t dark:border-gray-700">
+          <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
+              {topPlayersByClass.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                    <Download className="h-4 w-4"/> JSON
+                  </button>
+          </div>
+              )}
+            </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
                     <th className="p-2">Class</th>
                     <th className="p-2">Best Player</th>
                     <th className="p-2 text-center">W/L</th>
                     <th className="p-2 text-center">Games</th>
                     <th className="p-2 text-center">Win Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
+                </tr>
+              </thead>
+              <tbody>
                   {topPlayersByClass.map((row) => {
                     const hue = Math.round(row.winrate * 120);
-                    return (
+                      return (
                       <tr key={row.klass} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td className="p-2 font-medium">{row.klass}</td>
                         <td className="p-2">{row.player}</td>
@@ -1210,24 +1210,24 @@ export default function Home() {
                           <span
                             className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
                             style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
-                          >
+                        >
                             {(row.winrate * 100).toFixed(0)}%
                           </span>
                         </td>
                       </tr>
-                    );
-                  })}
+                      );
+                    })}
                   {loading && topPlayersByClass.length === 0 && (
                     <SkeletonTableRows rows={5} cols={5} />
-                  )}
+                )}
                   {!loading && topPlayersByClass.length === 0 && (
-                    <tr>
+                  <tr>
                       <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
           </div>
         </div>
 
@@ -1284,11 +1284,11 @@ export default function Home() {
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
                               {metadataPretty && (
                                 <div className="md:col-span-2 col-span-2">
-                                  <span className="text-gray-500">Metadata:</span>{' '}
+                                <span className="text-gray-500">Metadata:</span>{' '}
                                   <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
                                     {metadataPretty}
                                   </pre>
-                                </div>
+                              </div>
                               )}
                             </div>
                           </td>
@@ -1386,11 +1386,11 @@ export default function Home() {
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
                               {metadataPretty && (
                                 <div className="md:col-span-2 col-span-2">
-                                  <span className="text-gray-500">Metadata:</span>{' '}
+                                <span className="text-gray-500">Metadata:</span>{' '}
                                   <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
                                     {metadataPretty}
                                   </pre>
-                                </div>
+                              </div>
                               )}
                             </div>
                           </td>
