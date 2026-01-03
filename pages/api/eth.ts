@@ -555,7 +555,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs, rebuildDay, wantAgg, noCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; noCache?: boolean };
+    const { startTs, endTs, rebuildDay, wantAgg, clearCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
       const earliest = await getEarliest();
@@ -578,9 +578,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let resultRows: Row[] = [];
 
-    // If noCache is true, bypass all caching and fetch directly from RPC
-    if (noCache || !KV_ENV_PRESENT) {
-      console.log('Fetching directly without cache', { noCache, KV_ENV_PRESENT, sTs, eTs });
+    // If clearCache is true, clear cache for the date range and fetch fresh data
+    if (clearCache) {
+      console.log('Clearing cache and fetching fresh data', { sTs, eTs });
+      // Clear in-memory and KV cache for the requested days
+      const startDay = Math.floor(sTs / 86400);
+      const endDay = Math.floor(eTs / 86400);
+      for (let d = startDay; d <= endDay; d++) {
+        const key = memKey(d);
+        dayCache.delete(key);
+        // Clear KV cache
+        try {
+          const client = await getKv();
+          if (client) {
+            await client.del(kvKey(d));
+          }
+        } catch (e) {
+          console.error('Failed to clear KV cache for day', d, e);
+        }
+      }
+      // Fetch fresh data directly from RPC
+      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+      // Re-cache the fresh data
+      const dayGroups = new Map<number, Row[]>();
+      for (const r of resultRows) {
+        const ts = parseStartedAtTs(r.startedAt);
+        if (ts) {
+          const d = Math.floor(ts / 86400);
+          if (!dayGroups.has(d)) dayGroups.set(d, []);
+          dayGroups.get(d)!.push(r);
+        }
+      }
+      for (const [d, rows] of dayGroups) {
+        const entry: DayEntry = {
+          fromBlock: Math.min(...rows.map(r => r.blockNumber)),
+          toBlock: Math.max(...rows.map(r => r.blockNumber)),
+          rows: rows.sort(sortByTimestamp),
+          lastUpdate: Date.now()
+        };
+        remember(d, entry);
+        await kvSetDay(d, entry);
+      }
+    } else if (!KV_ENV_PRESENT) {
+      console.log('Fetching directly without cache (no KV)', { sTs, eTs });
       resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
