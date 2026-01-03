@@ -554,7 +554,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs, rebuildDay, wantAgg } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean };
+    const { startTs, endTs, rebuildDay, wantAgg, noCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; noCache?: boolean };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
       const earliest = await getEarliest();
@@ -577,7 +577,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let resultRows: Row[] = [];
 
-    if (!KV_ENV_PRESENT) {
+    // If noCache is true, bypass all caching and fetch directly from RPC
+    if (noCache || !KV_ENV_PRESENT) {
+      console.log('Fetching directly without cache', { noCache, KV_ENV_PRESENT, sTs, eTs });
       resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
