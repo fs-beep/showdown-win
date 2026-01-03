@@ -10,13 +10,13 @@ const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started around Nov 15, 2025 00:00:00 UTC (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = Math.floor(new Date('2025-11-15T00:00:00Z').getTime() / 1000);
-// Alchemy free tier limits eth_getLogs to ~2000 blocks per request
-const MAX_SPAN = 2_000;
+// Alchemy free tier limits eth_getLogs to 10 blocks per request
+const MAX_SPAN = 10;
 const MAX_DAYS_CACHE = 120;
 const RPC_RETRY_ATTEMPTS = 6;
 const RPC_BASE_DELAY_MS = 800;
-const DAY_RANGE_CONCURRENCY = 5; // Reduced to avoid rate limits
-const LOG_RANGE_CONCURRENCY = 3; // Increased to compensate for smaller block ranges
+const DAY_RANGE_CONCURRENCY = 3; // Reduced to avoid rate limits
+const LOG_RANGE_CONCURRENCY = 5; // Higher concurrency to compensate for tiny block ranges
 
 type Row = {
   blockNumber: number;
