@@ -226,7 +226,15 @@ function buildRanges(fromBlock: number, toBlock: number) {
 }
 
 async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+  // Check if range exceeds MAX_SPAN - if so, throw to fall back to chunked
+  if (toBlock - fromBlock + 1 > MAX_SPAN) {
+    throw new Error(`Block range ${toBlock - fromBlock + 1} exceeds MAX_SPAN ${MAX_SPAN}`);
+  }
   const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics: [topic0] }] });
+  // Check for RPC error response
+  if (j?.error) {
+    throw new Error(j.error.message || 'RPC error');
+  }
   const arr = j?.result || [];
   // Defensive: some RPC providers can occasionally return duplicate logs in large ranges
   const uniq = new Map<string, any>();
@@ -244,7 +252,13 @@ async function getLogsChunked(fromBlock: number, toBlock: number, contract: stri
     const slice = ranges.slice(i, i+CONCURRENCY);
     const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics: [topic0] }] }));
     const parts = await Promise.all(reqs);
-    for (const p of parts) all.push(...(p?.result || []));
+    for (const p of parts) {
+      if (p?.error) {
+        console.error('getLogsChunked chunk error:', p.error);
+        continue; // Skip this chunk but continue with others
+      }
+      all.push(...(p?.result || []));
+    }
   }
   const uniq = new Map<string, any>();
   for (const log of all) {
