@@ -27,6 +27,8 @@ type PlayerRow = { player: string; wins: number; losses: number; total: number; 
 type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
+const BALANCE_PATCH_DATE = '2026-01-13';
+const BALANCE_PATCH_TS = 1768392000; // 2026-01-13 11:00:00 CET (10:00:00 UTC)
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
 const SHOWDOWN_BANNER = '/images/showdown_large.jpeg';
 const PLAY_URL = 'https://alpha.showdown.game/';
@@ -74,7 +76,7 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
 
 export default function Home() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>('2026-01-13');
+  const [startDate, setStartDate] = useState<string>(BALANCE_PATCH_DATE);
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('barry');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -607,8 +609,8 @@ export default function Home() {
     } else if (kind === 'allTime') {
       setStartDate(MIN_DATE); setEndDate('');
     } else if (kind === 'sincePatch') {
-      // Latest balance patch: 2026-01-13 → latest
-      setStartDate('2026-01-13');
+      // Latest balance patch: 2026-01-13 11:00 CET → latest
+      setStartDate(BALANCE_PATCH_DATE);
       setEndDate('');
     }
   };
@@ -616,8 +618,10 @@ export default function Home() {
   const run = async () => {
     setError(null); setRows([]); setLoading(true);
     try {
+      // Use exact balance patch timestamp if start date matches
+      const startTs = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
       const body = {
-        startTs: toStartOfDayEpoch(startDate),
+        startTs,
         endTs: toEndOfDayEpoch(endDate),
         wantAgg: true,
       };
