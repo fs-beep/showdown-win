@@ -74,7 +74,7 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
 
 export default function Home() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>('2025-10-03');
+  const [startDate, setStartDate] = useState<string>('2026-01-13');
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('barry');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -607,9 +607,9 @@ export default function Home() {
     } else if (kind === 'allTime') {
       setStartDate(MIN_DATE); setEndDate('');
     } else if (kind === 'sincePatch') {
-      // Latest balance patch: 2025-10-03 → today
-      setStartDate('2025-10-03');
-      setEndDate(fmtDate(today));
+      // Latest balance patch: 2026-01-13 → latest
+      setStartDate('2026-01-13');
+      setEndDate('');
     }
   };
 
