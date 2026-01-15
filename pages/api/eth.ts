@@ -673,7 +673,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs, rebuildDay, wantAgg, clearCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean };
+    const { startTs, endTs, rebuildDay, wantAgg, clearCache, checkCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean; checkCache?: boolean };
     let warningMsg: string | null = null;
     const sendOk = (rows: Row[], agg?: DayAgg) => {
       if (agg) {
@@ -698,6 +698,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sTsRaw = typeof startTs === 'number' && startTs > 0 ? startTs : bounds.earliest.ts;
     const eTsRaw = typeof endTs === 'number' && endTs > 0 ? endTs : bounds.latest.ts;
     if (eTsRaw < sTsRaw) return sendOk([]);
+
+    if (checkCache) {
+      if (!KV_ENV_PRESENT) {
+        return sendJson(res, 200, { ok: false, error: 'KV is not configured.' });
+      }
+      const startDay = Math.floor(sTsRaw / 86400);
+      const endDay = Math.floor(eTsRaw / 86400);
+      const weeks: Array<{ weekStart: string; daysWithRows: number; totalRows: number }> = [];
+      const missingDays: string[] = [];
+      let currentWeekStart: string | null = null;
+      let weekDaysWithRows = 0;
+      let weekTotalRows = 0;
+      for (let d = startDay; d <= endDay; d++) {
+        const dateStr = dayIndexToDate(d);
+        const entry = await kvGetDay(d);
+        const rowsCount = entry?.rows?.length || 0;
+        if (rowsCount === 0) {
+          missingDays.push(dateStr);
+        } else {
+          weekDaysWithRows += 1;
+          weekTotalRows += rowsCount;
+        }
+        if (currentWeekStart === null) currentWeekStart = dateStr;
+        const isWeekEnd = ((d - startDay + 1) % 7 === 0) || d === endDay;
+        if (isWeekEnd) {
+          weeks.push({ weekStart: currentWeekStart, daysWithRows: weekDaysWithRows, totalRows: weekTotalRows });
+          currentWeekStart = null;
+          weekDaysWithRows = 0;
+          weekTotalRows = 0;
+        }
+      }
+      return sendJson(res, 200, { ok: true, weeks, missingDays });
+    }
 
     let resultRows: Row[] = [];
     const windowStartTs = sTsRaw;
