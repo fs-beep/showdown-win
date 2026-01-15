@@ -228,14 +228,17 @@ function sendJson(res: NextApiResponse, status: number, payload: any) {
 }
 
 async function rpc(body: any, rpcUrl: string = RPC, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
+  const isLegacyRpc = rpcUrl.includes('carrot.megaeth.com') || rpcUrl.includes('/mafia/rpc/');
+  const maxAttempts = isLegacyRpc ? attempts + 4 : attempts;
+  const delayBase = isLegacyRpc ? Math.max(baseDelay, 1500) : baseDelay;
   let lastErr: any = null;
-  for (let i=0;i<attempts;i++) {
+  for (let i=0;i<maxAttempts;i++) {
     try {
       const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 429 || res.status === 503) {
         lastErr = new Error(`RPC HTTP ${res.status}${res.status === 429 ? ' (rate limited)' : ''}`);
         const retryAfter = Number(res.headers.get('retry-after'));
-        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.round(baseDelay * Math.pow(1.8, i));
+        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.round(delayBase * Math.pow(1.8, i));
         await sleep(wait);
         continue;
       }
@@ -250,7 +253,7 @@ async function rpc(body: any, rpcUrl: string = RPC, attempts = RPC_RETRY_ATTEMPT
       return j;
     } catch (e:any) {
       lastErr = e;
-      await sleep(Math.round(baseDelay * Math.pow(1.6, i)));
+      await sleep(Math.round(delayBase * Math.pow(1.6, i)));
     }
   }
   throw lastErr || new Error('RPC failed after retries');
@@ -767,6 +770,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             remember(d, backfill);
             await kvSetDay(d, backfill);
             entry = backfill;
+          }
+          // Gentle pacing for legacy RPC backfill to avoid 429s.
+          if (!entry || entry.rows.length === 0) {
+            await sleep(250);
           }
         }
         if (!entry || entry.rows.length === 0) {
