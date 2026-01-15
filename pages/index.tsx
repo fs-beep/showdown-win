@@ -71,16 +71,16 @@ function fmtDisplayDate(dateStr?: string): string {
 function toStartOfDayEpoch(dateStr?: string): number | undefined {
   const p = parseDateFlexible(dateStr);
   if (!p) return undefined;
-  const d = new Date(p.y, p.m-1, p.d, 0, 0, 0);
-  if (isNaN(d.getTime())) return undefined;
-  return Math.floor(d.getTime()/1000);
+  const ms = Date.UTC(p.y, p.m-1, p.d, 0, 0, 0);
+  if (isNaN(ms)) return undefined;
+  return Math.floor(ms/1000);
 }
 function toEndOfDayEpoch(dateStr?: string): number | undefined {
   const p = parseDateFlexible(dateStr);
   if (!p) return undefined;
-  const d = new Date(p.y, p.m-1, p.d, 23, 59, 59);
-  if (isNaN(d.getTime())) return undefined;
-  return Math.floor(d.getTime()/1000);
+  const ms = Date.UTC(p.y, p.m-1, p.d, 23, 59, 59);
+  if (isNaN(ms)) return undefined;
+  return Math.floor(ms/1000);
 }
 
 export default function Home() {
