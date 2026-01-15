@@ -479,6 +479,12 @@ export default function Home() {
   // The 6 base classes
   const BASE_CLASSES = ['Bureaucrat', 'Cheater', 'Gambler', 'Inventor', 'Protector', 'Rebel'] as const;
 
+  const rangeLabel = useMemo(() => {
+    const start = startDate || MIN_DATE;
+    const end = endDate ? endDate : 'latest';
+    return `${start} → ${end}`;
+  }, [startDate, endDate]);
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -1184,7 +1190,7 @@ export default function Home() {
                 {filtered.length === 0 && (
                   <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={8}>
-                      {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
+                      {loading ? <SkeletonTableRows rows={8} cols={7} /> : `No matches for this player in range ${rangeLabel} yet.`}
                     </td>
                   </tr>
                 )}
@@ -1222,14 +1228,14 @@ export default function Home() {
           <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
             <span>Meta / Global</span>
             <span className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">all matches in range</span>
+            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">all matches in range ({rangeLabel})</span>
           </summary>
           <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
         <div id="global-class-stats" className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches ({rangeLabel})</div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1451,7 +1457,7 @@ export default function Home() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>{loading ? <SkeletonTableRows rows={10} cols={7} /> : "No rows yet. Pick a date range and click Compute."}</td>
+                    <td className="p-6 text-center text-gray-500" colSpan={7}>{loading ? <SkeletonTableRows rows={10} cols={7} /> : `No rows for range ${rangeLabel}. Pick a different date range and click Compute.`}</td>
                   </tr>
                 )}
               </tbody>
