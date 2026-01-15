@@ -453,9 +453,11 @@ async function fetchLegacyDay(dayIndex: number, legacySources: Array<{ rpcUrl: s
   for (const source of legacySources) {
     let merged: DayEntry | null = null;
     for (const contract of LEGACY_CONTRACTS) {
-      const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
-      const built = await buildDay(start, end, source.bounds, source.rpcUrl, contract, topics);
-      merged = mergeDayEntries(merged, built.entry);
+      const topicsList = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : [LEGACY_TOPIC0];
+      for (const topic of topicsList) {
+        const built = await buildDay(start, end, source.bounds, source.rpcUrl, contract, topic);
+        merged = mergeDayEntries(merged, built.entry);
+      }
     }
     if (merged && merged.rows.length > 0) return merged;
   }
