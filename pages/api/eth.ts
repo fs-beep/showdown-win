@@ -643,12 +643,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const windowStartTs = sTsRaw;
     const windowEndTs = eTsRaw;
 
-    // If the request range starts before mainnet genesis, pull older data from legacy RPC.
-    if (windowStartTs < MAINNET_GENESIS_TS) {
-      const legacyEnd = Math.min(windowEndTs, MAINNET_GENESIS_TS - 1);
+    // Pull legacy data from testnet v2 RPC for any range before the mainnet cutover.
+    if (windowStartTs < NEW_CONTRACT_START_TS) {
+      const legacyEnd = Math.min(windowEndTs, NEW_CONTRACT_START_TS - 1);
       const legacyBounds = await getBounds(LEGACY_RPC);
-      const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, LEGACY_CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
-      resultRows = mergeRows(resultRows, legacyRows);
+      for (const contract of LEGACY_CONTRACTS) {
+        const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
+        const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, contract, topics);
+        resultRows = mergeRows(resultRows, legacyRows);
+      }
     }
 
     // Mainnet window (skip if request ends before genesis)
@@ -687,7 +690,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       // Fetch fresh data directly from RPC
-      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+      resultRows = mergeRows(resultRows, await fetchRangeRowsDirect(sTs, eTs, bounds));
       // Re-cache the fresh data
       const dayGroups = new Map<number, Row[]>();
       for (const r of resultRows) {
@@ -710,7 +713,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } else if (!KV_ENV_PRESENT) {
       console.log('Fetching directly without cache (no KV)', { sTs, eTs });
-      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+      resultRows = mergeRows(resultRows, await fetchRangeRowsDirect(sTs, eTs, bounds));
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
       // 1. Days before Jan 15, 2026: use cache (fast, proven to work)
