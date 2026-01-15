@@ -38,8 +38,6 @@ const NEW_CONTRACT_START_TS = 1768478880;
 const MIN_GAME_TS = Math.floor(new Date('2025-07-25T00:00:00Z').getTime() / 1000);
 // Mainnet genesis (earliest block timestamp)
 const MAINNET_GENESIS_TS = 1762797011;
-// Avoid long-running legacy RPC fetches for huge ranges
-const MAX_LEGACY_RPC_DAYS = 7;
 // Block range limit for eth_getLogs requests
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -99,6 +97,10 @@ function remember(dayIndex: number, entry: DayEntry) {
 }
 function dayIndexFromTs(ts: number) { return Math.floor(ts / 86400); }
 function clamp(n: number, a: number, b: number) { return Math.max(a, Math.min(b, n)); }
+function dayIndexToDate(dayIndex: number) {
+  const d = new Date(dayIndex * 86400 * 1000);
+  return d.toISOString().slice(0, 10);
+}
 
 async function getBounds(rpcUrl: string = RPC): Promise<BlockBounds> {
   const earliest = await getEarliest(rpcUrl);
@@ -647,22 +649,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const windowStartTs = sTsRaw;
     const windowEndTs = eTsRaw;
 
-    // Pull legacy data from testnet v2 RPC for any range before the mainnet cutover.
-    if (windowStartTs < NEW_CONTRACT_START_TS) {
-      const legacyEnd = Math.min(windowEndTs, NEW_CONTRACT_START_TS - 1);
-      const legacySpanDays = Math.ceil((legacyEnd - windowStartTs + 1) / 86400);
-      if (legacySpanDays <= MAX_LEGACY_RPC_DAYS || clearCache) {
-        const legacyBounds = await getBounds(LEGACY_RPC);
-        for (const contract of LEGACY_CONTRACTS) {
-          const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
-          const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, contract, topics);
-          resultRows = mergeRows(resultRows, legacyRows);
+    // Pre-cutover data must be served from cache only.
+    const preCutoverEnd = Math.min(windowEndTs, NEW_CONTRACT_START_TS - 1);
+    if (windowStartTs <= preCutoverEnd) {
+      if (!KV_ENV_PRESENT) {
+        return sendJson(res, 200, { ok: false, error: 'Legacy cache required but KV is not configured.' });
+      }
+      const startDay = Math.floor(windowStartTs / 86400);
+      const endDay = Math.floor(preCutoverEnd / 86400);
+      for (let d = startDay; d <= endDay; d++) {
+        const key = memKey(d);
+        let entry = dayCache.get(key) || null;
+        if (!entry) {
+          entry = await kvGetDay(d);
+          if (entry) remember(d, entry);
         }
+        if (!entry || entry.rows.length === 0) {
+          return sendJson(res, 200, { ok: false, error: `Missing cached data for ${dayIndexToDate(d)}.` });
+        }
+        resultRows = mergeRows(resultRows, entry.rows);
       }
     }
 
     // Mainnet window (skip if request ends before genesis)
-    const sTs = Math.max(windowStartTs, MAINNET_GENESIS_TS);
+    const sTs = Math.max(windowStartTs, NEW_CONTRACT_START_TS);
     const eTs = windowEndTs;
     if (eTs < sTs) {
       const windowed = filterRowsByTs(resultRows, windowStartTs, windowEndTs);
