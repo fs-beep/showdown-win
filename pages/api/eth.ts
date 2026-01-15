@@ -38,6 +38,8 @@ const NEW_CONTRACT_START_TS = 1768478880;
 const MIN_GAME_TS = Math.floor(new Date('2025-07-25T00:00:00Z').getTime() / 1000);
 // Mainnet genesis (earliest block timestamp)
 const MAINNET_GENESIS_TS = 1762797011;
+// Avoid long-running legacy RPC fetches for huge ranges
+const MAX_LEGACY_RPC_DAYS = 7;
 // Block range limit for eth_getLogs requests
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -648,11 +650,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Pull legacy data from testnet v2 RPC for any range before the mainnet cutover.
     if (windowStartTs < NEW_CONTRACT_START_TS) {
       const legacyEnd = Math.min(windowEndTs, NEW_CONTRACT_START_TS - 1);
-      const legacyBounds = await getBounds(LEGACY_RPC);
-      for (const contract of LEGACY_CONTRACTS) {
-        const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
-        const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, contract, topics);
-        resultRows = mergeRows(resultRows, legacyRows);
+      const legacySpanDays = Math.ceil((legacyEnd - windowStartTs + 1) / 86400);
+      if (legacySpanDays <= MAX_LEGACY_RPC_DAYS || clearCache) {
+        const legacyBounds = await getBounds(LEGACY_RPC);
+        for (const contract of LEGACY_CONTRACTS) {
+          const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
+          const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, contract, topics);
+          resultRows = mergeRows(resultRows, legacyRows);
+        }
       }
     }
 
