@@ -34,6 +34,8 @@ const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started Jan 15, 2026 13:08 CET (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = 1768478880;
+// Oldest expected day with games
+const MIN_GAME_TS = Math.floor(new Date('2025-07-25T00:00:00Z').getTime() / 1000);
 // Mainnet genesis (earliest block timestamp)
 const MAINNET_GENESIS_TS = 1762797011;
 // Block range limit for eth_getLogs requests
@@ -195,7 +197,7 @@ async function rpc(body: any, rpcUrl: string = RPC, attempts = RPC_RETRY_ATTEMPT
     try {
       const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 429 || res.status === 503) {
-        lastErr = new Error('RPC HTTP ' + res.status);
+        lastErr = new Error(`RPC HTTP ${res.status}${res.status === 429 ? ' (rate limited)' : ''}`);
         const retryAfter = Number(res.headers.get('retry-after'));
         const wait = retryAfter > 0 ? retryAfter * 1000 : Math.round(baseDelay * Math.pow(1.8, i));
         await sleep(wait);
@@ -661,8 +663,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const windowed = filterRowsByTs(resultRows, windowStartTs, windowEndTs);
       const byKey = new Map<string, Row>();
       for (const r of windowed) byKey.set(stableRowKey(r), r);
-      const out = Array.from(byKey.values());
-      out.sort(sortByTimestamp);
+    const out = Array.from(byKey.values());
+    out.sort(sortByTimestamp);
+    if (windowStartTs <= MIN_GAME_TS && out.length === 0) {
+      return sendJson(res, 200, {
+        ok: false,
+        error: `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`
+      });
+    }
       if (wantAgg) {
         const agg = computeAgg(out);
         return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
@@ -956,6 +964,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const r of windowed) byKey.set(stableRowKey(r), r);
     const out = Array.from(byKey.values());
     out.sort(sortByTimestamp);
+    if (windowStartTs <= MIN_GAME_TS && out.length === 0) {
+      return sendJson(res, 200, {
+        ok: false,
+        error: `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`
+      });
+    }
     if (wantAgg) {
       const agg = computeAgg(out);
       return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
