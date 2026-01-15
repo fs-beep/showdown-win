@@ -4,12 +4,16 @@ import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
 const RPC = process.env.RPC_URL || 'https://carrot.megaeth.com/rpc';
+const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
 const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
+const MAINNET_CONTRACT = (process.env.GAME_RESULTS_CONTRACT || process.env.MAINNET_CONTRACT || '0x8aaf217a7a1534327234bd09474fc358e6e4d322').toLowerCase();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started around Nov 15, 2025 00:00:00 UTC (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = Math.floor(new Date('2025-11-15T00:00:00Z').getTime() / 1000);
+// Mainnet cutover: last legacy/testnet game at 2026-01-15 11:49:24 UTC
+const MAINNET_START_TS = Math.floor(new Date('2026-01-15T11:49:24Z').getTime() / 1000);
 // Block range limit for eth_getLogs requests
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -33,7 +37,7 @@ type Row = {
   endReason: string;
   gameType?: string;
   metadata?: string;
-  network?: 'legacy' | 'megaeth-testnet-v2';
+  network?: 'legacy' | 'megaeth-testnet-v2' | 'megaeth-mainnet';
 };
 type DayEntry = { fromBlock: number; toBlock: number; rows: Row[]; lastUpdate: number };
 type DayAgg = { byClass: Record<string, { wins: number; losses: number; total: number }>; lastUpdate: number };
@@ -146,11 +150,11 @@ function sendJson(res: NextApiResponse, status: number, payload: any) {
   res.status(status).send(gz);
 }
 
-async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
+async function rpc(body: any, rpcUrl: string = RPC, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
   let lastErr: any = null;
   for (let i=0;i<attempts;i++) {
     try {
-      const res = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 429 || res.status === 503) {
         lastErr = new Error('RPC HTTP ' + res.status);
         const retryAfter = Number(res.headers.get('retry-after'));
@@ -175,40 +179,40 @@ async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BAS
   throw lastErr || new Error('RPC failed after retries');
 }
 
-async function getBlockByTag(tag: string): Promise<{ num:number; ts:number }> {
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [tag, false] });
+async function getBlockByTag(tag: string, rpcUrl: string = RPC): Promise<{ num:number; ts:number }> {
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [tag, false] }, rpcUrl);
   const blk = j?.result;
   if (!blk) throw new Error('Block not found');
   return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
 }
-async function getBlockByNumber(n: number) { return getBlockByTag(toHex(n)); }
-async function getEarliest() { return getBlockByTag('earliest'); }
-async function getLatest() { return getBlockByTag('latest'); }
+async function getBlockByNumber(n: number, rpcUrl: string = RPC) { return getBlockByTag(toHex(n), rpcUrl); }
+async function getEarliest(rpcUrl: string = RPC) { return getBlockByTag('earliest', rpcUrl); }
+async function getLatest(rpcUrl: string = RPC) { return getBlockByTag('latest', rpcUrl); }
 
-async function findBlockAtOrAfter(targetTs: number, bounds?: BlockBounds): Promise<number> {
-  const earliest = bounds?.earliest ?? await getEarliest();
-  const latest = bounds?.latest ?? await getLatest();
+async function findBlockAtOrAfter(targetTs: number, bounds?: BlockBounds, rpcUrl: string = RPC): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest(rpcUrl);
+  const latest = bounds?.latest ?? await getLatest(rpcUrl);
   const clamped = Math.max(targetTs, earliest.ts);
   if (clamped <= earliest.ts) return earliest.num;
   if (clamped > latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
-    const b = await getBlockByNumber(mid);
+    const b = await getBlockByNumber(mid, rpcUrl);
     if (b.ts >= clamped) hi = mid; else lo = mid + 1;
   }
   return lo;
 }
-async function findBlockAtOrBefore(targetTs: number, bounds?: BlockBounds): Promise<number> {
-  const earliest = bounds?.earliest ?? await getEarliest();
-  const latest = bounds?.latest ?? await getLatest();
+async function findBlockAtOrBefore(targetTs: number, bounds?: BlockBounds, rpcUrl: string = RPC): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest(rpcUrl);
+  const latest = bounds?.latest ?? await getLatest(rpcUrl);
   const clamped = Math.min(targetTs, latest.ts);
   if (clamped < earliest.ts) return earliest.num;
   if (clamped >= latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo + 1) / 2);
-    const b = await getBlockByNumber(mid);
+    const b = await getBlockByNumber(mid, rpcUrl);
     if (b.ts <= clamped) lo = mid; else hi = mid - 1;
   }
   return lo;
@@ -225,12 +229,12 @@ function buildRanges(fromBlock: number, toBlock: number) {
   return ranges;
 }
 
-async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0, rpcUrl: string = RPC) {
   // Check if range exceeds MAX_SPAN - if so, throw to fall back to chunked
   if (toBlock - fromBlock + 1 > MAX_SPAN) {
     throw new Error(`Block range ${toBlock - fromBlock + 1} exceeds MAX_SPAN ${MAX_SPAN}`);
   }
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics: [topic0] }] });
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics: [topic0] }] }, rpcUrl);
   // Check for RPC error response
   if (j?.error) {
     throw new Error(j.error.message || 'RPC error');
@@ -244,13 +248,13 @@ async function getLogsSingle(fromBlock: number, toBlock: number, contract: strin
   }
   return Array.from(uniq.values());
 }
-async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0, rpcUrl: string = RPC) {
   const ranges = buildRanges(fromBlock, toBlock);
   let all: any[] = [];
   const CONCURRENCY = Math.max(1, LOG_RANGE_CONCURRENCY);
   for (let i=0; i<ranges.length; i+=CONCURRENCY) {
     const slice = ranges.slice(i, i+CONCURRENCY);
-    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics: [topic0] }] }));
+    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics: [topic0] }] }, rpcUrl));
     const parts = await Promise.all(reqs);
     for (const p of parts) {
       if (p?.error) {
@@ -567,6 +571,28 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   return allRows;
 }
 
+async function fetchRangeRowsMainnet(startTs: number, endTs: number): Promise<Row[]> {
+  const earliest = await getEarliest(MAINNET_RPC);
+  const latest = await getLatest(MAINNET_RPC);
+  const bounds: BlockBounds = { earliest, latest };
+  const clampedStart = Math.max(startTs, earliest.ts);
+  const clampedEnd = Math.min(endTs, latest.ts);
+  if (clampedEnd < clampedStart) return [];
+
+  const fromBlock = await findBlockAtOrAfter(clampedStart, bounds, MAINNET_RPC);
+  const toBlock = await findBlockAtOrBefore(clampedEnd, bounds, MAINNET_RPC);
+  if (toBlock < fromBlock) return [];
+
+  let logs: any[] = [];
+  try {
+    logs = await getLogsSingle(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
+  } catch {
+    logs = await getLogsChunked(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
+  }
+  const rows = dedupeRows(decodeLogs(logs, false)).map(r => ({ ...r, network: 'megaeth-mainnet' as const }));
+  return rows.sort(sortByTimestamp);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { startTs, endTs, rebuildDay, wantAgg, clearCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean };
@@ -587,10 +613,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const bounds: BlockBounds = { earliest, latest };
 
     const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
-    const eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
+    let eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
+    if (!(typeof endTs === 'number' && endTs > 0)) {
+      try {
+        const mainnetLatest = await getLatest(MAINNET_RPC);
+        eTs = Math.max(eTs, mainnetLatest.ts);
+      } catch {
+        // If mainnet latest fails, keep legacy latest
+      }
+    }
     if (eTs < sTs) return sendJson(res, 200, { ok: true, rows: [] });
 
     let resultRows: Row[] = [];
+    const legacyEndTs = Math.min(eTs, MAINNET_START_TS);
+    const mainnetStartTs = Math.max(sTs, MAINNET_START_TS + 1);
+    const needsMainnet = eTs > MAINNET_START_TS;
 
     // If clearCache is true, clear cache for the date range and fetch fresh data
     if (clearCache) {
@@ -611,8 +648,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.error('Failed to clear KV cache for day', d, e);
         }
       }
-      // Fetch fresh data directly from RPC
-      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+      // Fetch fresh data directly from RPC (legacy/testnet only)
+      if (legacyEndTs >= sTs) {
+        resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+      }
       // Re-cache the fresh data
       const dayGroups = new Map<number, Row[]>();
       for (const r of resultRows) {
@@ -635,18 +674,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } else if (!KV_ENV_PRESENT) {
       console.log('Fetching directly without cache (no KV)', { sTs, eTs });
-      resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
+      if (legacyEndTs >= sTs) {
+        resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+      }
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
       // 1. Days before Nov 15: use cache (fast, proven to work)
       // 2. Days after Nov 14: ALWAYS fetch directly using fetchRangeRowsDirect (guaranteed to work)
       
-      const beforeNewContractEnd = Math.min(eTs, NEW_CONTRACT_START_TS - 1);
+      const beforeNewContractEnd = Math.min(legacyEndTs, NEW_CONTRACT_START_TS - 1);
       const afterNewContractStart = Math.max(sTs, NEW_CONTRACT_START_TS);
       
       // Fetch days before Nov 15 using cache
       // IMPORTANT: Skip days after Nov 14 - they're fetched directly below
-      if (sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
+      if (legacyEndTs >= sTs && sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
         const startDay = Math.floor(sTs / 86400);
         const endDay = Math.floor(beforeNewContractEnd / 86400);
         const todayDay = Math.floor(latest.ts / 86400);
@@ -784,10 +825,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Fetch days after Nov 14: fetch day-by-day to avoid block range limits, then cache
-      if (eTs >= NEW_CONTRACT_START_TS) {
+      if (legacyEndTs >= NEW_CONTRACT_START_TS) {
         const todayDay = Math.floor(latest.ts / 86400);
         const todayStartTs = todayDay * 86400;
-        const fetchEnd = Math.min(eTs, todayStartTs - 1); // Exclude today
+        const fetchEnd = Math.min(legacyEndTs, todayStartTs - 1); // Exclude today
         
         if (fetchEnd >= afterNewContractStart) {
           const newContractStartDay = Math.floor(afterNewContractStart / 86400);
@@ -857,16 +898,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Only do live fetch for today's data (to get latest matches), skip for historical dates
-    const todayDay = Math.floor(latest.ts / 86400);
-    const endDay = Math.floor(eTs / 86400);
-    if (endDay >= todayDay) {
-      // Request includes today - fetch live data for today only
-      const todayStartTs = todayDay * 86400;
-      const liveStartTs = Math.max(sTs, todayStartTs);
-      if (liveStartTs <= eTs) {
-        const liveRows = await fetchRangeRowsDirect(liveStartTs, eTs, bounds);
-        resultRows = mergeRows(resultRows, liveRows);
+    if (legacyEndTs >= sTs) {
+      const todayDay = Math.floor(latest.ts / 86400);
+      const endDay = Math.floor(legacyEndTs / 86400);
+      if (endDay >= todayDay) {
+        // Request includes today - fetch live data for today only (legacy/testnet)
+        const todayStartTs = todayDay * 86400;
+        const liveStartTs = Math.max(sTs, todayStartTs);
+        if (liveStartTs <= legacyEndTs) {
+          const liveRows = await fetchRangeRowsDirect(liveStartTs, legacyEndTs, bounds);
+          resultRows = mergeRows(resultRows, liveRows);
+        }
       }
+    }
+    if (needsMainnet) {
+      const mainnetRows = await fetchRangeRowsMainnet(mainnetStartTs, eTs);
+      resultRows = mergeRows(resultRows, mainnetRows);
     }
     resultRows.sort(sortByTimestamp);
 
