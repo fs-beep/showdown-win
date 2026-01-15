@@ -225,12 +225,13 @@ function buildRanges(fromBlock: number, toBlock: number) {
   return ranges;
 }
 
-async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0) {
   // Check if range exceeds MAX_SPAN - if so, throw to fall back to chunked
   if (toBlock - fromBlock + 1 > MAX_SPAN) {
     throw new Error(`Block range ${toBlock - fromBlock + 1} exceeds MAX_SPAN ${MAX_SPAN}`);
   }
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics: [topic0] }] });
+  const topics = Array.isArray(topic0) ? [topic0] : [topic0];
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics }] });
   // Check for RPC error response
   if (j?.error) {
     throw new Error(j.error.message || 'RPC error');
@@ -244,13 +245,14 @@ async function getLogsSingle(fromBlock: number, toBlock: number, contract: strin
   }
   return Array.from(uniq.values());
 }
-async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string = TOPIC0) {
+async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0) {
   const ranges = buildRanges(fromBlock, toBlock);
   let all: any[] = [];
   const CONCURRENCY = Math.max(1, LOG_RANGE_CONCURRENCY);
+  const topics = Array.isArray(topic0) ? [topic0] : [topic0];
   for (let i=0; i<ranges.length; i+=CONCURRENCY) {
     const slice = ranges.slice(i, i+CONCURRENCY);
-    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics: [topic0] }] }));
+    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics }] }));
     const parts = await Promise.all(reqs);
     for (const p of parts) {
       if (p?.error) {
@@ -314,9 +316,19 @@ function decodeLegacy(log: any): Row | null {
   } catch { return null; }
 }
 
+function decodeByTopic(log: any): Row | null {
+  const topic0 = String(log?.topics?.[0] || '').toLowerCase();
+  if (topic0 === LEGACY_TOPIC0) return decodeLegacy(log);
+  return decode(log);
+}
+
 function decodeLogs(logs: any[], isLegacy: boolean = false): Row[] {
   const decoder = isLegacy ? decodeLegacy : decode;
   return (logs as any[]).map(decoder).filter(Boolean) as Row[];
+}
+
+function decodeLogsAny(logs: any[]): Row[] {
+  return (logs as any[]).map(decodeByTopic).filter(Boolean) as Row[];
 }
 
 function dedupeRows(rows: Row[]): Row[] {
@@ -408,7 +420,7 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   // For Jan 15, 2025 and later, use new contract; before that, use legacy
   const isLegacyDay = dayStartTs < NEW_CONTRACT_START_TS;
   const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
-  const topic0 = isLegacyDay ? LEGACY_TOPIC0 : TOPIC0;
+  const topic0 = isLegacyDay ? LEGACY_TOPIC0 : [TOPIC0, LEGACY_TOPIC0];
   const isLegacy = isLegacyDay;
   
   // Safety: For days after Jan 15, 2025, ensure we're using the new contract
@@ -421,11 +433,11 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   
   try {
     const logs = await getLogsSingle(fromBlock, toBlock, contract, topic0);
-    const rows = dedupeRows(decodeLogs(logs, isLegacy));
+    const rows = dedupeRows(isLegacy ? decodeLogs(logs, true) : decodeLogsAny(logs));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   } catch {
     const logs = await getLogsChunked(fromBlock, toBlock, contract, topic0);
-    const rows = dedupeRows(decodeLogs(logs, isLegacy));
+    const rows = dedupeRows(isLegacy ? decodeLogs(logs, true) : decodeLogsAny(logs));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   }
 }
@@ -436,11 +448,11 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
   if (toBlock < fromBlock) return existing;
   let newLogs: any[] = [];
   try {
-    newLogs = await getLogsSingle(fromBlock, toBlock);
+    newLogs = await getLogsSingle(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
   } catch {
-    newLogs = await getLogsChunked(fromBlock, toBlock);
+    newLogs = await getLogsChunked(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
   }
-  const newRows = (newLogs as any[]).map(decode).filter(Boolean) as Row[];
+  const newRows = decodeLogsAny(newLogs as any[]);
   const merged = [...existing.rows, ...newRows];
   const uniq = new Map<string, Row>();
   for (const r of merged) {
@@ -491,8 +503,8 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
           if (CONTRACT !== '0x8aaf217a7a1534327234bd09474fc358e6e4d322') {
             throw new Error(`Wrong contract address: ${CONTRACT}`);
           }
-          const logs = await getLogsSingle(newFromBlock, newToBlock, CONTRACT, TOPIC0);
-          const decoded = decodeLogs(logs, false);
+          const logs = await getLogsSingle(newFromBlock, newToBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+          const decoded = decodeLogsAny(logs);
           const deduped = dedupeRows(decoded);
           if (deduped.length === 0 && logs.length > 0) {
             console.error('Decoded logs but got 0 rows', { logsLength: logs.length, fromBlock: newFromBlock, toBlock: newToBlock });
@@ -507,8 +519,8 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
             topic0: TOPIC0
           });
           try {
-            const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, TOPIC0);
-            const decoded = decodeLogs(logs, false);
+            const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+            const decoded = decodeLogsAny(logs);
             const deduped = dedupeRows(decoded);
             return deduped;
           } catch (chunkErr: any) {
