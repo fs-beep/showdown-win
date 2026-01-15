@@ -14,12 +14,20 @@ const RPC = (() => {
   }
   return ENV_RPC;
 })();
-const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x8aaf217a7a1534327234bd09474fc358e6e4d322').toLowerCase();
+const DEFAULT_CONTRACT = '0x8aaf217a7a1534327234bd09474fc358e6e4d322';
 const LEGACY_CONTRACT = '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53'.toLowerCase();
+const ENV_CONTRACT = process.env.GAME_RESULTS_CONTRACT_ADDRESS || process.env.CONTRACT_ADDRESS;
+const CONTRACT = (() => {
+  if (!ENV_CONTRACT) return DEFAULT_CONTRACT.toLowerCase();
+  const lower = ENV_CONTRACT.toLowerCase();
+  // Guard against stale legacy contract when mainnet is configured
+  if (lower === LEGACY_CONTRACT) return DEFAULT_CONTRACT.toLowerCase();
+  return lower;
+})();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
-// New contract started Jan 15, 2025 13:08 CET (legacy contract stopped around then)
-const NEW_CONTRACT_START_TS = 1736942880;
+// New contract started Jan 15, 2026 13:08 CET (legacy contract stopped around then)
+const NEW_CONTRACT_START_TS = 1768478880;
 // Block range limit for eth_getLogs requests
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -97,11 +105,11 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
     const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
     
     if (needsNewContract) {
-      // For days after Jan 15, 2025, ONLY use new contract cache - never fall back to legacy
+      // For days after Jan 15, 2026, ONLY use new contract cache - never fall back to legacy
       const newKey = await client.get(kvKey(dayIndex));
       return newKey as DayEntry | null;
     } else {
-      // For days before Jan 15, 2025, try both keys (legacy might have data)
+      // For days before Jan 15, 2026, try both keys (legacy might have data)
       const [newKey, legacyKey] = await Promise.all([
         client.get(kvKey(dayIndex)),
         client.get(legacyKvKey(dayIndex)),
@@ -427,13 +435,13 @@ async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBound
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
   
   // Determine which contract to use based on the day start timestamp
-  // For Jan 15, 2025 and later, use new contract; before that, use legacy
+  // For Jan 15, 2026 and later, use new contract; before that, use legacy
   const isLegacyDay = dayStartTs < NEW_CONTRACT_START_TS;
   const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
   const topic0 = isLegacyDay ? LEGACY_TOPIC0 : [TOPIC0, LEGACY_TOPIC0];
   const isLegacy = isLegacyDay;
   
-  // Safety: For days after Jan 15, 2025, ensure we're using the new contract
+  // Safety: For days after Jan 15, 2026, ensure we're using the new contract
   if (dayStartTs >= NEW_CONTRACT_START_TS && contract !== CONTRACT) {
     // This should never happen, but if it does, use new contract
     const logs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
@@ -660,14 +668,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resultRows = await fetchRangeRowsDirect(sTs, eTs, bounds);
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
-      // 1. Days before Jan 15, 2025: use cache (fast, proven to work)
-      // 2. Days after Jan 14, 2025: ALWAYS fetch directly using fetchRangeRowsDirect (guaranteed to work)
+      // 1. Days before Jan 15, 2026: use cache (fast, proven to work)
+      // 2. Days after Jan 14, 2026: ALWAYS fetch directly using fetchRangeRowsDirect (guaranteed to work)
       
       const beforeNewContractEnd = Math.min(eTs, NEW_CONTRACT_START_TS - 1);
       const afterNewContractStart = Math.max(sTs, NEW_CONTRACT_START_TS);
       
-      // Fetch days before Jan 15, 2025 using cache
-      // IMPORTANT: Skip days after Jan 14, 2025 - they're fetched directly below
+      // Fetch days before Jan 15, 2026 using cache
+      // IMPORTANT: Skip days after Jan 14, 2026 - they're fetched directly below
       if (sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
         const startDay = Math.floor(sTs / 86400);
         const endDay = Math.floor(beforeNewContractEnd / 86400);
@@ -676,7 +684,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const dayRanges: Array<{ key:number, start:number, end:number }> = [];
       for (let d = startDay; d <= endDay; d++) {
-        // Skip days after Jan 14, 2025 - they're fetched directly, not through cache
+        // Skip days after Jan 14, 2026 - they're fetched directly, not through cache
         if (d >= newContractStartDay) continue;
         const dayStart = d * 86400;
         const dayEnd = dayStart + 86399;
@@ -689,14 +697,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const isHistorical = r.key < todayDay;
           const dayStartTs = r.key * 86400;
           const dayEndTs = dayStartTs + 86399;
-          // Days after Jan 14, 2025 need new contract data
+          // Days after Jan 14, 2026 need new contract data
           const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
           
-          // For days after Jan 14, 2025, always use full day range when rebuilding
+          // For days after Jan 14, 2026, always use full day range when rebuilding
           const rebuildStart = needsNewContract ? dayStartTs : r.start;
           const rebuildEnd = needsNewContract ? dayEndTs : r.end;
           
-          // For days after Jan 14, 2025: ensure we have cached data from new contract
+          // For days after Jan 14, 2026: ensure we have cached data from new contract
           if (needsNewContract && isHistorical) {
             // Check cache first - but be aggressive: if cache is empty or doesn't have mega rows, always fetch fresh
             // 1) Try in-memory cache
@@ -749,7 +757,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               lastUpdate: Date.now()
             };
             
-            // Only cache if we got data - don't cache empty results for days after Jan 14, 2025
+            // Only cache if we got data - don't cache empty results for days after Jan 14, 2026
             // This ensures we keep retrying until we get the data
             if (fetchedRows.length > 0) {
               remember(r.key, entry);
@@ -759,7 +767,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return;
           }
           
-          // For days before Jan 15, 2025 or today: use existing logic
+          // For days before Jan 15, 2026 or today: use existing logic
           // 1) Try in-memory first (fast)
           const mem = dayCache.get(memKey(r.key));
           if (mem) {
@@ -805,7 +813,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       }
       
-      // Fetch days after Jan 14, 2025: fetch day-by-day to avoid block range limits, then cache
+      // Fetch days after Jan 14, 2026: fetch day-by-day to avoid block range limits, then cache
       if (eTs >= NEW_CONTRACT_START_TS) {
         const todayDay = Math.floor(latest.ts / 86400);
         const todayStartTs = todayDay * 86400;
