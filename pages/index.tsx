@@ -128,7 +128,7 @@ export default function Home() {
 
   // 1) Initialize state from URL query once
   useEffect(() => {
-    if (hydrated.current) return;
+    if (hydrated.current || !router.isReady) return;
     const q = router.query;
     const s = typeof q.start === 'string' ? q.start : undefined;
     const e = typeof q.end === 'string' ? q.end : undefined;
