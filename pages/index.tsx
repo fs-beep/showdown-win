@@ -59,6 +59,15 @@ function parseDateFlexible(dateStr?: string): { y:number; m:number; d:number } |
   if (m) return { y: Number(m[3]), m: Number(m[1]), d: Number(m[2]) };
   return null;
 }
+function fmtDisplayDate(dateStr?: string): string {
+  const p = parseDateFlexible(dateStr);
+  if (!p) return dateStr || '';
+  const d = new Date(p.y, p.m - 1, p.d);
+  if (isNaN(d.getTime())) return dateStr || '';
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const year2 = String(p.y).slice(-2);
+  return `${month} ${p.d} ${year2}`;
+}
 function toStartOfDayEpoch(dateStr?: string): number | undefined {
   const p = parseDateFlexible(dateStr);
   if (!p) return undefined;
@@ -439,10 +448,9 @@ export default function Home() {
   }, [statRows, player]);
   const playerTrends = useMemo(() => buildTrend(playerRowsSubset, classStats.map(x=>x.klass), dayIndicesPlayer), [playerRowsSubset, classStats, dayIndicesPlayer]);
 
-  // Preselect dominant dual-class for the selected player (if not already chosen)
+  // Preselect dominant dual-class for the selected player (refresh on player/range changes)
   useEffect(() => {
     if (!matrixOnlyPlayer) return;
-    if (selectedBaseClasses.length > 0) return;
     const p = player.trim().toLowerCase();
     if (!p) return;
     const counts = new Map<string, number>();
@@ -460,11 +468,17 @@ export default function Home() {
     for (const [cls, cnt] of counts.entries()) {
       if (cnt > bestCount) { best = cls; bestCount = cnt; }
     }
-    if (!best) return;
+    if (!best) {
+      setSelectedBaseClasses([]);
+      return;
+    }
     const parts = best.split('/').map(s => s.trim()).filter(Boolean);
-    if (parts.length !== 2) return;
+    if (parts.length !== 2) {
+      setSelectedBaseClasses([]);
+      return;
+    }
     setSelectedBaseClasses(parts);
-  }, [statRows, player, matrixOnlyPlayer, selectedBaseClasses.length]);
+  }, [statRows, player, matrixOnlyPlayer, startDate, endDate]);
 
   function Spark({ data }: { data: number[] }) {
     const w = 60, h = 14; const max = Math.max(1, ...data); const step = data.length>1 ? (w/(data.length-1)) : w;
@@ -480,8 +494,10 @@ export default function Home() {
   const BASE_CLASSES = ['Bureaucrat', 'Cheater', 'Gambler', 'Inventor', 'Protector', 'Rebel'] as const;
 
   const rangeLabel = useMemo(() => {
-    const start = startDate || MIN_DATE;
-    const end = endDate ? endDate : 'latest';
+    const startRaw = startDate || MIN_DATE;
+    const endRaw = endDate || '';
+    const start = fmtDisplayDate(startRaw);
+    const end = endRaw ? fmtDisplayDate(endRaw) : 'latest';
     return `${start} → ${end}`;
   }, [startDate, endDate]);
 
