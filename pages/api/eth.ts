@@ -17,6 +17,11 @@ const RPC = (() => {
 })();
 const DEFAULT_CONTRACT = '0x8aaf217a7a1534327234bd09474fc358e6e4d322';
 const LEGACY_CONTRACT = '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53'.toLowerCase();
+const LEGACY_CONTRACTS = [
+  LEGACY_CONTRACT,
+  // Original testnet v2 contract used for cached data
+  '0xae2afe4d192127e6617cfa638a94384b53facec1',
+].map(c => c.toLowerCase());
 const ENV_CONTRACT = process.env.GAME_RESULTS_CONTRACT_ADDRESS || process.env.CONTRACT_ADDRESS;
 const CONTRACT = (() => {
   if (!ENV_CONTRACT) return DEFAULT_CONTRACT.toLowerCase();
@@ -62,11 +67,12 @@ type BlockInfo = { num: number; ts: number };
 type BlockBounds = { earliest: BlockInfo; latest: BlockInfo };
 
 const CACHE_NAMESPACE = (process.env.CACHE_NAMESPACE || `${CONTRACT}:${TOPIC0}`).toLowerCase();
-const LEGACY_CACHE_NAMESPACES = [
-  // Previous defaults and legacy contract namespaces to read old cached data
-  `${LEGACY_CONTRACT}:${LEGACY_TOPIC0}`,
-  `${LEGACY_CONTRACT}:${TOPIC0}`,
-].map(ns => ns.toLowerCase());
+const LEGACY_CACHE_NAMESPACES = Array.from(new Set(
+  LEGACY_CONTRACTS.flatMap(contract => [
+    `${contract}:${LEGACY_TOPIC0}`,
+    `${contract}:${TOPIC0}`,
+  ]).map(ns => ns.toLowerCase())
+));
 function memKey(dayIndex: number) { return `${CACHE_NAMESPACE}:${dayIndex}`; }
 const dayCache = new Map<string, DayEntry>();
 const dayOrder: string[] = [];
