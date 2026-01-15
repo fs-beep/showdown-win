@@ -138,6 +138,31 @@ async function getKv() {
   }
   return _kvClient;
 }
+async function kvScanDay(dayIndex: number): Promise<DayEntry | null> {
+  try {
+    const client = await getKv();
+    if (!client || typeof client.scan !== 'function') return null;
+    const match = `*day:${dayIndex}`;
+    let cursor: number | string = 0;
+    // Limit scan loops to avoid long runtimes
+    for (let i = 0; i < 5; i++) {
+      const res: any = await client.scan(cursor, { match });
+      const nextCursor: any = Array.isArray(res) ? res[0] : res?.cursor;
+      const keys = Array.isArray(res) ? res[1] : res?.keys;
+      if (Array.isArray(keys) && keys.length > 0) {
+        for (const key of keys) {
+          const val = await client.get(key);
+          if (val) return val as DayEntry;
+        }
+      }
+      cursor = nextCursor ?? 0;
+      if (String(cursor) === '0') break;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
@@ -151,6 +176,8 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
       const val = await client.get(key);
       if (val) return val as DayEntry;
     }
+    const scanned = await kvScanDay(dayIndex);
+    if (scanned) return scanned;
     return null;
   } catch {
     return null;
