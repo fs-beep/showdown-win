@@ -5,6 +5,11 @@ import { gzipSync } from 'zlib';
 
 const DEFAULT_RPC = 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const LEGACY_RPC = process.env.GAME_RESULTS_LEGACY_RPC_URL || process.env.LEGACY_RPC_URL || 'https://carrot.megaeth.com/rpc';
+const LEGACY_RPC_FALLBACKS = [
+  LEGACY_RPC,
+  // Older testnet v2 RPC used previously for cached data
+  'https://carrot.megaeth.com/mafia/rpc/203gha2ymvvv8531d14umthkq9ug0ct7z3b8am7b',
+];
 const ENV_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.RPC_URL;
 const RPC = (() => {
   if (!ENV_RPC) return DEFAULT_RPC;
@@ -415,17 +420,19 @@ async function ensureMegaRows(entry: DayEntry | null, dayStartTs: number, dayEnd
   return merged || built.entry;
 }
 
-async function fetchLegacyDay(dayIndex: number, legacyBounds: BlockBounds): Promise<DayEntry | null> {
+async function fetchLegacyDay(dayIndex: number, legacySources: Array<{ rpcUrl: string; bounds: BlockBounds }>): Promise<DayEntry | null> {
   const start = dayIndex * 86400;
   const end = start + 86399;
-  let merged: DayEntry | null = null;
-  for (const contract of LEGACY_CONTRACTS) {
-    const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
-    const built = await buildDay(start, end, legacyBounds, LEGACY_RPC, contract, topics);
-    merged = mergeDayEntries(merged, built.entry);
+  for (const source of legacySources) {
+    let merged: DayEntry | null = null;
+    for (const contract of LEGACY_CONTRACTS) {
+      const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
+      const built = await buildDay(start, end, source.bounds, source.rpcUrl, contract, topics);
+      merged = mergeDayEntries(merged, built.entry);
+    }
+    if (merged && merged.rows.length > 0) return merged;
   }
-  if (!merged || merged.rows.length === 0) return null;
-  return merged;
+  return null;
 }
 
 function parseStartedAtTs(str: string): number | null {
@@ -668,7 +675,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!KV_ENV_PRESENT) {
         return sendJson(res, 200, { ok: false, error: 'Legacy cache required but KV is not configured.' });
       }
-      const legacyBounds = await getBounds(LEGACY_RPC);
+      const legacySources: Array<{ rpcUrl: string; bounds: BlockBounds }> = [];
+      for (const rpcUrl of LEGACY_RPC_FALLBACKS) {
+        try {
+          legacySources.push({ rpcUrl, bounds: await getBounds(rpcUrl) });
+        } catch {}
+      }
       const startDay = Math.floor(windowStartTs / 86400);
       const endDay = Math.floor(preCutoverEnd / 86400);
       let missingStreak = 0;
@@ -681,7 +693,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         if (!entry || entry.rows.length === 0) {
           // Backfill missing cache for this day from legacy RPC, then store in KV.
-          const backfill = await fetchLegacyDay(d, legacyBounds);
+          const backfill = await fetchLegacyDay(d, legacySources);
           if (backfill && backfill.rows.length > 0) {
             remember(d, backfill);
             await kvSetDay(d, backfill);
