@@ -19,7 +19,7 @@ type Row = {
   endReason: string;
   gameType?: string;
   metadata?: string;
-  network?: 'legacy' | 'megaeth-testnet-v2';
+  network?: 'legacy' | 'megaeth-mainnet';
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
@@ -717,7 +717,7 @@ export default function Home() {
     }
   };
   const txExplorer = (hash: string, network?: Row['network']) => {
-    return `https://megaeth-testnet-v2.blockscout.com/tx/${hash}?tab=logs`;
+    return `https://megaeth.blockscout.com/tx/${hash}?tab=logs`;
   };
   const toCsv = (rows: Array<Record<string, any>>, columns?: Array<{ key: string; label: string }>) => {
     const keys = columns?.map(c => c.key) || (rows[0] ? Object.keys(rows[0]) : []);
