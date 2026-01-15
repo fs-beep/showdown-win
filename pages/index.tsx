@@ -24,7 +24,7 @@ type Row = {
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
 type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
-type ApiResponse = { ok: boolean; error?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
+type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
 const BALANCE_PATCH_DATE = '2026-01-13';
@@ -92,6 +92,7 @@ export default function Home() {
   const hydrated = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(true);
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
@@ -667,7 +668,7 @@ export default function Home() {
   };
 
   const run = async () => {
-    setError(null); setRows([]); setLoading(true);
+    setError(null); setWarning(null); setRows([]); setLoading(true);
     try {
       // Use exact balance patch timestamp if start date matches
       const startTs = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
@@ -680,6 +681,7 @@ export default function Home() {
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const j: ApiResponse = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
+      if (j.warning) setWarning(j.warning);
       // Rows are already sorted by timestamp from API
       const normalized = (j.rows || []).map(r => ({
         ...r,
@@ -862,6 +864,15 @@ export default function Home() {
                 <div>
                   <div className="font-medium">Heads up</div>
                   <div>{error}</div>
+                </div>
+              </div>
+            )}
+            {warning && !error && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700 flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 mt-0.5"/>
+                <div>
+                  <div className="font-medium">Heads up</div>
+                  <div>{warning}</div>
                 </div>
               </div>
             )}

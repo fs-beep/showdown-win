@@ -674,6 +674,13 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { startTs, endTs, rebuildDay, wantAgg, clearCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean };
+    let warningMsg: string | null = null;
+    const sendOk = (rows: Row[], agg?: DayAgg) => {
+      if (agg) {
+        return sendJson(res, 200, { ok: true, rows, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate, warning: warningMsg || undefined });
+      }
+      return sendJson(res, 200, { ok: true, rows, warning: warningMsg || undefined });
+    };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
       const earliest = await getEarliest();
@@ -690,7 +697,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sTsRaw = typeof startTs === 'number' && startTs > 0 ? startTs : bounds.earliest.ts;
     const eTsRaw = typeof endTs === 'number' && endTs > 0 ? endTs : bounds.latest.ts;
-    if (eTsRaw < sTsRaw) return sendJson(res, 200, { ok: true, rows: [] });
+    if (eTsRaw < sTsRaw) return sendOk([]);
 
     let resultRows: Row[] = [];
     const windowStartTs = sTsRaw;
@@ -729,8 +736,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         if (!entry || entry.rows.length === 0) {
           missingStreak += 1;
-          if (missingStreak >= 7) {
-            return sendJson(res, 200, { ok: false, error: `Missing cached data for 7 consecutive days ending ${dayIndexToDate(d)}.` });
+          if (missingStreak >= 7 && !warningMsg) {
+            warningMsg = `Missing cached data for 7 consecutive days ending ${dayIndexToDate(d)}.`;
           }
           continue;
         }
@@ -748,17 +755,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (const r of windowed) byKey.set(stableRowKey(r), r);
     const out = Array.from(byKey.values());
     out.sort(sortByTimestamp);
-    if (windowStartTs <= MIN_GAME_TS && out.length === 0) {
-      return sendJson(res, 200, {
-        ok: false,
-        error: `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`
-      });
+    if (windowStartTs <= MIN_GAME_TS && out.length === 0 && !warningMsg) {
+      warningMsg = `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`;
     }
       if (wantAgg) {
         const agg = computeAgg(out);
-        return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
+        return sendOk(out, agg);
       }
-      return sendJson(res, 200, { ok: true, rows: out });
+      return sendOk(out);
     }
 
     // If clearCache is true, clear cache for the date range and fetch fresh data
@@ -1047,17 +1051,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const r of windowed) byKey.set(stableRowKey(r), r);
     const out = Array.from(byKey.values());
     out.sort(sortByTimestamp);
-    if (windowStartTs <= MIN_GAME_TS && out.length === 0) {
-      return sendJson(res, 200, {
-        ok: false,
-        error: `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`
-      });
+    if (windowStartTs <= MIN_GAME_TS && out.length === 0 && !warningMsg) {
+      warningMsg = `No decoded matches found for ${new Date(windowStartTs * 1000).toISOString().slice(0,10)} to ${new Date(windowEndTs * 1000).toISOString().slice(0,10)}. This indicates missing cached data or RPC rate limiting.`;
     }
     if (wantAgg) {
       const agg = computeAgg(out);
-      return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
+      return sendOk(out, agg);
     }
-    sendJson(res, 200, { ok: true, rows: out });
+    return sendOk(out);
   } catch (e:any) {
     sendJson(res, 200, { ok: false, error: e?.message || String(e) });
   }
