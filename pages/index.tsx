@@ -875,58 +875,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* All matches per-class performance (global) */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
-            {overallClassStats.length > 0 && (
-              <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> JSON
-                </button>
-                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> CSV
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
-                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='wins' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {overallSort.key==='wins' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
-                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='losses' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {overallSort.key==='losses' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
-                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='total' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {overallSort.key==='total' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
-                  <th className="p-2 w-28 cursor-pointer" aria-sort={overallSort.key==='winrate' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate {overallSort.key==='winrate' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overallClassStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
-                    <td className="p-2 tabular-nums">{r.wins}</td>
-                    <td className="p-2 tabular-nums">{r.losses}</td>
-                    <td className="p-2 tabular-nums">{r.total}</td>
-                    <td className="p-2 tabular-nums flex items-center gap-2">{(r.winrate*100).toFixed(1)}% <span className="text-gray-400"><Spark data={overallTrends.get(r.klass) || []} /></span></td>
-                  </tr>
-                ))}
-                {loading && overallClassStats.length === 0 && (
-                  <SkeletonTableRows rows={6} cols={5} />
-                )}
-                {overallClassStats.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={5}>No data yet — run a query above.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Player-focused tables */}
+        <div className="mt-6 flex items-center gap-3">
+          <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Player-focused</div>
+          <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
         </div>
 
         {/* Per-class performance (player specific) */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div className="mt-4 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
@@ -1115,117 +1071,6 @@ export default function Home() {
           )}
           </div>
 
-          {/* Top Players by Win Rate (min 15 games) */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
-              {topPlayers.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                    <Download className="h-4 w-4"/> JSON
-                  </button>
-                  <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                    <Download className="h-4 w-4"/> CSV
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="mt-3 overflow-x-auto">
-              <table className="min-w-full text-left text-xs md:text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                    <th className="p-2 w-10">#</th>
-                    <th className="p-2">Player</th>
-                    <th className="p-2">Wins</th>
-                    <th className="p-2">Losses</th>
-                    <th className="p-2">Games</th>
-                    <th className="p-2">Win Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topPlayers.map((p, i) => (
-                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="p-2 tabular-nums">{i+1}</td>
-                      <td className="p-2">{p.player}</td>
-                      <td className="p-2 tabular-nums">{p.wins}</td>
-                      <td className="p-2 tabular-nums">{p.losses}</td>
-                      <td className="p-2 tabular-nums">{p.total}</td>
-                      <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                {loading && topPlayers.length === 0 && (
-                  <SkeletonTableRows rows={5} cols={6} />
-                )}
-                {!loading && topPlayers.length === 0 && (
-                    <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-        </div>
-
-          {/* Top Player by Class */}
-          <div className="mt-6 pt-4 border-t dark:border-gray-700">
-          <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
-              {topPlayersByClass.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                    <Download className="h-4 w-4"/> JSON
-                  </button>
-          </div>
-              )}
-            </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                    <th className="p-2">Class</th>
-                    <th className="p-2">Best Player</th>
-                    <th className="p-2 text-center">W/L</th>
-                    <th className="p-2 text-center">Games</th>
-                    <th className="p-2 text-center">Win Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                  {topPlayersByClass.map((row) => {
-                    const hue = Math.round(row.winrate * 120);
-                      return (
-                      <tr key={row.klass} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td className="p-2 font-medium">{row.klass}</td>
-                        <td className="p-2">{row.player}</td>
-                        <td className="p-2 text-center tabular-nums">
-                          <span className="text-green-600 dark:text-green-400">{row.wins}</span>
-                          <span className="text-gray-400 mx-1">/</span>
-                          <span className="text-red-600 dark:text-red-400">{row.losses}</span>
-                        </td>
-                        <td className="p-2 text-center tabular-nums">{row.total}</td>
-                        <td className="p-2 text-center">
-                          <span
-                            className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
-                            style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
-                        >
-                            {(row.winrate * 100).toFixed(0)}%
-                          </span>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  {loading && topPlayersByClass.length === 0 && (
-                    <SkeletonTableRows rows={5} cols={5} />
-                )}
-                  {!loading && topPlayersByClass.length === 0 && (
-                  <tr>
-                      <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </div>
-
         {/* Player-specific matches */}
         <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -1322,6 +1167,173 @@ export default function Home() {
               />
             </div>
           )}
+        </div>
+
+        {/* Global tables */}
+        <div className="mt-10 flex items-center gap-3">
+          <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global</div>
+          <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
+        </div>
+
+        {/* All matches per-class performance (global) */}
+        <div className="mt-4 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
+            {overallClassStats.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-1 text-[10px] text-gray-500">{aggUpdatedAt ? `Aggregates last updated ${new Date(aggUpdatedAt).toLocaleString()}` : ''}</div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='wins' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {overallSort.key==='wins' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='losses' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {overallSort.key==='losses' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='total' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {overallSort.key==='total' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                  <th className="p-2 w-28 cursor-pointer" aria-sort={overallSort.key==='winrate' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'winrate' as any, dir: s.key==='winrate' && s.dir==='asc' ? 'desc' : 'asc' }))}>Win Rate {overallSort.key==='winrate' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overallClassStats.map((r, i) => (
+                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
+                    <td className="p-2 tabular-nums">{r.wins}</td>
+                    <td className="p-2 tabular-nums">{r.losses}</td>
+                    <td className="p-2 tabular-nums">{r.total}</td>
+                    <td className="p-2 tabular-nums flex items-center gap-2">{(r.winrate*100).toFixed(1)}% <span className="text-gray-400"><Spark data={overallTrends.get(r.klass) || []} /></span></td>
+                  </tr>
+                ))}
+                {loading && overallClassStats.length === 0 && (
+                  <SkeletonTableRows rows={6} cols={5} />
+                )}
+                {overallClassStats.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={5}>No data yet — run a query above.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Top Players by Win Rate (min 15 games) */}
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
+            {topPlayers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> CSV
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                  <th className="p-2 w-10">#</th>
+                  <th className="p-2">Player</th>
+                  <th className="p-2">Wins</th>
+                  <th className="p-2">Losses</th>
+                  <th className="p-2">Games</th>
+                  <th className="p-2">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPlayers.map((p, i) => (
+                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="p-2 tabular-nums">{i+1}</td>
+                    <td className="p-2">{p.player}</td>
+                    <td className="p-2 tabular-nums">{p.wins}</td>
+                    <td className="p-2 tabular-nums">{p.losses}</td>
+                    <td className="p-2 tabular-nums">{p.total}</td>
+                    <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+                {loading && topPlayers.length === 0 && (
+                  <SkeletonTableRows rows={5} cols={6} />
+                )}
+                {!loading && topPlayers.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Top Player by Class */}
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
+            {topPlayersByClass.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                  <Download className="h-4 w-4"/> JSON
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                  <th className="p-2">Class</th>
+                  <th className="p-2">Best Player</th>
+                  <th className="p-2 text-center">W/L</th>
+                  <th className="p-2 text-center">Games</th>
+                  <th className="p-2 text-center">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPlayersByClass.map((row) => {
+                  const hue = Math.round(row.winrate * 120);
+                  return (
+                    <tr key={row.klass} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="p-2 font-medium">{row.klass}</td>
+                      <td className="p-2">{row.player}</td>
+                      <td className="p-2 text-center tabular-nums">
+                        <span className="text-green-600 dark:text-green-400">{row.wins}</span>
+                        <span className="text-gray-400 mx-1">/</span>
+                        <span className="text-red-600 dark:text-red-400">{row.losses}</span>
+                      </td>
+                      <td className="p-2 text-center tabular-nums">{row.total}</td>
+                      <td className="p-2 text-center">
+                        <span
+                          className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
+                          style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                        >
+                          {(row.winrate * 100).toFixed(0)}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {loading && topPlayersByClass.length === 0 && (
+                  <SkeletonTableRows rows={5} cols={5} />
+                )}
+                {!loading && topPlayersByClass.length === 0 && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* All decoded list (newest first) */}
