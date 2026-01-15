@@ -4,6 +4,7 @@ import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
 const DEFAULT_RPC = 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+const LEGACY_RPC = process.env.GAME_RESULTS_LEGACY_RPC_URL || process.env.LEGACY_RPC_URL || 'https://carrot.megaeth.com/rpc';
 const ENV_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.RPC_URL;
 const RPC = (() => {
   if (!ENV_RPC) return DEFAULT_RPC;
@@ -28,6 +29,8 @@ const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021
 const TOPIC0 = '0x95340ecf2fd1c1da827f4cf010d0726c65c2e05684a492c4eeaa6ac1b91babf0';
 // New contract started Jan 15, 2026 13:08 CET (legacy contract stopped around then)
 const NEW_CONTRACT_START_TS = 1768478880;
+// Mainnet genesis (earliest block timestamp)
+const MAINNET_GENESIS_TS = 1762797011;
 // Block range limit for eth_getLogs requests
 const MAX_SPAN = 100_000;
 const MAX_DAYS_CACHE = 120;
@@ -59,6 +62,11 @@ type BlockInfo = { num: number; ts: number };
 type BlockBounds = { earliest: BlockInfo; latest: BlockInfo };
 
 const CACHE_NAMESPACE = (process.env.CACHE_NAMESPACE || `${CONTRACT}:${TOPIC0}`).toLowerCase();
+const LEGACY_CACHE_NAMESPACES = [
+  // Previous defaults and legacy contract namespaces to read old cached data
+  `${LEGACY_CONTRACT}:${LEGACY_TOPIC0}`,
+  `${LEGACY_CONTRACT}:${TOPIC0}`,
+].map(ns => ns.toLowerCase());
 function memKey(dayIndex: number) { return `${CACHE_NAMESPACE}:${dayIndex}`; }
 const dayCache = new Map<string, DayEntry>();
 const dayOrder: string[] = [];
@@ -74,11 +82,19 @@ function remember(dayIndex: number, entry: DayEntry) {
 function dayIndexFromTs(ts: number) { return Math.floor(ts / 86400); }
 function clamp(n: number, a: number, b: number) { return Math.max(a, Math.min(b, n)); }
 
+async function getBounds(rpcUrl: string = RPC): Promise<BlockBounds> {
+  const earliest = await getEarliest(rpcUrl);
+  const latest = await getLatest(rpcUrl);
+  return { earliest, latest };
+}
+
 // Optional persistent cache (Vercel KV or Upstash for Redis via REST). Falls back to in-memory only if not configured.
 // We lazily import '@vercel/kv' after normalizing envs so it works with either KV_* or UPSTASH_*.
 const KV_ENV_PRESENT = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-function kvKey(dayIndex: number) { return `${CACHE_NAMESPACE}:day:${dayIndex}`; }
-function kvAggKey(dayIndex: number) { return `${CACHE_NAMESPACE}:dayAgg:${dayIndex}`; }
+function kvKeyFor(namespace: string, dayIndex: number) { return `${namespace}:day:${dayIndex}`; }
+function kvAggKeyFor(namespace: string, dayIndex: number) { return `${namespace}:dayAgg:${dayIndex}`; }
+function kvKey(dayIndex: number) { return kvKeyFor(CACHE_NAMESPACE, dayIndex); }
+function kvAggKey(dayIndex: number) { return kvAggKeyFor(CACHE_NAMESPACE, dayIndex); }
 function legacyKvKey(dayIndex: number) { return `day:${dayIndex}`; }
 function legacyKvAggKey(dayIndex: number) { return `dayAgg:${dayIndex}`; }
 let _kvClient: any | null = null;
@@ -101,21 +117,16 @@ async function kvGetDay(dayIndex: number): Promise<DayEntry | null> {
   try {
     const client = await getKv();
     if (!client) return null;
-    const dayStartTs = dayIndex * 86400;
-    const needsNewContract = dayStartTs >= NEW_CONTRACT_START_TS;
-    
-    if (needsNewContract) {
-      // For days after Jan 15, 2026, ONLY use new contract cache - never fall back to legacy
-      const newKey = await client.get(kvKey(dayIndex));
-      return newKey as DayEntry | null;
-    } else {
-      // For days before Jan 15, 2026, try both keys (legacy might have data)
-      const [newKey, legacyKey] = await Promise.all([
-        client.get(kvKey(dayIndex)),
-        client.get(legacyKvKey(dayIndex)),
-      ]);
-      return (newKey || legacyKey) as DayEntry | null;
+    const keys = [
+      kvKey(dayIndex),
+      legacyKvKey(dayIndex),
+      ...LEGACY_CACHE_NAMESPACES.map(ns => kvKeyFor(ns, dayIndex)),
+    ];
+    for (const key of keys) {
+      const val = await client.get(key);
+      if (val) return val as DayEntry;
     }
+    return null;
   } catch {
     return null;
   }
@@ -164,11 +175,11 @@ function sendJson(res: NextApiResponse, status: number, payload: any) {
   res.status(status).send(gz);
 }
 
-async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
+async function rpc(body: any, rpcUrl: string = RPC, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BASE_DELAY_MS) {
   let lastErr: any = null;
   for (let i=0;i<attempts;i++) {
     try {
-      const res = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 429 || res.status === 503) {
         lastErr = new Error('RPC HTTP ' + res.status);
         const retryAfter = Number(res.headers.get('retry-after'));
@@ -193,40 +204,40 @@ async function rpc(body: any, attempts = RPC_RETRY_ATTEMPTS, baseDelay = RPC_BAS
   throw lastErr || new Error('RPC failed after retries');
 }
 
-async function getBlockByTag(tag: string): Promise<{ num:number; ts:number }> {
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [tag, false] });
+async function getBlockByTag(tag: string, rpcUrl: string = RPC): Promise<{ num:number; ts:number }> {
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [tag, false] }, rpcUrl);
   const blk = j?.result;
   if (!blk) throw new Error('Block not found');
   return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
 }
-async function getBlockByNumber(n: number) { return getBlockByTag(toHex(n)); }
-async function getEarliest() { return getBlockByTag('earliest'); }
-async function getLatest() { return getBlockByTag('latest'); }
+async function getBlockByNumber(n: number, rpcUrl: string = RPC) { return getBlockByTag(toHex(n), rpcUrl); }
+async function getEarliest(rpcUrl: string = RPC) { return getBlockByTag('earliest', rpcUrl); }
+async function getLatest(rpcUrl: string = RPC) { return getBlockByTag('latest', rpcUrl); }
 
-async function findBlockAtOrAfter(targetTs: number, bounds?: BlockBounds): Promise<number> {
-  const earliest = bounds?.earliest ?? await getEarliest();
-  const latest = bounds?.latest ?? await getLatest();
+async function findBlockAtOrAfter(targetTs: number, bounds?: BlockBounds, rpcUrl: string = RPC): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest(rpcUrl);
+  const latest = bounds?.latest ?? await getLatest(rpcUrl);
   const clamped = Math.max(targetTs, earliest.ts);
   if (clamped <= earliest.ts) return earliest.num;
   if (clamped > latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
-    const b = await getBlockByNumber(mid);
+    const b = await getBlockByNumber(mid, rpcUrl);
     if (b.ts >= clamped) hi = mid; else lo = mid + 1;
   }
   return lo;
 }
-async function findBlockAtOrBefore(targetTs: number, bounds?: BlockBounds): Promise<number> {
-  const earliest = bounds?.earliest ?? await getEarliest();
-  const latest = bounds?.latest ?? await getLatest();
+async function findBlockAtOrBefore(targetTs: number, bounds?: BlockBounds, rpcUrl: string = RPC): Promise<number> {
+  const earliest = bounds?.earliest ?? await getEarliest(rpcUrl);
+  const latest = bounds?.latest ?? await getLatest(rpcUrl);
   const clamped = Math.min(targetTs, latest.ts);
   if (clamped < earliest.ts) return earliest.num;
   if (clamped >= latest.ts) return latest.num;
   let lo = earliest.num, hi = latest.num;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo + 1) / 2);
-    const b = await getBlockByNumber(mid);
+    const b = await getBlockByNumber(mid, rpcUrl);
     if (b.ts <= clamped) lo = mid; else hi = mid - 1;
   }
   return lo;
@@ -243,13 +254,13 @@ function buildRanges(fromBlock: number, toBlock: number) {
   return ranges;
 }
 
-async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0) {
+async function getLogsSingle(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0, rpcUrl: string = RPC) {
   // Check if range exceeds MAX_SPAN - if so, throw to fall back to chunked
   if (toBlock - fromBlock + 1 > MAX_SPAN) {
     throw new Error(`Block range ${toBlock - fromBlock + 1} exceeds MAX_SPAN ${MAX_SPAN}`);
   }
   const topics = Array.isArray(topic0) ? [topic0] : [topic0];
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics }] });
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(fromBlock), toBlock: toHex(toBlock), address: contract, topics }] }, rpcUrl);
   // Check for RPC error response
   if (j?.error) {
     throw new Error(j.error.message || 'RPC error');
@@ -263,14 +274,14 @@ async function getLogsSingle(fromBlock: number, toBlock: number, contract: strin
   }
   return Array.from(uniq.values());
 }
-async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0) {
+async function getLogsChunked(fromBlock: number, toBlock: number, contract: string = CONTRACT, topic0: string | string[] = TOPIC0, rpcUrl: string = RPC) {
   const ranges = buildRanges(fromBlock, toBlock);
   let all: any[] = [];
   const CONCURRENCY = Math.max(1, LOG_RANGE_CONCURRENCY);
   const topics = Array.isArray(topic0) ? [topic0] : [topic0];
   for (let i=0; i<ranges.length; i+=CONCURRENCY) {
     const slice = ranges.slice(i, i+CONCURRENCY);
-    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics }] }));
+    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000+i+idx, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: contract, topics }] }, rpcUrl));
     const parts = await Promise.all(reqs);
     for (const p of parts) {
       if (p?.error) {
@@ -426,49 +437,49 @@ function stableRowKey(r: Row): string {
   return `${r.txHash}:${r.blockNumber}`;
 }
 
-async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBounds) {
+async function buildDay(dayStartTs: number, dayEndTs: number, bounds: BlockBounds, rpcUrl: string = RPC, contractOverride?: string, topicOverride?: string | string[]) {
   const key = Math.floor(dayStartTs / 86400);
   const safeStart = Math.max(dayStartTs, bounds.earliest.ts);
   const endTs = Math.min(Math.max(dayEndTs, 0), bounds.latest.ts);
-  const fromBlock = await findBlockAtOrAfter(safeStart, bounds);
-  const toBlock = await findBlockAtOrBefore(endTs, bounds);
+  const fromBlock = await findBlockAtOrAfter(safeStart, bounds, rpcUrl);
+  const toBlock = await findBlockAtOrBefore(endTs, bounds, rpcUrl);
   if (toBlock < fromBlock) return { key, entry: { fromBlock, toBlock, rows: [], lastUpdate: Date.now() } };
   
   // Determine which contract to use based on the day start timestamp
   // For Jan 15, 2026 and later, use new contract; before that, use legacy
   const isLegacyDay = dayStartTs < NEW_CONTRACT_START_TS;
-  const contract = isLegacyDay ? LEGACY_CONTRACT : CONTRACT;
-  const topic0 = isLegacyDay ? LEGACY_TOPIC0 : [TOPIC0, LEGACY_TOPIC0];
+  const contract = contractOverride || (isLegacyDay ? LEGACY_CONTRACT : CONTRACT);
+  const topic0 = topicOverride || (isLegacyDay ? LEGACY_TOPIC0 : [TOPIC0, LEGACY_TOPIC0]);
   const isLegacy = isLegacyDay;
   
   // Safety: For days after Jan 15, 2026, ensure we're using the new contract
   if (dayStartTs >= NEW_CONTRACT_START_TS && contract !== CONTRACT) {
     // This should never happen, but if it does, use new contract
-    const logs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0);
+    const logs = await getLogsChunked(fromBlock, toBlock, CONTRACT, TOPIC0, rpcUrl);
     const rows = dedupeRows(decodeLogs(logs, false));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   }
   
   try {
-    const logs = await getLogsSingle(fromBlock, toBlock, contract, topic0);
+    const logs = await getLogsSingle(fromBlock, toBlock, contract, topic0, rpcUrl);
     const rows = dedupeRows(isLegacy ? decodeLogs(logs, true) : decodeLogsAny(logs));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   } catch {
-    const logs = await getLogsChunked(fromBlock, toBlock, contract, topic0);
+    const logs = await getLogsChunked(fromBlock, toBlock, contract, topic0, rpcUrl);
     const rows = dedupeRows(isLegacy ? decodeLogs(logs, true) : decodeLogsAny(logs));
     return { key, entry: { fromBlock, toBlock, rows, lastUpdate: Date.now() } };
   }
 }
 
-async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: number, bounds: BlockBounds): Promise<DayEntry> {
+async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: number, bounds: BlockBounds, rpcUrl: string = RPC): Promise<DayEntry> {
   const fromBlock = existing.toBlock + 1;
-  const toBlock = await findBlockAtOrBefore(Math.min(Math.max(dayEndTs, 0), bounds.latest.ts), bounds);
+  const toBlock = await findBlockAtOrBefore(Math.min(Math.max(dayEndTs, 0), bounds.latest.ts), bounds, rpcUrl);
   if (toBlock < fromBlock) return existing;
   let newLogs: any[] = [];
   try {
-    newLogs = await getLogsSingle(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+    newLogs = await getLogsSingle(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0], rpcUrl);
   } catch {
-    newLogs = await getLogsChunked(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+    newLogs = await getLogsChunked(fromBlock, toBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0], rpcUrl);
   }
   const newRows = decodeLogsAny(newLogs as any[]);
   const merged = [...existing.rows, ...newRows];
@@ -480,7 +491,7 @@ async function extendToday(existing: DayEntry, dayStartTs: number, dayEndTs: num
   return { fromBlock: existing.fromBlock, toBlock, rows: Array.from(uniq.values()), lastUpdate: Date.now() };
 }
 
-async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: BlockBounds): Promise<Row[]> {
+async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: BlockBounds, rpcUrl: string = RPC, contractOverride?: string, topicOverride?: string | string[]): Promise<Row[]> {
   const clampedStart = Math.max(startTs, bounds.earliest.ts);
   const clampedEnd = Math.min(Math.max(endTs, clampedStart), bounds.latest.ts);
   if (clampedEnd < clampedStart) return [];
@@ -494,15 +505,15 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   if (needsLegacy) {
     // Query legacy contract for dates before new contract started
     const legacyEndTs = Math.min(clampedEnd, NEW_CONTRACT_START_TS - 1);
-    const legacyFromBlock = await findBlockAtOrAfter(clampedStart, bounds);
-    const legacyToBlock = await findBlockAtOrBefore(legacyEndTs, bounds);
+      const legacyFromBlock = await findBlockAtOrAfter(clampedStart, bounds, rpcUrl);
+      const legacyToBlock = await findBlockAtOrBefore(legacyEndTs, bounds, rpcUrl);
     if (legacyToBlock >= legacyFromBlock) {
       queries.push((async () => {
         try {
-          const logs = await getLogsSingle(legacyFromBlock, legacyToBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+            const logs = await getLogsSingle(legacyFromBlock, legacyToBlock, contractOverride || LEGACY_CONTRACT, topicOverride || LEGACY_TOPIC0, rpcUrl);
           return dedupeRows(decodeLogs(logs, true));
         } catch {
-          const logs = await getLogsChunked(legacyFromBlock, legacyToBlock, LEGACY_CONTRACT, LEGACY_TOPIC0);
+            const logs = await getLogsChunked(legacyFromBlock, legacyToBlock, contractOverride || LEGACY_CONTRACT, topicOverride || LEGACY_TOPIC0, rpcUrl);
           return dedupeRows(decodeLogs(logs, true));
         }
       })());
@@ -512,16 +523,12 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   if (needsNew) {
     // Query new contract for dates after it started
     const newStartTs = Math.max(clampedStart, NEW_CONTRACT_START_TS);
-    const newFromBlock = await findBlockAtOrAfter(newStartTs, bounds);
-    const newToBlock = await findBlockAtOrBefore(clampedEnd, bounds);
+    const newFromBlock = await findBlockAtOrAfter(newStartTs, bounds, rpcUrl);
+    const newToBlock = await findBlockAtOrBefore(clampedEnd, bounds, rpcUrl);
     if (newToBlock >= newFromBlock) {
       queries.push((async () => {
         try {
-          // Ensure we're using the correct contract and topic
-          if (CONTRACT !== '0x8aaf217a7a1534327234bd09474fc358e6e4d322') {
-            throw new Error(`Wrong contract address: ${CONTRACT}`);
-          }
-          const logs = await getLogsSingle(newFromBlock, newToBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+          const logs = await getLogsSingle(newFromBlock, newToBlock, contractOverride || CONTRACT, topicOverride || [TOPIC0, LEGACY_TOPIC0], rpcUrl);
           const decoded = decodeLogsAny(logs);
           const deduped = dedupeRows(decoded);
           if (deduped.length === 0 && logs.length > 0) {
@@ -537,7 +544,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
             topic0: TOPIC0
           });
           try {
-            const logs = await getLogsChunked(newFromBlock, newToBlock, CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+            const logs = await getLogsChunked(newFromBlock, newToBlock, contractOverride || CONTRACT, topicOverride || [TOPIC0, LEGACY_TOPIC0], rpcUrl);
             const decoded = decodeLogsAny(logs);
             const deduped = dedupeRows(decoded);
             return deduped;
@@ -612,15 +619,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await kvSetDay(built.key, built.entry);
       return sendJson(res, 200, { ok: true, rebuilt: built.key, fromBlock: built.entry.fromBlock, toBlock: built.entry.toBlock, rows: built.entry.rows.length });
     }
-    const earliest = await getEarliest();
-    const latest = await getLatest();
-    const bounds: BlockBounds = { earliest, latest };
+    const bounds: BlockBounds = await getBounds();
 
-    const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
-    const eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
-    if (eTs < sTs) return sendJson(res, 200, { ok: true, rows: [] });
+    const sTsRaw = typeof startTs === 'number' && startTs > 0 ? startTs : bounds.earliest.ts;
+    const eTsRaw = typeof endTs === 'number' && endTs > 0 ? endTs : bounds.latest.ts;
+    if (eTsRaw < sTsRaw) return sendJson(res, 200, { ok: true, rows: [] });
 
     let resultRows: Row[] = [];
+    const windowStartTs = sTsRaw;
+    const windowEndTs = eTsRaw;
+
+    // If the request range starts before mainnet genesis, pull older data from legacy RPC.
+    if (windowStartTs < MAINNET_GENESIS_TS) {
+      const legacyEnd = Math.min(windowEndTs, MAINNET_GENESIS_TS - 1);
+      const legacyBounds = await getBounds(LEGACY_RPC);
+      const legacyRows = await fetchRangeRowsDirect(windowStartTs, legacyEnd, legacyBounds, LEGACY_RPC, LEGACY_CONTRACT, [TOPIC0, LEGACY_TOPIC0]);
+      resultRows = mergeRows(resultRows, legacyRows);
+    }
+
+    // Mainnet window (skip if request ends before genesis)
+    const sTs = Math.max(windowStartTs, MAINNET_GENESIS_TS);
+    const eTs = windowEndTs;
+    if (eTs < sTs) {
+      const windowed = filterRowsByTs(resultRows, windowStartTs, windowEndTs);
+      const byKey = new Map<string, Row>();
+      for (const r of windowed) byKey.set(stableRowKey(r), r);
+      const out = Array.from(byKey.values());
+      out.sort(sortByTimestamp);
+      if (wantAgg) {
+        const agg = computeAgg(out);
+        return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
+      }
+      return sendJson(res, 200, { ok: true, rows: out });
+    }
 
     // If clearCache is true, clear cache for the date range and fetch fresh data
     if (clearCache) {
