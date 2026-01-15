@@ -415,6 +415,19 @@ async function ensureMegaRows(entry: DayEntry | null, dayStartTs: number, dayEnd
   return merged || built.entry;
 }
 
+async function fetchLegacyDay(dayIndex: number, legacyBounds: BlockBounds): Promise<DayEntry | null> {
+  const start = dayIndex * 86400;
+  const end = start + 86399;
+  let merged: DayEntry | null = null;
+  for (const contract of LEGACY_CONTRACTS) {
+    const topics = contract === LEGACY_CONTRACT ? [TOPIC0, LEGACY_TOPIC0] : LEGACY_TOPIC0;
+    const built = await buildDay(start, end, legacyBounds, LEGACY_RPC, contract, topics);
+    merged = mergeDayEntries(merged, built.entry);
+  }
+  if (!merged || merged.rows.length === 0) return null;
+  return merged;
+}
+
 function parseStartedAtTs(str: string): number | null {
   if (!str) return null;
   // Common on-chain string: "YYYY-MM-DD HH:mm:ss UTC"
@@ -655,6 +668,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!KV_ENV_PRESENT) {
         return sendJson(res, 200, { ok: false, error: 'Legacy cache required but KV is not configured.' });
       }
+      const legacyBounds = await getBounds(LEGACY_RPC);
       const startDay = Math.floor(windowStartTs / 86400);
       const endDay = Math.floor(preCutoverEnd / 86400);
       for (let d = startDay; d <= endDay; d++) {
@@ -663,6 +677,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!entry) {
           entry = await kvGetDay(d);
           if (entry) remember(d, entry);
+        }
+        if (!entry || entry.rows.length === 0) {
+          // Backfill missing cache for this day from legacy RPC, then store in KV.
+          const backfill = await fetchLegacyDay(d, legacyBounds);
+          if (backfill && backfill.rows.length > 0) {
+            remember(d, backfill);
+            await kvSetDay(d, backfill);
+            entry = backfill;
+          }
         }
         if (!entry || entry.rows.length === 0) {
           return sendJson(res, 200, { ok: false, error: `Missing cached data for ${dayIndexToDate(d)}.` });
