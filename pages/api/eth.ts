@@ -724,7 +724,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (sTs < NEW_CONTRACT_START_TS && beforeNewContractEnd >= sTs) {
         const startDay = Math.floor(sTs / 86400);
         const endDay = Math.floor(beforeNewContractEnd / 86400);
-        const todayDay = Math.floor(latest.ts / 86400);
+        const todayDay = Math.floor(bounds.latest.ts / 86400);
         const newContractStartDay = Math.floor(NEW_CONTRACT_START_TS / 86400);
 
       const dayRanges: Array<{ key:number, start:number, end:number }> = [];
@@ -860,7 +860,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Fetch days after Jan 14, 2026: fetch day-by-day to avoid block range limits, then cache
       if (eTs >= NEW_CONTRACT_START_TS) {
-        const todayDay = Math.floor(latest.ts / 86400);
+      const todayDay = Math.floor(bounds.latest.ts / 86400);
         const todayStartTs = todayDay * 86400;
         const fetchEnd = Math.min(eTs, todayStartTs - 1); // Exclude today
         
@@ -932,7 +932,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Only do live fetch for today's data (to get latest matches), skip for historical dates
-    const todayDay = Math.floor(latest.ts / 86400);
+    const todayDay = Math.floor(bounds.latest.ts / 86400);
     const endDay = Math.floor(eTs / 86400);
     if (endDay >= todayDay) {
       // Request includes today - fetch live data for today only
