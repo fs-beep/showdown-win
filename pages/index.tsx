@@ -84,7 +84,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
-  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(true);
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
   const [classVsClassSort, setClassVsClassSort] = useState<{ key: 'opponent' | 'winRate' | 'wins' | 'losses' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
@@ -438,6 +438,33 @@ export default function Home() {
     return statRows.filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p);
   }, [statRows, player]);
   const playerTrends = useMemo(() => buildTrend(playerRowsSubset, classStats.map(x=>x.klass), dayIndicesPlayer), [playerRowsSubset, classStats, dayIndicesPlayer]);
+
+  // Preselect dominant dual-class for the selected player (if not already chosen)
+  useEffect(() => {
+    if (!matrixOnlyPlayer) return;
+    if (selectedBaseClasses.length > 0) return;
+    const p = player.trim().toLowerCase();
+    if (!p) return;
+    const counts = new Map<string, number>();
+    for (const r of statRows) {
+      const win = r.winningPlayer?.trim?.().toLowerCase() === p;
+      const lose = r.losingPlayer?.trim?.().toLowerCase() === p;
+      if (!win && !lose) continue;
+      const cls = (win ? r.winningClasses : r.losingClasses) || '';
+      const trimmed = cls.trim();
+      if (!trimmed || !trimmed.includes('/')) continue;
+      counts.set(trimmed, (counts.get(trimmed) || 0) + 1);
+    }
+    let best: string | null = null;
+    let bestCount = 0;
+    for (const [cls, cnt] of counts.entries()) {
+      if (cnt > bestCount) { best = cls; bestCount = cnt; }
+    }
+    if (!best) return;
+    const parts = best.split('/').map(s => s.trim()).filter(Boolean);
+    if (parts.length !== 2) return;
+    setSelectedBaseClasses(parts);
+  }, [statRows, player, matrixOnlyPlayer, selectedBaseClasses.length]);
 
   function Spark({ data }: { data: number[] }) {
     const w = 60, h = 14; const max = Math.max(1, ...data); const step = data.length>1 ? (w/(data.length-1)) : w;
