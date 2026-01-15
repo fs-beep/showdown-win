@@ -876,8 +876,11 @@ export default function Home() {
         )}
 
         {/* Tables navigation */}
-        <div className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+        <details className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
+          <summary className="cursor-pointer list-none text-xs font-medium text-gray-700 dark:text-gray-200">
+            Table sections & info
+          </summary>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-500 dark:text-gray-400">Jump to:</span>
             <a href="#player-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player-focused</a>
             <a href="#global-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Meta / Global</a>
@@ -885,16 +888,18 @@ export default function Home() {
             <span className="text-gray-500 dark:text-gray-400">Player-focused = depends on selected player</span>
             <span className="text-gray-500 dark:text-gray-400">Meta / Global = all matches in range</span>
           </div>
-        </div>
+        </details>
 
         {/* Player-focused tables */}
-        <div id="player-section" className="mt-6 flex items-center gap-3">
-          <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Player-focused</div>
-          <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-        </div>
-
+        <details id="player-section" className="mt-6" open>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <span>Player-focused</span>
+            <span className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
+            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">depends on selected player</span>
+          </summary>
+          <div className="mt-4">
         {/* Per-class performance (player specific) */}
-        <div className="mt-4 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
@@ -1179,14 +1184,20 @@ export default function Home() {
           )}
         </div>
 
+          </div>
+        </details>
+
         {/* Global tables */}
-        <div id="global-section" className="mt-10 flex items-center gap-3">
-          <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global</div>
-          <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-        </div>
+        <details id="global-section" className="mt-10" open>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <span>Meta / Global</span>
+            <span className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
+            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">all matches in range</span>
+          </summary>
+          <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
-        <div className="mt-4 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
@@ -1438,6 +1449,9 @@ export default function Home() {
             </div>
           )}
         </div>
+
+          </div>
+        </details>
 
         <div className="mt-4 text-xs text-gray-500">
           Daily cache on the server makes historical queries instant; today is fetched incrementally.
