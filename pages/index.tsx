@@ -228,7 +228,7 @@ export default function Home() {
   // Pagination state
   const [pageAll, setPageAll] = useState(1);
   const [pageFiltered, setPageFiltered] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [pageSize, setPageSize] = useState<number>(5);
   const [jumpAll, setJumpAll] = useState<string>('');
   const [jumpFiltered, setJumpFiltered] = useState<string>('');
   // Sorting state
@@ -875,8 +875,20 @@ export default function Home() {
           </div>
         )}
 
+        {/* Tables navigation */}
+        <div className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-gray-500 dark:text-gray-400">Jump to:</span>
+            <a href="#player-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player-focused</a>
+            <a href="#global-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Meta / Global</a>
+            <span className="text-gray-400">•</span>
+            <span className="text-gray-500 dark:text-gray-400">Player-focused = depends on selected player</span>
+            <span className="text-gray-500 dark:text-gray-400">Meta / Global = all matches in range</span>
+          </div>
+        </div>
+
         {/* Player-focused tables */}
-        <div className="mt-6 flex items-center gap-3">
+        <div id="player-section" className="mt-6 flex items-center gap-3">
           <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Player-focused</div>
           <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
         </div>
@@ -939,6 +951,7 @@ export default function Home() {
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
             </label>
           </div>
+          <div className="mt-1 text-[11px] text-gray-500">Shows all matches by default; toggle to limit to matches including the selected player.</div>
           
           {/* Base class selector - pick exactly 2 */}
           <div className="mt-4">
@@ -1093,6 +1106,8 @@ export default function Home() {
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
+                  <th className="p-2 w-40">Winning classes</th>
+                  <th className="p-2 w-40">Losing classes</th>
                   <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-16">Tx</th>
                 </tr>
@@ -1106,6 +1121,8 @@ export default function Home() {
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2 font-medium">{r.result}</td>
                         <td className="p-2">{r.opponent}</td>
+                        <td className="p-2">{r.winningClasses}</td>
+                        <td className="p-2">{r.losingClasses}</td>
                         <td className="p-2">{r.startedAt}</td>
                         <td className="p-2 flex items-center gap-2">
                           <a className="text-blue-600 underline" href={txExplorer(r.txHash, r.network)} target="_blank" rel="noreferrer">tx</a>
@@ -1116,20 +1133,12 @@ export default function Home() {
                       </tr>
                       {expandedFiltered.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                          <td colSpan={5} className="p-3 text-xs">
+                          <td colSpan={7} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
                               <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
-                              {metadataPretty && (
-                                <div className="md:col-span-2 col-span-2">
-                                <span className="text-gray-500">Metadata:</span>{' '}
-                                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
-                                    {metadataPretty}
-                                  </pre>
-                              </div>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -1139,7 +1148,7 @@ export default function Home() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={5}>
+                    <td className="p-6 text-center text-gray-500" colSpan={7}>
                       {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
                     </td>
                   </tr>
@@ -1153,6 +1162,7 @@ export default function Home() {
               <div>Page {pageFiltered} / {Math.ceil(filtered.length / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / pageSize),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / pageSize)}>Next</button>
               <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={5}>5</option>
                 <option value={15}>15</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -1170,7 +1180,7 @@ export default function Home() {
         </div>
 
         {/* Global tables */}
-        <div className="mt-10 flex items-center gap-3">
+        <div id="global-section" className="mt-10 flex items-center gap-3">
           <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Global</div>
           <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
         </div>
@@ -1391,14 +1401,6 @@ export default function Home() {
                               <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
                               <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
-                              {metadataPretty && (
-                                <div className="md:col-span-2 col-span-2">
-                                <span className="text-gray-500">Metadata:</span>{' '}
-                                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-100 px-2 py-1 text-[10px] dark:bg-gray-900/60 whitespace-pre-wrap">
-                                    {metadataPretty}
-                                  </pre>
-                              </div>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -1420,6 +1422,7 @@ export default function Home() {
               <div>Page {pageAll} / {Math.ceil((rows.length) / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / pageSize),p+1))} disabled={pageAll>=Math.ceil((rows.length) / pageSize)}>Next</button>
               <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+                <option value={5}>5</option>
                 <option value={15}>15</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
