@@ -671,6 +671,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const legacyBounds = await getBounds(LEGACY_RPC);
       const startDay = Math.floor(windowStartTs / 86400);
       const endDay = Math.floor(preCutoverEnd / 86400);
+      let missingStreak = 0;
       for (let d = startDay; d <= endDay; d++) {
         const key = memKey(d);
         let entry = dayCache.get(key) || null;
@@ -688,8 +689,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
         if (!entry || entry.rows.length === 0) {
-          return sendJson(res, 200, { ok: false, error: `Missing cached data for ${dayIndexToDate(d)}.` });
+          missingStreak += 1;
+          if (missingStreak >= 7) {
+            return sendJson(res, 200, { ok: false, error: `Missing cached data for 7 consecutive days ending ${dayIndexToDate(d)}.` });
+          }
+          continue;
         }
+        missingStreak = 0;
         resultRows = mergeRows(resultRows, entry.rows);
       }
     }
