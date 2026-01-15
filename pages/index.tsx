@@ -905,27 +905,18 @@ export default function Home() {
         )}
 
         {/* Tables navigation */}
-        <details className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
-          <summary className="cursor-pointer list-none text-xs font-medium text-gray-700 dark:text-gray-200">
-            Table sections & info
-          </summary>
+        <div className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
+          <div className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Jump to</div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-gray-500 dark:text-gray-400">Jump to:</span>
-            <a href="#player-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player-focused</a>
             <a href="#player-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player class stats</a>
             <a href="#class-vs-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Class vs Class</a>
             <a href="#player-matches" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player matches</a>
-            <span className="text-gray-400">•</span>
-            <a href="#global-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Meta / Global</a>
             <a href="#global-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Global class stats</a>
             <a href="#top-players" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top players</a>
             <a href="#top-by-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top by class</a>
-            <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All decoded</a>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-500 dark:text-gray-400">Player-focused = depends on selected player</span>
-            <span className="text-gray-500 dark:text-gray-400">Meta / Global = all matches in range</span>
+            <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All matches (decoded)</a>
           </div>
-        </details>
+        </div>
 
         {/* Player-focused tables */}
         <details id="player-section" className="mt-6" open>
