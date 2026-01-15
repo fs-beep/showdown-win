@@ -67,11 +67,19 @@ type BlockInfo = { num: number; ts: number };
 type BlockBounds = { earliest: BlockInfo; latest: BlockInfo };
 
 const CACHE_NAMESPACE = (process.env.CACHE_NAMESPACE || `${CONTRACT}:${TOPIC0}`).toLowerCase();
+const ENV_LEGACY_CACHE_NAMESPACES = (process.env.CACHE_NAMESPACE_LEGACY || process.env.CACHE_NAMESPACE_LEGACY_LIST || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+  .map(s => s.toLowerCase());
 const LEGACY_CACHE_NAMESPACES = Array.from(new Set(
-  LEGACY_CONTRACTS.flatMap(contract => [
-    `${contract}:${LEGACY_TOPIC0}`,
-    `${contract}:${TOPIC0}`,
-  ]).map(ns => ns.toLowerCase())
+  [
+    ...LEGACY_CONTRACTS.flatMap(contract => [
+      `${contract}:${LEGACY_TOPIC0}`,
+      `${contract}:${TOPIC0}`,
+    ]),
+    ...ENV_LEGACY_CACHE_NAMESPACES,
+  ].map(ns => ns.toLowerCase())
 ));
 function memKey(dayIndex: number) { return `${CACHE_NAMESPACE}:${dayIndex}`; }
 const dayCache = new Map<string, DayEntry>();
