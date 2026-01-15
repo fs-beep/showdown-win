@@ -199,6 +199,8 @@ export default function Home() {
           return isTimeout ? base + ' Timeout' : base;
         })(),
         opponent: r.winningPlayer?.trim?.().toLowerCase() === p ? r.losingPlayer : r.winningPlayer,
+        playerClasses: r.winningPlayer?.trim?.().toLowerCase() === p ? r.winningClasses : r.losingClasses,
+        opponentClasses: r.winningPlayer?.trim?.().toLowerCase() === p ? r.losingClasses : r.winningClasses,
       }))
       .sort((a, b) => b.blockNumber - a.blockNumber); // newest first
   }, [rows, player]);
@@ -1111,8 +1113,9 @@ export default function Home() {
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
-                  <th className="p-2 w-40">Winning classes</th>
-                  <th className="p-2 w-40">Losing classes</th>
+                  <th className="p-2 w-44">Player class</th>
+                  <th className="p-2 w-44">Opponent class</th>
+                  <th className="p-2 w-24">Duration</th>
                   <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-16">Tx</th>
                 </tr>
@@ -1126,8 +1129,9 @@ export default function Home() {
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2 font-medium">{r.result}</td>
                         <td className="p-2">{r.opponent}</td>
-                        <td className="p-2">{r.winningClasses}</td>
-                        <td className="p-2">{r.losingClasses}</td>
+                        <td className="p-2">{(r as any).playerClasses}</td>
+                        <td className="p-2">{(r as any).opponentClasses}</td>
+                        <td className="p-2">{r.gameLength || '—'}</td>
                         <td className="p-2">{r.startedAt}</td>
                         <td className="p-2 flex items-center gap-2">
                           <a className="text-blue-600 underline" href={txExplorer(r.txHash, r.network)} target="_blank" rel="noreferrer">tx</a>
@@ -1138,11 +1142,11 @@ export default function Home() {
                       </tr>
                       {expandedFiltered.has(r.txHash) && (
                         <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
-                          <td colSpan={7} className="p-3 text-xs">
+                          <td colSpan={8} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                              <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
-                              <div><span className="text-gray-500">Losing classes:</span> {r.losingClasses}</div>
-                              <div><span className="text-gray-500">Length:</span> {r.gameLength}</div>
+                              <div><span className="text-gray-500">Player class:</span> {(r as any).playerClasses}</div>
+                              <div><span className="text-gray-500">Opponent class:</span> {(r as any).opponentClasses}</div>
+                              <div><span className="text-gray-500">Length:</span> {r.gameLength || '—'}</div>
                               <div><span className="text-gray-500">Game type:</span> {r.gameType || '—'}</div>
                             </div>
                           </td>
@@ -1153,7 +1157,7 @@ export default function Home() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>
+                    <td className="p-6 text-center text-gray-500" colSpan={8}>
                       {loading ? <SkeletonTableRows rows={8} cols={7} /> : 'No matches for this player (in the chosen range) yet.'}
                     </td>
                   </tr>
