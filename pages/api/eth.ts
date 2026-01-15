@@ -334,7 +334,7 @@ function mergeRows(a: Row[], b: Row[]): Row[] {
   return Array.from(map.values());
 }
 function hasMegaRows(entry: DayEntry | null | undefined) {
-  return Boolean(entry?.rows?.some(r => r.network === 'megaeth-testnet-v2'));
+  return Boolean(entry?.rows?.some(r => r.network === 'megaeth-mainnet'));
 }
 function mergeDayEntries(a: DayEntry | null, b: DayEntry | null): DayEntry | null {
   if (!a) return b;
