@@ -885,7 +885,15 @@ export default function Home() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-500 dark:text-gray-400">Jump to:</span>
             <a href="#player-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player-focused</a>
+            <a href="#player-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player class stats</a>
+            <a href="#class-vs-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Class vs Class</a>
+            <a href="#player-matches" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player matches</a>
+            <span className="text-gray-400">•</span>
             <a href="#global-section" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Meta / Global</a>
+            <a href="#global-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Global class stats</a>
+            <a href="#top-players" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top players</a>
+            <a href="#top-by-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top by class</a>
+            <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All decoded</a>
             <span className="text-gray-400">•</span>
             <span className="text-gray-500 dark:text-gray-400">Player-focused = depends on selected player</span>
             <span className="text-gray-500 dark:text-gray-400">Meta / Global = all matches in range</span>
@@ -901,7 +909,7 @@ export default function Home() {
           </summary>
           <div className="mt-4">
         {/* Per-class performance (player specific) */}
-        <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="player-class-stats" className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
             {classStats.length > 0 && (
@@ -950,7 +958,7 @@ export default function Home() {
         </div>
 
         {/* Class-vs-Class matchups with base class selector */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="class-vs-class" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Class vs Class — Win rates</div>
             <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
@@ -1092,7 +1100,7 @@ export default function Home() {
           </div>
 
         {/* Player-specific matches */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="player-matches" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
             {filtered.length > 0 && (
@@ -1201,7 +1209,7 @@ export default function Home() {
           <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
-        <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="global-class-stats" className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches in Range</div>
             {overallClassStats.length > 0 && (
@@ -1251,7 +1259,7 @@ export default function Home() {
         </div>
 
         {/* Top Players by Win Rate (min 15 games) */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="top-players" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
             {topPlayers.length > 0 && (
@@ -1302,7 +1310,7 @@ export default function Home() {
         </div>
 
         {/* Top Player by Class */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="top-by-class" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
             {topPlayersByClass.length > 0 && (
@@ -1362,7 +1370,7 @@ export default function Home() {
         </div>
 
         {/* All decoded list (newest first) */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="all-decoded" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-100">All Decoded Matches ({rows.length})</div>
             {rows.length > 0 && (
