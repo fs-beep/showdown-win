@@ -3,7 +3,17 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
-const RPC = process.env.RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+const DEFAULT_RPC = 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+const ENV_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.RPC_URL;
+const RPC = (() => {
+  if (!ENV_RPC) return DEFAULT_RPC;
+  const lower = ENV_RPC.toLowerCase();
+  // Guard against stale testnet RPCs when mainnet contract is configured
+  if (lower.includes('carrot.megaeth.com') || lower.includes('timothy.megaeth.com')) {
+    return DEFAULT_RPC;
+  }
+  return ENV_RPC;
+})();
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x8aaf217a7a1534327234bd09474fc358e6e4d322').toLowerCase();
 const LEGACY_CONTRACT = '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53'.toLowerCase();
 const LEGACY_TOPIC0 = '0xccc938abc01344413efee36b5d484cedd3bf4ce93b496e8021ba021fed9e2725';
