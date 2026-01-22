@@ -25,6 +25,7 @@ type Row = {
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
 type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
 type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
+type UsdmVolumePoint = { day: string; volume: string };
 type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
@@ -84,15 +85,18 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
   return Math.floor(ms/1000);
 }
 function formatUsdm(weiStr?: string) {
-  if (!weiStr) return '0.00';
+  if (!weiStr) return '0';
   const bi = BigInt(weiStr);
   const sign = bi < 0n ? '-' : '';
   const abs = bi < 0n ? -bi : bi;
   const base = 1000000000000000000n;
-  const whole = abs / base;
-  const frac = abs % base;
-  const fracStr = frac.toString().padStart(18, '0').slice(0, 2);
-  return `${sign}${whole.toString()}.${fracStr}`;
+  const rounded = (abs + 500000000000000000n) / base;
+  return `${sign}${rounded.toString()}`;
+}
+function ratioToFloat(n: bigint, d: bigint) {
+  if (d === 0n) return 0;
+  const scaled = (n * 10000n) / d;
+  return Number(scaled) / 10000;
 }
 function shortAddr(addr?: string) {
   if (!addr) return '';
@@ -129,6 +133,8 @@ export default function Home() {
   const [usdmLoading, setUsdmLoading] = useState(false);
   const [usdmError, setUsdmError] = useState<string | null>(null);
   const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
+  const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
+  const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
 
   useEffect(() => {
     try {
@@ -738,6 +744,8 @@ export default function Home() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       setUsdmRows(j.rows || []);
+      setUsdmVolumeSeries(j.volumeSeries || []);
+      setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
     } catch (e:any) {
       setUsdmError(e?.message || String(e));
@@ -1349,6 +1357,41 @@ export default function Home() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* USDm volume */}
+        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">USDm volume over time</div>
+            <div className="text-xs text-gray-500">Total volume: <span className="font-semibold text-gray-700 dark:text-gray-200">{formatUsdm(usdmTotalVolume)}</span></div>
+          </div>
+          <div className="mt-1 text-[10px] text-gray-500">Daily USDm transferred via the payout contract (game settlement only).</div>
+          <div className="mt-3">
+            {usdmVolumeSeries.length === 0 && usdmLoading && (
+              <div className="h-28 rounded-xl bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
+            )}
+            {usdmVolumeSeries.length === 0 && !usdmLoading && (
+              <div className="h-28 rounded-xl bg-gray-50 dark:bg-gray-700/40 flex items-center justify-center text-xs text-gray-500">No volume data yet.</div>
+            )}
+            {usdmVolumeSeries.length > 0 && (() => {
+              const w = 600;
+              const h = 120;
+              const pad = 8;
+              const vols = usdmVolumeSeries.map(p => BigInt(p.volume || '0'));
+              const max = vols.reduce((a, b) => (a > b ? a : b), 0n) || 1n;
+              const points = usdmVolumeSeries.map((p, i) => {
+                const x = usdmVolumeSeries.length === 1 ? w / 2 : pad + (i / (usdmVolumeSeries.length - 1)) * (w - pad * 2);
+                const ratio = ratioToFloat(BigInt(p.volume || '0'), max);
+                const y = pad + (1 - ratio) * (h - pad * 2);
+                return `${x.toFixed(2)},${y.toFixed(2)}`;
+              }).join(' ');
+              return (
+                <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28">
+                  <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
+                </svg>
+              );
+            })()}
           </div>
         </div>
 

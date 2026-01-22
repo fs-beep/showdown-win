@@ -16,8 +16,9 @@ type ProfitRow = {
   net: string;
   txs: number;
 };
+type VolumePoint = { day: string; volume: string };
 
-let cached: { rows: ProfitRow[]; updatedAt: number } | null = null;
+let cached: { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string } | null = null;
 
 function nowMs() { return Date.now(); }
 function toLower(x: string | null | undefined) { return (x || '').toLowerCase(); }
@@ -44,11 +45,13 @@ async function fetchAllTransfers() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (cached && nowMs() - cached.updatedAt < CACHE_TTL_MS) {
-      return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt });
+      return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
     }
 
     const transfers = await fetchAllTransfers();
     const totals = new Map<string, { won: bigint; lost: bigint; txs: number }>();
+    const volumeByDay = new Map<string, bigint>();
+    let totalVolume = 0n;
 
     for (const t of transfers) {
       const symbol = t?.tokenSymbol || t?.tokenName || '';
@@ -59,6 +62,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const to = toLower(t?.to);
       const value = BigInt(t?.value || '0');
       if (value === 0n) continue;
+      const ts = Number(t?.timeStamp || 0);
+      if (ts > 0) {
+        const d = new Date(ts * 1000);
+        const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        volumeByDay.set(day, (volumeByDay.get(day) || 0n) + value);
+        totalVolume += value;
+      }
       if (from === PAYOUT_CONTRACT) {
         const s = totals.get(to) || { won: 0n, lost: 0n, txs: 0 };
         s.won += value; s.txs += 1; totals.set(to, s);
@@ -84,8 +94,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
       .slice(0, 10);
 
-    cached = { rows, updatedAt: nowMs() };
-    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt });
+    const volumeSeries: VolumePoint[] = Array.from(volumeByDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([day, volume]) => ({ day, volume: volume.toString() }));
+
+    cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: totalVolume.toString() };
+    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: totalVolume.toString() });
   } catch (e: any) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
