@@ -24,6 +24,7 @@ type Row = {
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
 type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
+type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
 type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
 const MIN_DATE = '2025-07-25';
@@ -82,6 +83,23 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
   if (isNaN(ms)) return undefined;
   return Math.floor(ms/1000);
 }
+function formatUsdm(weiStr?: string) {
+  if (!weiStr) return '0.00';
+  const bi = BigInt(weiStr);
+  const sign = bi < 0n ? '-' : '';
+  const abs = bi < 0n ? -bi : bi;
+  const base = 1000000000000000000n;
+  const whole = abs / base;
+  const frac = abs % base;
+  const fracStr = frac.toString().padStart(18, '0').slice(0, 2);
+  return `${sign}${whole.toString()}.${fracStr}`;
+}
+function shortAddr(addr?: string) {
+  if (!addr) return '';
+  const a = addr.trim();
+  if (a.length <= 10) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
 
 export default function Home() {
   const router = useRouter();
@@ -107,6 +125,10 @@ export default function Home() {
   const [aggByClass, setAggByClass] = useState<Record<string, { wins: number; losses: number; total: number }> | null>(null);
   const [aggUpdatedAt, setAggUpdatedAt] = useState<number | null>(null);
   const [player2, setPlayer2] = useState<string>('');
+  const [usdmRows, setUsdmRows] = useState<UsdmProfitRow[]>([]);
+  const [usdmLoading, setUsdmLoading] = useState(false);
+  const [usdmError, setUsdmError] = useState<string | null>(null);
+  const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -696,10 +718,31 @@ export default function Home() {
       try { localStorage.setItem('recentPlayers', JSON.stringify(next)); } catch {}
       setAggByClass(j.aggByClass || null);
       setAggUpdatedAt(j.aggLastUpdate || null);
+      if (!usdmLoading && usdmRows.length === 0) {
+        void fetchUsdmTop();
+      }
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsdmTop = async (force = false) => {
+    if (usdmLoading) return;
+    if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
+    setUsdmLoading(true); setUsdmError(null);
+    try {
+      const res = await fetch('/api/usdm');
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Unknown error');
+      setUsdmRows(j.rows || []);
+      setUsdmUpdatedAt(j.updatedAt || null);
+    } catch (e:any) {
+      setUsdmError(e?.message || String(e));
+    } finally {
+      setUsdmLoading(false);
     }
   };
 
@@ -948,6 +991,7 @@ export default function Home() {
             <a href="#top-players" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top players</a>
             <a href="#top-by-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top by class</a>
             <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All matches (decoded)</a>
+            <a href="#top-usdm-profits" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top USDm profits</a>
           </div>
         </div>
 
@@ -1245,6 +1289,67 @@ export default function Home() {
               />
             </div>
           )}
+        </div>
+
+        {/* Top USDm profits */}
+        <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
+            <a
+              className="text-xs text-blue-600 underline"
+              href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
+              target="_blank"
+              rel="noreferrer"
+            >
+              payout contract
+            </a>
+          </div>
+          <div className="mt-1 text-[10px] text-gray-500">
+            Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
+          </div>
+          {usdmError && (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+              {usdmError}
+            </div>
+          )}
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-left text-xs md:text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                  <th className="p-2 w-10">#</th>
+                  <th className="p-2">Player</th>
+                  <th className="p-2">Won</th>
+                  <th className="p-2">Lost</th>
+                  <th className="p-2">Net</th>
+                  <th className="p-2">Txs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usdmRows.map((r, i) => (
+                  <tr key={r.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="p-2 tabular-nums">{i + 1}</td>
+                    <td className="p-2 font-mono">
+                      <a className="text-blue-600 underline" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                        {shortAddr(r.player)}
+                      </a>
+                    </td>
+                    <td className="p-2 tabular-nums">{formatUsdm(r.won)}</td>
+                    <td className="p-2 tabular-nums">{formatUsdm(r.lost)}</td>
+                    <td className="p-2 tabular-nums font-semibold">{formatUsdm(r.net)}</td>
+                    <td className="p-2 tabular-nums">{r.txs}</td>
+                  </tr>
+                ))}
+                {usdmLoading && usdmRows.length === 0 && (
+                  <SkeletonTableRows rows={5} cols={6} />
+                )}
+                {!usdmLoading && usdmRows.length === 0 && !usdmError && (
+                  <tr>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No USDm game settlement transfers yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
           </div>
