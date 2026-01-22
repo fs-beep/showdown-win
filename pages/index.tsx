@@ -136,6 +136,12 @@ export default function Home() {
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
 
+  const showMoneyTables = useMemo(() => {
+    const q = router.query;
+    const v = typeof q.money === 'string' ? q.money : Array.isArray(q.money) ? q.money[0] : '';
+    return v === '1' || v === 'true' || v === 'yes';
+  }, [router.query]);
+
   useEffect(() => {
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
@@ -999,7 +1005,9 @@ export default function Home() {
             <a href="#top-players" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top players</a>
             <a href="#top-by-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top by class</a>
             <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All matches (decoded)</a>
-            <a href="#top-usdm-profits" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top USDm profits</a>
+            {showMoneyTables && (
+              <a href="#top-usdm-profits" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top USDm profits</a>
+            )}
           </div>
         </div>
 
@@ -1299,111 +1307,115 @@ export default function Home() {
           )}
         </div>
 
-        {/* Top USDm profits */}
-        <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
-            <a
-              className="text-xs text-blue-600 underline"
-              href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
-              target="_blank"
-              rel="noreferrer"
-            >
-              payout contract
-            </a>
-          </div>
-          <div className="mt-1 text-[10px] text-gray-500">
-            Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
-          </div>
-          {usdmError && (
-            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-              {usdmError}
+        {showMoneyTables && (
+          <>
+            {/* Top USDm profits */}
+            <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
+                <a
+                  className="text-xs text-blue-600 underline"
+                  href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  payout contract
+                </a>
+              </div>
+              <div className="mt-1 text-[10px] text-gray-500">
+                Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
+              </div>
+              {usdmError && (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                  {usdmError}
+                </div>
+              )}
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-full text-left text-xs md:text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                      <th className="p-2 w-10">#</th>
+                      <th className="p-2">Player</th>
+                      <th className="p-2">Won</th>
+                      <th className="p-2">Lost</th>
+                      <th className="p-2">Net</th>
+                      <th className="p-2">#games</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usdmRows.map((r, i) => (
+                      <tr key={r.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="p-2 tabular-nums">{i + 1}</td>
+                        <td className="p-2 font-mono">
+                          <a className="text-blue-600 underline" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                            {shortAddr(r.player)}
+                          </a>
+                        </td>
+                        <td className="p-2 tabular-nums">{formatUsdm(r.won)}</td>
+                        <td className="p-2 tabular-nums">{formatUsdm(r.lost)}</td>
+                        <td className="p-2 tabular-nums font-semibold">{formatUsdm(r.net)}</td>
+                        <td className="p-2 tabular-nums">{r.txs}</td>
+                      </tr>
+                    ))}
+                    {usdmLoading && usdmRows.length === 0 && (
+                      <SkeletonTableRows rows={5} cols={6} />
+                    )}
+                    {!usdmLoading && usdmRows.length === 0 && !usdmError && (
+                      <tr>
+                        <td className="p-6 text-center text-gray-500" colSpan={6}>No USDm game settlement transfers yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-10">#</th>
-                  <th className="p-2">Player</th>
-                  <th className="p-2">Won</th>
-                  <th className="p-2">Lost</th>
-                  <th className="p-2">Net</th>
-                  <th className="p-2">#games</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usdmRows.map((r, i) => (
-                  <tr key={r.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2 tabular-nums">{i + 1}</td>
-                    <td className="p-2 font-mono">
-                      <a className="text-blue-600 underline" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                        {shortAddr(r.player)}
-                      </a>
-                    </td>
-                    <td className="p-2 tabular-nums">{formatUsdm(r.won)}</td>
-                    <td className="p-2 tabular-nums">{formatUsdm(r.lost)}</td>
-                    <td className="p-2 tabular-nums font-semibold">{formatUsdm(r.net)}</td>
-                    <td className="p-2 tabular-nums">{r.txs}</td>
-                  </tr>
-                ))}
-                {usdmLoading && usdmRows.length === 0 && (
-                  <SkeletonTableRows rows={5} cols={6} />
-                )}
-                {!usdmLoading && usdmRows.length === 0 && !usdmError && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No USDm game settlement transfers yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        {/* USDm volume */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">USDM volume over time</div>
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wide text-gray-500">Total volume</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatUsdm(usdmTotalVolume)}</div>
+            {/* USDm volume */}
+            <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-100">USDM volume over time</div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wide text-gray-500">Total volume</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatUsdm(usdmTotalVolume)}</div>
+                </div>
+              </div>
+              <div className="mt-1 text-[10px] text-gray-500">Daily USDm transferred via the payout contract (game settlement only).</div>
+              <div className="mt-3">
+                {usdmVolumeSeries.length === 0 && usdmLoading && (
+                  <div className="h-28 rounded-xl bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
+                )}
+                {usdmVolumeSeries.length === 0 && !usdmLoading && (
+                  <div className="h-28 rounded-xl bg-gray-50 dark:bg-gray-700/40 flex items-center justify-center text-xs text-gray-500">No volume data yet.</div>
+                )}
+                {usdmVolumeSeries.length > 0 && (() => {
+                  const w = 600;
+                  const h = 120;
+                  const pad = 8;
+                  const vols = usdmVolumeSeries.map(p => BigInt(p.volume || '0'));
+                  const max = vols.reduce((a, b) => (a > b ? a : b), 0n) || 1n;
+                  const startLabel = fmtDisplayDate(usdmVolumeSeries[0]?.day);
+                  const endLabel = fmtDisplayDate(usdmVolumeSeries[usdmVolumeSeries.length - 1]?.day);
+                  const points = usdmVolumeSeries.map((p, i) => {
+                    const x = usdmVolumeSeries.length === 1 ? w / 2 : pad + (i / (usdmVolumeSeries.length - 1)) * (w - pad * 2);
+                    const ratio = ratioToFloat(BigInt(p.volume || '0'), max);
+                    const y = pad + (1 - ratio) * (h - pad * 2);
+                    return `${x.toFixed(2)},${y.toFixed(2)}`;
+                  }).join(' ');
+                  return (
+                    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28">
+                      <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#94a3b8" strokeWidth="1" />
+                      <line x1={pad} y1={h - pad} x2={pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
+                      <line x1={w - pad} y1={h - pad} x2={w - pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
+                      <text x={pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="start">{startLabel}</text>
+                      <text x={w - pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="end">{endLabel}</text>
+                      <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
+                    </svg>
+                  );
+                })()}
+              </div>
             </div>
-          </div>
-          <div className="mt-1 text-[10px] text-gray-500">Daily USDm transferred via the payout contract (game settlement only).</div>
-          <div className="mt-3">
-            {usdmVolumeSeries.length === 0 && usdmLoading && (
-              <div className="h-28 rounded-xl bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
-            )}
-            {usdmVolumeSeries.length === 0 && !usdmLoading && (
-              <div className="h-28 rounded-xl bg-gray-50 dark:bg-gray-700/40 flex items-center justify-center text-xs text-gray-500">No volume data yet.</div>
-            )}
-            {usdmVolumeSeries.length > 0 && (() => {
-              const w = 600;
-              const h = 120;
-              const pad = 8;
-              const vols = usdmVolumeSeries.map(p => BigInt(p.volume || '0'));
-              const max = vols.reduce((a, b) => (a > b ? a : b), 0n) || 1n;
-              const startLabel = fmtDisplayDate(usdmVolumeSeries[0]?.day);
-              const endLabel = fmtDisplayDate(usdmVolumeSeries[usdmVolumeSeries.length - 1]?.day);
-              const points = usdmVolumeSeries.map((p, i) => {
-                const x = usdmVolumeSeries.length === 1 ? w / 2 : pad + (i / (usdmVolumeSeries.length - 1)) * (w - pad * 2);
-                const ratio = ratioToFloat(BigInt(p.volume || '0'), max);
-                const y = pad + (1 - ratio) * (h - pad * 2);
-                return `${x.toFixed(2)},${y.toFixed(2)}`;
-              }).join(' ');
-              return (
-                <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28">
-                  <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#94a3b8" strokeWidth="1" />
-                  <line x1={pad} y1={h - pad} x2={pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
-                  <line x1={w - pad} y1={h - pad} x2={w - pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
-                  <text x={pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="start">{startLabel}</text>
-                  <text x={w - pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="end">{endLabel}</text>
-                  <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
-                </svg>
-              );
-            })()}
-          </div>
-        </div>
+          </>
+        )}
 
           </div>
         </details>
