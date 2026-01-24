@@ -21,6 +21,8 @@ const RPC_RETRY_ATTEMPTS = 6;
 const RPC_BASE_DELAY_MS = 800;
 const DAY_RANGE_CONCURRENCY = 10;
 const LOG_RANGE_CONCURRENCY = 3;
+const LIVE_WINDOW_SEC = 600;
+const RETRY_DELAYS_MS = [2000, 6000, 15000];
 
 type Row = {
   blockNumber: number;
@@ -378,6 +380,35 @@ function parseStartedAtTs(str: string): number | null {
   if (isNaN(ms)) return null;
   return Math.floor(ms / 1000);
 }
+async function cacheRowsByDay(rows: Row[]) {
+  if (!rows.length) return;
+  const byDay = new Map<number, Row[]>();
+  for (const r of rows) {
+    const ts = parseStartedAtTs(r.startedAt);
+    if (ts == null) continue;
+    const d = Math.floor(ts / 86400);
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d)!.push(r);
+  }
+  for (const [d, list] of byDay.entries()) {
+    const entry: DayEntry = {
+      fromBlock: Math.min(...list.map(r => r.blockNumber)),
+      toBlock: Math.max(...list.map(r => r.blockNumber)),
+      rows: list.sort(sortByTimestamp),
+      lastUpdate: Date.now(),
+    };
+    const merged = mergeDayEntries(dayCache.get(memKey(d)) || null, entry) || entry;
+    remember(d, merged);
+    await kvSetDay(d, merged);
+  }
+}
+function scheduleRetry(label: string, fn: () => Promise<void>) {
+  for (const delay of RETRY_DELAYS_MS) {
+    setTimeout(() => {
+      fn().catch((err: any) => console.error(`retry failed: ${label}`, err?.message || String(err)));
+    }, delay);
+  }
+}
 function sortByTimestamp(a: Row, b: Row): number {
   const tsA = parseStartedAtTs(a.startedAt);
   const tsB = parseStartedAtTs(b.startedAt);
@@ -613,6 +644,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const bounds: BlockBounds = { earliest, latest };
 
     const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
+    const isLatestQuery = !(typeof endTs === 'number' && endTs > 0);
     let eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
     let maxLatest = latest.ts;
     try {
@@ -918,25 +950,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (endDay >= todayDay) {
         // Request includes today - fetch live data for today only (legacy/testnet)
         const todayStartTs = todayDay * 86400;
-        const liveStartTs = Math.max(sTs, todayStartTs);
-        if (liveStartTs <= legacyEndTs) {
+        const liveEndTs = legacyEndTs;
+        const liveStartTs = Math.max(sTs, todayStartTs, liveEndTs - LIVE_WINDOW_SEC);
+        if (liveStartTs <= liveEndTs) {
           try {
-            const liveRows = await fetchRangeRowsDirect(liveStartTs, legacyEndTs, bounds);
+            const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
             resultRows = mergeRows(resultRows, liveRows);
           } catch (err: any) {
             warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
             console.error('fetchRangeRowsDirect failed (live)', err?.message || String(err));
+            scheduleRetry('legacy-live', async () => {
+              const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
+              await cacheRowsByDay(liveRows);
+            });
           }
         }
       }
     }
     if (needsMainnet) {
       try {
-        const mainnetRows = await fetchRangeRowsMainnet(mainnetStartTs, eTs);
+        const mainnetEndTs = eTs;
+        const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
+        const mainnetRows = await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs);
         resultRows = mergeRows(resultRows, mainnetRows);
       } catch (err: any) {
         warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
         console.error('fetchRangeRowsMainnet failed', err?.message || String(err));
+        scheduleRetry('mainnet-live', async () => {
+          const mainnetEndTs = eTs;
+          const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
+          await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs);
+        });
       }
     }
     resultRows.sort(sortByTimestamp);
