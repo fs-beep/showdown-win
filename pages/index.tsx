@@ -199,9 +199,9 @@ export default function Home() {
 
   
 
-  // Only count matches with endReason === 'Win' for statistics
+  // Count all matches for statistics (regardless of endReason)
   const statRows = useMemo(() => {
-    return rows.filter(r => (r.endReason || '').trim().toLowerCase() === 'win');
+    return rows;
   }, [rows]);
 
   const stats = useMemo(() => {
