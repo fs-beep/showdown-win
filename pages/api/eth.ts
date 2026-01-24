@@ -628,6 +628,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (eTs < sTs) return sendJson(res, 200, { ok: true, rows: [] });
 
     let resultRows: Row[] = [];
+    let warning: string | null = null;
     const legacyEndTs = Math.min(eTs, MAINNET_START_TS);
     const mainnetStartTs = Math.max(sTs, MAINNET_START_TS + 1);
     const needsMainnet = eTs > MAINNET_START_TS;
@@ -653,7 +654,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       // Fetch fresh data directly from RPC (legacy/testnet only)
       if (legacyEndTs >= sTs) {
-        resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+        try {
+          resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+        } catch (err: any) {
+          warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
+          console.error('fetchRangeRowsDirect failed (clearCache)', err?.message || String(err));
+        }
       }
       // Re-cache the fresh data
       const dayGroups = new Map<number, Row[]>();
@@ -678,7 +684,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else if (!KV_ENV_PRESENT) {
       console.log('Fetching directly without cache (no KV)', { sTs, eTs });
       if (legacyEndTs >= sTs) {
-        resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+        try {
+          resultRows = await fetchRangeRowsDirect(sTs, legacyEndTs, bounds);
+        } catch (err: any) {
+          warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
+          console.error('fetchRangeRowsDirect failed (no KV)', err?.message || String(err));
+        }
       }
     } else {
       // SIMPLIFIED APPROACH: Split query into two parts
@@ -909,14 +920,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const todayStartTs = todayDay * 86400;
         const liveStartTs = Math.max(sTs, todayStartTs);
         if (liveStartTs <= legacyEndTs) {
-          const liveRows = await fetchRangeRowsDirect(liveStartTs, legacyEndTs, bounds);
-          resultRows = mergeRows(resultRows, liveRows);
+          try {
+            const liveRows = await fetchRangeRowsDirect(liveStartTs, legacyEndTs, bounds);
+            resultRows = mergeRows(resultRows, liveRows);
+          } catch (err: any) {
+            warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
+            console.error('fetchRangeRowsDirect failed (live)', err?.message || String(err));
+          }
         }
       }
     }
     if (needsMainnet) {
-      const mainnetRows = await fetchRangeRowsMainnet(mainnetStartTs, eTs);
-      resultRows = mergeRows(resultRows, mainnetRows);
+      try {
+        const mainnetRows = await fetchRangeRowsMainnet(mainnetStartTs, eTs);
+        resultRows = mergeRows(resultRows, mainnetRows);
+      } catch (err: any) {
+        warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
+        console.error('fetchRangeRowsMainnet failed', err?.message || String(err));
+      }
     }
     resultRows.sort(sortByTimestamp);
 
@@ -930,9 +951,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     out.sort(sortByTimestamp);
     if (wantAgg) {
       const agg = computeAgg(out);
-      return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate });
+      return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate, warning });
     }
-    sendJson(res, 200, { ok: true, rows: out });
+    sendJson(res, 200, { ok: true, rows: out, warning });
   } catch (e:any) {
     sendJson(res, 200, { ok: false, error: e?.message || String(e) });
   }
