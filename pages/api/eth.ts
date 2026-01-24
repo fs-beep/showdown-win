@@ -23,6 +23,8 @@ const DAY_RANGE_CONCURRENCY = 10;
 const LOG_RANGE_CONCURRENCY = 3;
 const LIVE_WINDOW_SEC = 600;
 const RETRY_DELAYS_MS = [2000, 6000, 15000];
+const LIVE_RECENT_BLOCKS = 120;
+const LIVE_BLOCK_BUFFER = 50;
 
 type Row = {
   blockNumber: number;
@@ -380,6 +382,22 @@ function parseStartedAtTs(str: string): number | null {
   if (isNaN(ms)) return null;
   return Math.floor(ms / 1000);
 }
+function isLogsNotAvailable(err: any) {
+  const msg = (err?.message || String(err || '')).toLowerCase();
+  return msg.includes('logs for the requested block range are not yet available');
+}
+async function fetchRecentLogsByBlock(latest: BlockInfo, contract: string, topic0: string, rpcUrl: string, isLegacy: boolean) {
+  const safeTo = Math.max(0, latest.num - LIVE_BLOCK_BUFFER);
+  const safeFrom = Math.max(0, safeTo - LIVE_RECENT_BLOCKS);
+  let logs: any[] = [];
+  try {
+    logs = await getLogsSingle(safeFrom, safeTo, contract, topic0, rpcUrl);
+  } catch {
+    logs = await getLogsChunked(safeFrom, safeTo, contract, topic0, rpcUrl);
+  }
+  const rows = dedupeRows(decodeLogs(logs, isLegacy));
+  return rpcUrl === MAINNET_RPC ? rows.map(r => ({ ...r, network: 'megaeth-mainnet' as const })) : rows;
+}
 async function cacheRowsByDay(rows: Row[]) {
   if (!rows.length) return;
   const byDay = new Map<number, Row[]>();
@@ -602,7 +620,7 @@ async function fetchRangeRowsDirect(startTs: number, endTs: number, bounds: Bloc
   return allRows;
 }
 
-async function fetchRangeRowsMainnet(startTs: number, endTs: number): Promise<Row[]> {
+async function fetchRangeRowsMainnet(startTs: number, endTs: number, allowRecentFallback = false): Promise<Row[]> {
   const earliest = await getEarliest(MAINNET_RPC);
   const latest = await getLatest(MAINNET_RPC);
   const bounds: BlockBounds = { earliest, latest };
@@ -617,8 +635,16 @@ async function fetchRangeRowsMainnet(startTs: number, endTs: number): Promise<Ro
   let logs: any[] = [];
   try {
     logs = await getLogsSingle(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
-  } catch {
-    logs = await getLogsChunked(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
+  } catch (err: any) {
+    try {
+      logs = await getLogsChunked(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
+    } catch (chunkErr: any) {
+      if (allowRecentFallback && (isLogsNotAvailable(err) || isLogsNotAvailable(chunkErr))) {
+        const recent = await fetchRecentLogsByBlock(latest, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC, false);
+        return recent.sort(sortByTimestamp);
+      }
+      throw chunkErr;
+    }
   }
   const rows = dedupeRows(decodeLogs(logs, false)).map(r => ({ ...r, network: 'megaeth-mainnet' as const }));
   return rows.sort(sortByTimestamp);
@@ -959,9 +985,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           } catch (err: any) {
             warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
             console.error('fetchRangeRowsDirect failed (live)', err?.message || String(err));
+            if (isLogsNotAvailable(err)) {
+              try {
+                const recentRows = await fetchRecentLogsByBlock(bounds.latest, CONTRACT, TOPIC0, RPC, false);
+                resultRows = mergeRows(resultRows, recentRows);
+                await cacheRowsByDay(recentRows);
+              } catch {}
+            }
             scheduleRetry('legacy-live', async () => {
-              const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
-              await cacheRowsByDay(liveRows);
+              try {
+                const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
+                await cacheRowsByDay(liveRows);
+              } catch (retryErr: any) {
+                if (isLogsNotAvailable(retryErr)) {
+                  const recentRows = await fetchRecentLogsByBlock(bounds.latest, CONTRACT, TOPIC0, RPC, false);
+                  await cacheRowsByDay(recentRows);
+                } else {
+                  throw retryErr;
+                }
+              }
             });
           }
         }
@@ -971,7 +1013,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const mainnetEndTs = eTs;
         const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
-        const mainnetRows = await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs);
+        const mainnetRows = await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs, isLatestQuery);
         resultRows = mergeRows(resultRows, mainnetRows);
       } catch (err: any) {
         warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
@@ -979,7 +1021,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         scheduleRetry('mainnet-live', async () => {
           const mainnetEndTs = eTs;
           const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
-          await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs);
+          await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs, isLatestQuery);
         });
       }
     }
