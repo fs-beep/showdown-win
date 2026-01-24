@@ -614,14 +614,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const sTs = typeof startTs === 'number' && startTs > 0 ? startTs : earliest.ts;
     let eTs = typeof endTs === 'number' && endTs > 0 ? endTs : latest.ts;
-    if (!(typeof endTs === 'number' && endTs > 0)) {
-      try {
-        const mainnetLatest = await getLatest(MAINNET_RPC);
+    let maxLatest = latest.ts;
+    try {
+      const mainnetLatest = await getLatest(MAINNET_RPC);
+      maxLatest = Math.max(maxLatest, mainnetLatest.ts);
+      if (!(typeof endTs === 'number' && endTs > 0)) {
         eTs = Math.max(eTs, mainnetLatest.ts);
-      } catch {
-        // If mainnet latest fails, keep legacy latest
       }
+    } catch {
+      // If mainnet latest fails, keep legacy latest
     }
+    if (eTs > maxLatest) eTs = maxLatest;
     if (eTs < sTs) return sendJson(res, 200, { ok: true, rows: [] });
 
     let resultRows: Row[] = [];
