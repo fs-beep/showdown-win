@@ -1012,16 +1012,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (needsMainnet) {
       try {
         const mainnetEndTs = eTs;
-        const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
-        const mainnetRows = await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs, isLatestQuery);
+        const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
+        if (isLatestQuery && mainnetStartTs < recentStart - 1) {
+          const historicalRows = await fetchRangeRowsMainnet(mainnetStartTs, recentStart - 1, false);
+          resultRows = mergeRows(resultRows, historicalRows);
+        }
+        const mainnetRows = await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
         resultRows = mergeRows(resultRows, mainnetRows);
       } catch (err: any) {
         warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
         console.error('fetchRangeRowsMainnet failed', err?.message || String(err));
         scheduleRetry('mainnet-live', async () => {
           const mainnetEndTs = eTs;
-          const mainnetFetchStart = isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs;
-          await fetchRangeRowsMainnet(mainnetFetchStart, mainnetEndTs, isLatestQuery);
+          const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
+          if (isLatestQuery && mainnetStartTs < recentStart - 1) {
+            await fetchRangeRowsMainnet(mainnetStartTs, recentStart - 1, false);
+          }
+          await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
         });
       }
     }
