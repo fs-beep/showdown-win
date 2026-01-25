@@ -386,6 +386,10 @@ function isLogsNotAvailable(err: any) {
   const msg = (err?.message || String(err || '')).toLowerCase();
   return msg.includes('logs for the requested block range are not yet available');
 }
+function isRateLimited(err: any) {
+  const msg = (err?.message || String(err || '')).toLowerCase();
+  return msg.includes('429') || msg.includes('rate limited');
+}
 async function fetchRecentLogsByBlock(latest: BlockInfo, contract: string, topic0: string, rpcUrl: string, isLegacy: boolean) {
   const safeTo = Math.max(0, latest.num - LIVE_BLOCK_BUFFER);
   const safeFrom = Math.max(0, safeTo - LIVE_RECENT_BLOCKS);
@@ -983,21 +987,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
             resultRows = mergeRows(resultRows, liveRows);
           } catch (err: any) {
-            warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
             console.error('fetchRangeRowsDirect failed (live)', err?.message || String(err));
-            if (isLogsNotAvailable(err)) {
+            let fallbackRows: Row[] = [];
+            if (isLogsNotAvailable(err) || isRateLimited(err)) {
               try {
-                const recentRows = await fetchRecentLogsByBlock(bounds.latest, CONTRACT, TOPIC0, RPC, false);
-                resultRows = mergeRows(resultRows, recentRows);
-                await cacheRowsByDay(recentRows);
+                fallbackRows = await fetchRecentLogsByBlock(bounds.latest, CONTRACT, TOPIC0, RPC, false);
+                resultRows = mergeRows(resultRows, fallbackRows);
+                await cacheRowsByDay(fallbackRows);
               } catch {}
+            }
+            if (fallbackRows.length === 0) {
+              warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
             }
             scheduleRetry('legacy-live', async () => {
               try {
                 const liveRows = await fetchRangeRowsDirect(liveStartTs, liveEndTs, bounds);
                 await cacheRowsByDay(liveRows);
               } catch (retryErr: any) {
-                if (isLogsNotAvailable(retryErr)) {
+                if (isLogsNotAvailable(retryErr) || isRateLimited(retryErr)) {
                   const recentRows = await fetchRecentLogsByBlock(bounds.latest, CONTRACT, TOPIC0, RPC, false);
                   await cacheRowsByDay(recentRows);
                 } else {
@@ -1020,8 +1027,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const mainnetRows = await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
         resultRows = mergeRows(resultRows, mainnetRows);
       } catch (err: any) {
-        warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
         console.error('fetchRangeRowsMainnet failed', err?.message || String(err));
+        let fallbackRows: Row[] = [];
+        if (isLogsNotAvailable(err) || isRateLimited(err)) {
+          try {
+            const latestMainnet = await getLatest(MAINNET_RPC);
+            fallbackRows = await fetchRecentLogsByBlock(latestMainnet, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC, false);
+            resultRows = mergeRows(resultRows, fallbackRows);
+            await cacheRowsByDay(fallbackRows);
+          } catch {}
+        }
+        if (fallbackRows.length === 0) {
+          warning = 'RPC rate limited. Showing cached data; try again later for latest games.';
+        }
         scheduleRetry('mainnet-live', async () => {
           const mainnetEndTs = eTs;
           const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
