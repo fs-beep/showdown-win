@@ -135,6 +135,8 @@ export default function Home() {
   const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const showMoneyTables = useMemo(() => {
     const q = router.query;
@@ -178,6 +180,30 @@ export default function Home() {
     if (only === '1') setMatrixOnlyPlayer(true);
     if (t === 'dark') setTheme('dark');
     if (cmp) setPlayer2(cmp);
+    const share = typeof q.share === 'string' ? q.share : undefined;
+    if (share) {
+      setShareLoading(true);
+      fetch(`/api/share?id=${encodeURIComponent(share)}`)
+        .then(r => r.json())
+        .then(j => {
+          if (!j.ok) throw new Error(j.error || 'Failed to load snapshot');
+          const data = j.data || {};
+          if (data.params) {
+            if (data.params.start) setStartDate(data.params.start);
+            if (data.params.end !== undefined) setEndDate(data.params.end);
+            if (data.params.player) setPlayer(data.params.player);
+            if (data.params.only === '1') setMatrixOnlyPlayer(true);
+            if (data.params.compare) setPlayer2(data.params.compare);
+          }
+          setRows(data.rows || []);
+          setAggByClass(data.aggByClass || null);
+          setAggUpdatedAt(data.aggLastUpdate || null);
+          setWarning(null);
+          setError(null);
+        })
+        .catch((err:any) => setError(err?.message || String(err)))
+        .finally(() => setShareLoading(false));
+    }
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
@@ -760,6 +786,38 @@ export default function Home() {
     }
   };
 
+  const shareSnapshot = async () => {
+    if (shareLoading) return;
+    setShareStatus(null);
+    setShareLoading(true);
+    try {
+      const body = {
+        params: {
+          start: startDate || undefined,
+          end: endDate || undefined,
+          player: player || undefined,
+          only: matrixOnlyPlayer ? '1' : undefined,
+          compare: player2.trim() || undefined,
+        },
+        rows,
+        aggByClass: aggByClass || undefined,
+        aggLastUpdate: aggUpdatedAt || undefined,
+      };
+      const res = await fetch('/api/share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Failed to create snapshot');
+      const url = new URL(window.location.href);
+      url.searchParams.set('share', j.id);
+      const shareUrl = url.toString();
+      try { await navigator.clipboard.writeText(shareUrl); } catch {}
+      setShareStatus('Share link copied.');
+    } catch (e:any) {
+      setShareStatus(e?.message || String(e));
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   const dl = (name: string, data: any) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -915,6 +973,18 @@ export default function Home() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
               {loading ? "Fetching..." : "Compute Winrate"}
             </button>
+            <button
+              onClick={shareSnapshot}
+              disabled={shareLoading || rows.length === 0}
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
+              title="Copy a shareable snapshot link"
+            >
+              {shareLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
+              Share snapshot
+            </button>
+            {shareStatus && (
+              <div className="mt-2 text-xs text-gray-500">{shareStatus}</div>
+            )}
             {error && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700 flex items-start gap-2">
                 <ShieldAlert className="h-4 w-4 mt-0.5"/>
