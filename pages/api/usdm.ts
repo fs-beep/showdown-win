@@ -5,7 +5,6 @@ const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
 const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
 const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 5000;
 const CONCURRENCY = 3;
@@ -162,17 +161,6 @@ async function batchRpc(reqs: any[], maxBatch = 450) {
   }
   return out;
 }
-async function batchGetTransactions(hashes: string[]) {
-  const reqs = hashes.map((h, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getTransactionByHash', params: [h] }));
-  const res = await batchRpc(reqs);
-  const map = new Map<string, string>();
-  for (const r of res) {
-    if (r?.result?.hash) {
-      map.set(r.result.hash.toLowerCase(), (r.result.input || '').slice(0, 10));
-    }
-  }
-  return map;
-}
 async function batchGetBlocks(blockNums: number[]) {
   const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
   const res = await batchRpc(reqs);
@@ -184,11 +172,8 @@ async function batchGetBlocks(blockNums: number[]) {
   return map;
 }
 
-function updateStateFromLogs(state: State, logs: any[], txSelectors: Map<string, string>, blockTs: Map<number, number>) {
+function updateStateFromLogs(state: State, logs: any[], blockTs: Map<number, number>) {
   for (const log of logs) {
-    const txHash = String(log.transactionHash || '').toLowerCase();
-    const selector = txSelectors.get(txHash) || '';
-    if (selector && !GAME_METHOD_SELECTORS.includes(selector)) continue;
     const from = parseAddr(log.topics?.[1]);
     const to = parseAddr(log.topics?.[2]);
     if (from !== PAYOUT_CONTRACT && to !== PAYOUT_CONTRACT) continue;
@@ -249,7 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
     let kvWarning: string | null = null;
 
-    const stateKey = 'usdm:state';
+    const stateKey = 'usdm:state:v2';
     let state: State | null = null;
     if (kvConfigured) {
       try {
@@ -300,11 +285,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (fromBlock <= toBlock) {
         const logs = await getLogsChunked(fromBlock, toBlock);
         if (logs.length > 0) {
-          const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
-          const txSelectors = await batchGetTransactions(txHashes);
           const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
           const blockTs = await batchGetBlocks(blockNums);
-          updateStateFromLogs(state, logs, txSelectors, blockTs);
+          updateStateFromLogs(state, logs, blockTs);
         }
         state.lastBlock = toBlock;
         memoryState = state;
