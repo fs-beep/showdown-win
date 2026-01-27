@@ -11,6 +11,7 @@ const MAX_SPAN = 1000;
 const CONCURRENCY = 2;
 const LOG_BATCH_DELAY_MS = 150;
 const START_BLOCK_LOOKBACK = 200_000;
+const MAX_BLOCKS_PER_CALL = 1500;
 const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
 const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
@@ -273,7 +274,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       }
-      const toBlock = latest.num;
+      let toBlock = latest.num;
+      if (toBlock - fromBlock + 1 > MAX_BLOCKS_PER_CALL) {
+        toBlock = fromBlock + MAX_BLOCKS_PER_CALL - 1;
+        kvWarning = [kvWarning, `USDm sync partial: processing ${MAX_BLOCKS_PER_CALL} blocks (refresh again to continue).`]
+          .filter(Boolean)
+          .join(' | ');
+      }
       if (fromBlock <= toBlock) {
         const logs = await getLogsChunked(fromBlock, toBlock);
         if (logs.length > 0) {
