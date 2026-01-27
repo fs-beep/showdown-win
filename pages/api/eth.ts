@@ -1094,13 +1094,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (live !== false && needsMainnet) {
       try {
         const mainnetEndTs = eTs;
-        const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
-        if (isLatestQuery && mainnetStartTs < recentStart - 1) {
+        const todayStartTs = Math.floor(bounds.latest.ts / 86400) * 86400;
+        const isTodayOnly = live && sTs >= todayStartTs;
+        const recentStart = isTodayOnly
+          ? sTs
+          : (isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs);
+        if (isLatestQuery && !isTodayOnly && mainnetStartTs < recentStart - 1) {
           const historicalRows = await fetchRangeRowsMainnet(mainnetStartTs, recentStart - 1, false);
           resultRows = mergeRows(resultRows, historicalRows);
           await cacheRowsByDay(historicalRows);
         }
-        const mainnetRows = await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
+        const mainnetRows = await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery && !isTodayOnly);
         resultRows = mergeRows(resultRows, mainnetRows);
         await cacheRowsByDay(mainnetRows);
       } catch (err: any) {
@@ -1119,11 +1123,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         scheduleRetry('mainnet-live', async () => {
           const mainnetEndTs = eTs;
-          const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
-          if (isLatestQuery && mainnetStartTs < recentStart - 1) {
+          const todayStartTs = Math.floor(bounds.latest.ts / 86400) * 86400;
+          const isTodayOnly = live && sTs >= todayStartTs;
+          const recentStart = isTodayOnly
+            ? sTs
+            : (isLatestQuery ? Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC) : mainnetStartTs);
+          if (isLatestQuery && !isTodayOnly && mainnetStartTs < recentStart - 1) {
             await fetchRangeRowsMainnet(mainnetStartTs, recentStart - 1, false);
           }
-          await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
+          await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery && !isTodayOnly);
         });
       }
     }
