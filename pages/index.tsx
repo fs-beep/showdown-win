@@ -810,7 +810,7 @@ export default function Home() {
       const endTs = toEndOfDayEpoch(endDate);
       const needsToday = endTs === undefined || endTs >= todayDayStart;
       if (needsToday) {
-        void fetchLatest(true);
+        void fetchLatest();
       }
     } catch (e:any) {
       setError(e?.message || String(e));
@@ -818,7 +818,7 @@ export default function Home() {
       setLoading(false);
     }
   };
-  const fetchLatest = async (mergeOnly = false) => {
+  const fetchLatest = async () => {
     setError(null); setWarning(null); setLoading(true);
     try {
       const baseStart = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
@@ -842,12 +842,10 @@ export default function Home() {
         winningPlayer: stripPlayerSuffix(r.winningPlayer),
         losingPlayer: stripPlayerSuffix(r.losingPlayer),
       }));
-      const merged = mergeOnly ? mergeRowsClient(rows, normalized) : normalized;
+      const merged = mergeRowsClient(rows, normalized);
       setRows(merged);
-      if (!mergeOnly) {
-        setAggByClass(j.aggByClass || null);
-        setAggUpdatedAt(j.aggLastUpdate || null);
-      }
+      setAggByClass(j.aggByClass || null);
+      setAggUpdatedAt(j.aggLastUpdate || null);
       setLastQueryLive(true);
       setDataPhase('live');
     } catch (e:any) {
@@ -1065,7 +1063,7 @@ export default function Home() {
               {loading ? "Fetching..." : "Compute Winrate"}
             </button>
             <button
-              onClick={() => fetchLatest(false)}
+              onClick={() => fetchLatest()}
               disabled={loading || rows.length === 0}
               className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
             >
