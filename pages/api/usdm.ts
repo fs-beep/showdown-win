@@ -28,6 +28,7 @@ type State = {
 };
 
 let cached: { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string } | null = null;
+let memoryState: State | null = null;
 
 function nowMs() { return Date.now(); }
 function toLower(x: string | null | undefined) { return (x || '').toLowerCase(); }
@@ -188,14 +189,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
     }
 
-    if (!process.env.KV_REST_API_URL && !process.env.UPSTASH_REDIS_REST_URL) {
-      return res.status(200).json({ ok: false, error: 'USDm tracking requires KV to be configured.' });
-    }
+    const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+    let kvWarning: string | null = null;
 
     const stateKey = 'usdm:state';
-    let state = await kv.get<State>(stateKey);
+    let state: State | null = null;
+    if (kvConfigured) {
+      try {
+        state = await kv.get<State>(stateKey);
+      } catch (e:any) {
+        kvWarning = `KV read failed: ${e?.message || String(e)}`;
+      }
+    } else {
+      kvWarning = 'KV not configured; USDm cache is in-memory only.';
+    }
     if (!state) {
-      state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+      state = memoryState || { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
     }
     try {
       const latest = await getLatestBlock();
@@ -203,13 +212,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const toBlock = latest.num;
       if (fromBlock <= toBlock) {
         const logs = await getLogsChunked(fromBlock, toBlock);
-        const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
-        const txSelectors = await batchGetTransactions(txHashes);
-        const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
-        const blockTs = await batchGetBlocks(blockNums);
-        updateStateFromLogs(state, logs, txSelectors, blockTs);
+        if (logs.length > 0) {
+          const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
+          const txSelectors = await batchGetTransactions(txHashes);
+          const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
+          const blockTs = await batchGetBlocks(blockNums);
+          updateStateFromLogs(state, logs, txSelectors, blockTs);
+        }
         state.lastBlock = toBlock;
-        await kv.set(stateKey, state);
+        memoryState = state;
+        if (kvConfigured) {
+          try {
+            await kv.set(stateKey, state);
+          } catch (e:any) {
+            kvWarning = `KV write failed: ${e?.message || String(e)}`;
+          }
+        }
       }
     } catch (e:any) {
       if (cached) {
@@ -219,7 +237,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           updatedAt: cached.updatedAt,
           volumeSeries: cached.volumeSeries,
           totalVolume: cached.totalVolume,
-          warning: e?.message || String(e),
+          warning: [kvWarning, e?.message || String(e)].filter(Boolean).join(' | ') || undefined,
         });
       }
       throw e;
@@ -228,7 +246,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rows = computeRows(state);
     const volumeSeries = computeVolumeSeries(state);
     cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: state.totalVolume || '0' };
-    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume });
+    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume, warning: kvWarning || undefined });
   } catch (e: any) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
