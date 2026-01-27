@@ -1537,9 +1537,14 @@ export default function Home() {
               Refresh USDm
             </button>
           </div>
-              {usdmError && (
+              {usdmError && usdmRows.length === 0 && (
                 <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
                   {usdmError}
+                </div>
+              )}
+              {usdmError && usdmRows.length > 0 && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
+                  Using cached data. Refresh error: {usdmError}
                 </div>
               )}
               <div className="mt-3 overflow-x-auto">
