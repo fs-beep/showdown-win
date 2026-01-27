@@ -15,7 +15,7 @@ const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
 const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
 const isMainnet = chainId === MAINNET_CHAIN_ID || chainName === 'megaeth';
-const DEFAULT_USDM_START_BLOCK = 6141480;
+const DEFAULT_USDM_START_BLOCK = 5721028;
 const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
 const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
   ? Number(process.env.USDM_START_BLOCK)
@@ -234,7 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
     let kvWarning: string | null = null;
 
-    const stateKey = 'usdm:state:v2';
+    const stateKey = 'usdm:state:v3';
     let state: State | null = null;
     if (kvConfigured) {
       try {

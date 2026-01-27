@@ -97,14 +97,30 @@ function toEndOfDayEpoch(dateStr?: string): number | undefined {
   if (isNaN(ms)) return undefined;
   return Math.floor(ms/1000);
 }
-function formatUsdm(weiStr?: string) {
-  if (!weiStr) return '0';
+function formatUsdm(weiStr?: string, showSign = false) {
+  if (!weiStr) return '$0';
   const bi = BigInt(weiStr);
-  const sign = bi < 0n ? '-' : '';
+  const sign = bi < 0n ? '-' : (showSign && bi > 0n ? '+' : '');
   const abs = bi < 0n ? -bi : bi;
   const base = 1000000000000000000n;
   const rounded = (abs + 500000000000000000n) / base;
-  return `${sign}${rounded.toString()}`;
+  const num = Number(rounded);
+  const formatted = num.toLocaleString('en-US');
+  return `${sign}$${formatted}`;
+}
+function usdmNetClass(weiStr?: string) {
+  if (!weiStr) return '';
+  const bi = BigInt(weiStr);
+  const base = 1000000000000000000n;
+  const rounded = Number((bi < 0n ? -bi : bi) / base);
+  if (bi > 0n) {
+    if (rounded >= 10000) return 'text-green-500 dark:text-green-400 text-lg font-bold';
+    if (rounded >= 1000) return 'text-green-500 dark:text-green-400 font-bold';
+    return 'text-green-600 dark:text-green-400 font-semibold';
+  } else if (bi < 0n) {
+    return 'text-red-500 dark:text-red-400 font-semibold';
+  }
+  return '';
 }
 function ratioToFloat(n: bigint, d: bigint) {
   if (d === 0n) return 0;
@@ -160,6 +176,8 @@ export default function Home() {
   const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
   const [lastQueryLive, setLastQueryLive] = useState<boolean>(false);
   const [dataPhase, setDataPhase] = useState<'idle' | 'cached' | 'live'>('idle');
 
@@ -201,6 +219,30 @@ export default function Home() {
     if (only === '1') setMatrixOnlyPlayer(true);
     if (t === 'dark') setTheme('dark');
     if (cmp) setPlayer2(cmp);
+    const share = typeof q.share === 'string' ? q.share : undefined;
+    if (share) {
+      setShareLoading(true);
+      fetch(`/api/share?id=${encodeURIComponent(share)}`)
+        .then(r => r.json())
+        .then(j => {
+          if (!j.ok) throw new Error(j.error || 'Failed to load snapshot');
+          const data = j.data || {};
+          if (data.params) {
+            if (data.params.start) setStartDate(data.params.start);
+            if (data.params.end !== undefined) setEndDate(data.params.end);
+            if (data.params.player) setPlayer(data.params.player);
+            if (data.params.only === '1') setMatrixOnlyPlayer(true);
+            if (data.params.compare) setPlayer2(data.params.compare);
+          }
+          setRows(data.rows || []);
+          setAggByClass(data.aggByClass || null);
+          setAggUpdatedAt(data.aggLastUpdate || null);
+          setWarning(null);
+          setError(null);
+        })
+        .catch((err:any) => setError(err?.message || String(err)))
+        .finally(() => setShareLoading(false));
+    }
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
@@ -848,6 +890,37 @@ export default function Home() {
     }
   };
 
+  const shareSnapshot = async () => {
+    if (shareLoading) return;
+    setShareStatus(null);
+    setShareLoading(true);
+    try {
+      const body = {
+        params: {
+          start: startDate || undefined,
+          end: endDate || undefined,
+          player: player || undefined,
+          only: matrixOnlyPlayer ? '1' : undefined,
+          compare: player2.trim() || undefined,
+        },
+        rows,
+        aggByClass: aggByClass || undefined,
+        aggLastUpdate: aggUpdatedAt || undefined,
+      };
+      const res = await fetch('/api/share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Failed to create snapshot');
+      const url = new URL(window.location.href);
+      url.searchParams.set('share', j.id);
+      const shareUrl = url.toString();
+      try { await navigator.clipboard.writeText(shareUrl); } catch {}
+      setShareStatus('Share link copied.');
+    } catch (e:any) {
+      setShareStatus(e?.message || String(e));
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const dl = (name: string, data: any) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1018,6 +1091,18 @@ export default function Home() {
                 {dataPhase === 'live' && `Updated with today’s matches. Cached through ${cachedThroughLabel}.`}
                 {dataPhase === 'idle' && `Showing cached data through ${cachedThroughLabel}.`}
               </div>
+            )}
+            <button
+              onClick={shareSnapshot}
+              disabled={shareLoading || rows.length === 0}
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
+              title="Copy a shareable snapshot link"
+            >
+              {shareLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
+              Share snapshot
+            </button>
+            {shareStatus && (
+              <div className="mt-2 text-xs text-gray-500">{shareStatus}</div>
             )}
             {error && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700 flex items-start gap-2">
@@ -1457,20 +1542,27 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {usdmRows.map((r, i) => (
-                      <tr key={r.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td className="p-2 tabular-nums">{i + 1}</td>
-                        <td className="p-2 font-mono">
-                          <a className="text-blue-600 underline" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                            {shortAddr(r.player)}
-                          </a>
-                        </td>
-                        <td className="p-2 tabular-nums">{formatUsdm(r.won)}</td>
-                        <td className="p-2 tabular-nums">{formatUsdm(r.lost)}</td>
-                        <td className="p-2 tabular-nums font-semibold">{formatUsdm(r.net)}</td>
-                        <td className="p-2 tabular-nums">{r.txs}</td>
-                      </tr>
-                    ))}
+                    {usdmRows.map((r, i) => {
+                      const netBi = BigInt(r.net || '0');
+                      const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
+                      const isTopWinner = netBi > 0n && netAbs >= 1000;
+                      return (
+                        <tr key={r.player + i} className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isTopWinner ? 'bg-green-50/50 dark:bg-green-900/10' : ''}`}>
+                          <td className="p-2 tabular-nums">
+                            {i === 0 && netBi > 0n ? '🏆' : i === 1 && netBi > 0n ? '🥈' : i === 2 && netBi > 0n ? '🥉' : i + 1}
+                          </td>
+                          <td className="p-2 font-mono">
+                            <a className="text-blue-600 underline" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                              {shortAddr(r.player)}
+                            </a>
+                          </td>
+                          <td className="p-2 tabular-nums text-green-600 dark:text-green-400">{formatUsdm(r.won)}</td>
+                          <td className="p-2 tabular-nums text-red-500 dark:text-red-400">{formatUsdm(r.lost)}</td>
+                          <td className={`p-2 tabular-nums ${usdmNetClass(r.net)}`}>{formatUsdm(r.net, true)}</td>
+                          <td className="p-2 tabular-nums text-gray-500">{r.txs}</td>
+                        </tr>
+                      );
+                    })}
                     {usdmLoading && usdmRows.length === 0 && (
                       <SkeletonTableRows rows={5} cols={6} />
                     )}
