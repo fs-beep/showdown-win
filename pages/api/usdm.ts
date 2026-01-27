@@ -77,9 +77,18 @@ async function getLogsChunked(fromBlock: number, toBlock: number) {
   }
   return all;
 }
+async function batchRpc(reqs: any[], maxBatch = 450) {
+  const out: any[] = [];
+  for (let i = 0; i < reqs.length; i += maxBatch) {
+    const slice = reqs.slice(i, i + maxBatch);
+    const res = await rpc(slice);
+    out.push(...res);
+  }
+  return out;
+}
 async function batchGetTransactions(hashes: string[]) {
   const reqs = hashes.map((h, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getTransactionByHash', params: [h] }));
-  const res = await rpc(reqs);
+  const res = await batchRpc(reqs);
   const map = new Map<string, string>();
   for (const r of res) {
     if (r?.result?.hash) {
@@ -90,7 +99,7 @@ async function batchGetTransactions(hashes: string[]) {
 }
 async function batchGetBlocks(blockNums: number[]) {
   const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
-  const res = await rpc(reqs);
+  const res = await batchRpc(reqs);
   const map = new Map<number, number>();
   for (const r of res) {
     const b = r?.result;
