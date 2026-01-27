@@ -967,36 +967,47 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100`}>
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 text-gray-900 dark:from-gray-900 dark:via-blue-950/20 dark:to-purple-950/10 dark:text-gray-100`}>
       <Head><title>Showdown Meta Tracker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <div className="mb-4 rounded-xl bg-black text-white px-4 py-2 text-sm">
-          This tool was brought to you by <span className="font-semibold">fisiroky</span>.{' '}
-          <a className="underline" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">Follow on X</a>
+        <div className="mb-4 rounded-xl bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900 text-white px-4 py-2 text-sm shadow-lg border border-purple-500/20">
+          <span className="text-purple-300">✨</span> Built by <span className="font-bold text-purple-300">fisiroky</span>{' '}
+          <a className="underline text-purple-300 hover:text-purple-200" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
+          <span className="ml-2 text-gray-400">|</span>
+          <span className="ml-2 text-xs text-gray-400">Find alpha, track the meta, win more 🎯</span>
         </div>
 
           <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
-            <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">Showdown Meta Tracker</motion.h1>
+            <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-12 w-12 rounded-xl shadow-lg ring-2 ring-purple-500/30"/>
+            <div>
+              <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-black tracking-tight bg-gradient-to-r from-gray-900 via-purple-700 to-blue-700 dark:from-white dark:via-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
+                Showdown Meta Tracker
+              </motion.h1>
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  Live
+                </span>
+                <span>On-chain game analytics</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <a
               href={PLAY_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-black text-white px-3 py-1 text-xs shadow hover:opacity-90 dark:bg-white dark:text-black"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 text-xs font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
             >
-              Play Showdown
+              <Play className="h-3 w-3"/> Play Now
             </a>
-            {/* Share link button removed per request */}
-              {/* Compact/comfort toggle removed */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs dark:border-gray-600"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
+              {theme === 'dark' ? <Sun className="h-4 w-4 text-yellow-400"/> : <Moon className="h-4 w-4 text-purple-600"/>}
               {theme === 'dark' ? 'Light' : 'Dark'}
             </button>
           </div>
@@ -1010,8 +1021,10 @@ export default function Home() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm md:sticky md:top-4 z-20 backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-100"><Server className="h-4 w-4"/> Filters</div>
+          <div className="rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white dark:from-gray-800 dark:via-blue-900/10 dark:to-gray-800 p-4 shadow-lg md:sticky md:top-4 z-20 backdrop-blur-sm border border-blue-200/50 dark:border-blue-800/30">
+            <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-blue-400">
+              <span className="text-lg">🔍</span> Search & Filters
+            </div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
             <div className="relative">
             <input
@@ -1080,17 +1093,17 @@ export default function Home() {
 
             {/* Removed class and end reason filters per request */}
 
-            <button onClick={() => run()} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-2 text-white shadow disabled:opacity-60">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
-              {loading ? "Fetching..." : "Compute Winrate"}
+            <button onClick={() => run()} disabled={loading} className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 px-4 py-3 text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 disabled:opacity-60">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : <span className="text-lg">🚀</span>}
+              {loading ? "Analyzing..." : "Analyze Matches"}
             </button>
             <button
               onClick={() => fetchLatest()}
               disabled={loading || rows.length === 0}
-              className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5 text-sm font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-60 transition-all"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-4 w-4"/>}
-              Fetch today (live)
+              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <span>⚡</span>}
+              {loading ? 'Updating...' : 'Fetch Latest'}
             </button>
             {rows.length > 0 && (
               <div className="mt-2 text-xs text-gray-500">
@@ -1191,34 +1204,39 @@ export default function Home() {
         )}
 
         {/* Tables navigation */}
-        <div className="mt-6 rounded-2xl border border-gray-200/70 bg-white/60 p-3 shadow-sm backdrop-blur dark:border-gray-700/70 dark:bg-gray-800/60">
-          <div className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Jump to</div>
+        <div className="mt-6 rounded-2xl border border-purple-200/50 bg-gradient-to-r from-white/80 via-purple-50/30 to-white/80 p-4 shadow-lg backdrop-blur dark:border-purple-700/30 dark:from-gray-800/80 dark:via-purple-900/20 dark:to-gray-800/80">
+          <div className="text-xs font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 flex items-center gap-2">
+            <span>🧭</span> Quick Navigation
+          </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <a href="#player-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player class stats</a>
-            <a href="#class-vs-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Class vs Class</a>
-            <a href="#player-matches" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Player matches</a>
-            <a href="#global-class-stats" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Global class stats</a>
-            <a href="#top-players" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top players</a>
-            <a href="#top-by-class" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top by class</a>
-            <a href="#all-decoded" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">All matches (decoded)</a>
+            <a href="#player-class-stats" className="rounded-full border border-blue-200 bg-blue-50/50 px-3 py-1.5 text-blue-700 hover:bg-blue-100 hover:scale-105 transition-all dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40">📊 Player stats</a>
+            <a href="#class-vs-class" className="rounded-full border border-purple-200 bg-purple-50/50 px-3 py-1.5 text-purple-700 hover:bg-purple-100 hover:scale-105 transition-all dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-800/40">⚔️ Class vs Class</a>
+            <a href="#player-matches" className="rounded-full border border-indigo-200 bg-indigo-50/50 px-3 py-1.5 text-indigo-700 hover:bg-indigo-100 hover:scale-105 transition-all dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-800/40">🎮 Matches</a>
+            <a href="#global-class-stats" className="rounded-full border border-cyan-200 bg-cyan-50/50 px-3 py-1.5 text-cyan-700 hover:bg-cyan-100 hover:scale-105 transition-all dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:hover:bg-cyan-800/40">🌍 Global stats</a>
+            <a href="#top-players" className="rounded-full border border-amber-200 bg-amber-50/50 px-3 py-1.5 text-amber-700 hover:bg-amber-100 hover:scale-105 transition-all dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-800/40">🏆 Top players</a>
+            <a href="#top-by-class" className="rounded-full border border-orange-200 bg-orange-50/50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 hover:scale-105 transition-all dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-800/40">🎯 Best by class</a>
+            <a href="#all-decoded" className="rounded-full border border-gray-200 bg-gray-50/50 px-3 py-1.5 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all dark:border-gray-600 dark:bg-gray-700/30 dark:text-gray-300 dark:hover:bg-gray-600/40">📜 All matches</a>
             {showMoneyTables && (
-              <a href="#top-usdm-profits" className="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700/60">Top USDm profits</a>
+              <a href="#top-usdm-profits" className="rounded-full border border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 text-emerald-700 font-semibold hover:from-emerald-100 hover:to-green-100 hover:scale-105 transition-all dark:border-emerald-600 dark:from-emerald-900/40 dark:to-green-900/30 dark:text-emerald-300">💰 Top Earners</a>
             )}
           </div>
         </div>
 
         {/* Player-focused tables */}
         <details id="player-section" className="mt-6" open>
-          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <span>Player-focused</span>
-            <span className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">depends on selected player</span>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-blue-600 dark:text-blue-400">
+            <span className="flex items-center gap-2">🎮 Player Analysis</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-blue-200 via-purple-200 to-transparent dark:from-blue-700 dark:via-purple-700 dark:to-transparent" />
+            <span className="text-[11px] normal-case font-normal px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">for {player || 'selected player'}</span>
           </summary>
           <div className="mt-4">
         {/* Per-class performance (player specific) */}
-        <div id="player-class-stats" className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="player-class-stats" className="rounded-2xl bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-900/10 p-4 shadow-lg border border-blue-100 dark:border-blue-900/30">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance for <span className="font-semibold">{player || '—'}</span></div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              Per‑Class Performance for <span className="text-blue-600 dark:text-blue-400">{player || '—'}</span>
+            </div>
             {classStats.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1265,9 +1283,12 @@ export default function Home() {
         </div>
 
         {/* Class-vs-Class matchups with base class selector */}
-        <div id="class-vs-class" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="class-vs-class" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-900/10 p-4 shadow-lg border border-purple-100 dark:border-purple-900/30">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Class vs Class — Win rates</div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">⚔️</span>
+              Class vs Class — Win rates
+            </div>
             <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <input type="checkbox" className="h-4 w-4 rounded" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
@@ -1407,9 +1428,13 @@ export default function Home() {
           </div>
 
         {/* Player-specific matches */}
-        <div id="player-matches" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="player-matches" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-900/10 p-4 shadow-lg border border-indigo-100 dark:border-indigo-900/30">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Matches for <span className="font-semibold">{player || '—'}</span> ({filtered.length})</div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">🎮</span>
+              Matches for <span className="text-indigo-600 dark:text-indigo-400">{player || '—'}</span>
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">{filtered.length} games</span>
+            </div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1662,17 +1687,21 @@ export default function Home() {
 
         {/* Global tables */}
         <details id="global-section" className="mt-10" open>
-          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <span>Meta / Global</span>
-            <span className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-            <span className="text-[11px] normal-case text-gray-400 dark:text-gray-500">all matches in range ({rangeLabel})</span>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-cyan-600 dark:text-cyan-400">
+            <span className="flex items-center gap-2">🌍 Global Meta Analysis</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-cyan-200 via-blue-200 to-transparent dark:from-cyan-700 dark:via-blue-700 dark:to-transparent" />
+            <span className="text-[11px] normal-case font-normal px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400">{rangeLabel}</span>
           </summary>
           <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
-        <div id="global-class-stats" className="rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="global-class-stats" className="rounded-2xl bg-gradient-to-br from-white to-cyan-50/30 dark:from-gray-800 dark:to-cyan-900/10 p-4 shadow-lg border border-cyan-100 dark:border-cyan-900/30">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Per‑Class Performance — All Matches ({rangeLabel})</div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">🌍</span>
+              Per‑Class Performance — All Matches
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400">{rangeLabel}</span>
+            </div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1720,9 +1749,13 @@ export default function Home() {
         </div>
 
         {/* Top Players by Win Rate (min 15 games) */}
-        <div id="top-players" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="top-players" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800 dark:to-amber-900/10 p-4 shadow-lg border border-amber-100 dark:border-amber-900/30">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Players by Win Rate <span className="text-gray-500">(min 30 games)</span></div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">🏆</span>
+              Top Players by Win Rate
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">min 30 games</span>
+            </div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1771,9 +1804,13 @@ export default function Home() {
         </div>
 
         {/* Top Player by Class */}
-        <div id="top-by-class" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="top-by-class" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-orange-50/30 dark:from-gray-800 dark:to-orange-900/10 p-4 shadow-lg border border-orange-100 dark:border-orange-900/30">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top Player by Class <span className="text-gray-500">(dual-classes, min 20 games)</span></div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">🎯</span>
+              Top Player by Class
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400">min 20 games</span>
+            </div>
             {topPlayersByClass.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -1831,9 +1868,13 @@ export default function Home() {
         </div>
 
         {/* All decoded list (newest first) */}
-        <div id="all-decoded" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div id="all-decoded" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/30 p-4 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">All Decoded Matches ({rows.length})</div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <span className="text-lg">📜</span>
+              All Decoded Matches
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{rows.length} total</span>
+            </div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
