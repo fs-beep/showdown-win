@@ -870,12 +870,12 @@ export default function Home() {
     }
   };
 
-  const fetchUsdmTop = async (force = false, isRetry = false) => {
-    if (usdmLoading && !isRetry) return;
-    if (!force && !isRetry && usdmRows.length > 0 && usdmUpdatedAt) return;
-    if (!isRetry) { setUsdmLoading(true); setUsdmError(null); }
+  const fetchUsdmTop = async (force = false) => {
+    if (usdmLoading) return;
+    if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
+    setUsdmLoading(true); setUsdmError(null);
     try {
-      const res = await fetch(force || isRetry ? '/api/usdm?fresh=1' : '/api/usdm');
+      const res = await fetch(force ? '/api/usdm?fresh=1' : '/api/usdm');
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
@@ -883,14 +883,10 @@ export default function Home() {
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
-      // Auto-retry if there's more data to sync (initial sync of long history)
-      if (j.needsMoreSync) {
-        setTimeout(() => fetchUsdmTop(true, true), 500);
-        return;
-      }
-      setUsdmLoading(false);
+      if (j.warning) setUsdmError(j.warning);
     } catch (e:any) {
       setUsdmError(e?.message || String(e));
+    } finally {
       setUsdmLoading(false);
     }
   };

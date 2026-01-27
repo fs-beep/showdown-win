@@ -5,33 +5,20 @@ const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
 const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
 const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 10000;
 const CONCURRENCY = 2;
 const LOG_BATCH_DELAY_MS = 100;
-const START_BLOCK_LOOKBACK = 200_000;
-const MAX_BLOCKS_PER_CALL = 100000;
 const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
 const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
 const isMainnet = chainId === MAINNET_CHAIN_ID || chainName === 'megaeth';
 const DEFAULT_USDM_START_BLOCK = 5721028;
-const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
-const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
-  ? Number(process.env.USDM_START_BLOCK)
-  : (isMainnet ? DEFAULT_USDM_START_BLOCK : null);
-const RPC_ATTEMPTS = 6;
-const RPC_BASE_DELAY_MS = 900;
-const RPC_JITTER_MS = 250;
-const BATCH_DELAY_MS = 120;
+const RPC_ATTEMPTS = 4;
+const RPC_BASE_DELAY_MS = 600;
+const RPC_JITTER_MS = 200;
+const BATCH_DELAY_MS = 80;
 
-type ProfitRow = {
-  player: string;
-  won: string;
-  lost: string;
-  net: string;
-  txs: number;
-};
+type ProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
 type VolumePoint = { day: string; volume: string };
 type State = {
   lastBlock: number;
@@ -39,15 +26,24 @@ type State = {
   volumeByDay: Record<string, string>;
   totalVolume: string;
 };
+type CachedData = {
+  rows: ProfitRow[];
+  volumeSeries: VolumePoint[];
+  totalVolume: string;
+  lastBlock: number;
+  updatedAt: number;
+};
 
-let cached: { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string } | null = null;
-let memoryState: State | null = null;
+const STATE_KEY = 'usdm:state:v5';
+const CACHE_KEY = 'usdm:cache:v5';
+
+let memCache: CachedData | null = null;
 
 function nowMs() { return Date.now(); }
-function toLower(x: string | null | undefined) { return (x || '').toLowerCase(); }
 function toHex(n: number) { return '0x' + n.toString(16); }
 function parseAddr(topic?: string) { return topic ? '0x' + topic.slice(-40).toLowerCase() : ''; }
 function toTopicAddr(addr: string) { return '0x' + addr.toLowerCase().replace(/^0x/, '').padStart(64, '0'); }
+
 function buildRanges(from: number, to: number) {
   const ranges: Array<{ from: number; to: number }> = [];
   let s = from;
@@ -58,121 +54,89 @@ function buildRanges(from: number, to: number) {
   }
   return ranges;
 }
+
 async function rpc(body: any) {
   let lastErr: any = null;
   for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20_000);
-      const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      const res = await fetch(MAINNET_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
       if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
         lastErr = new Error(`RPC HTTP ${res.status}`);
-        const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i)) + Math.floor(Math.random() * RPC_JITTER_MS);
-        await new Promise(r => setTimeout(r, wait));
+        await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(1.5, i) + Math.random() * RPC_JITTER_MS));
         continue;
       }
       if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
       const j = await res.json();
       if (Array.isArray(j)) {
-        const bad = j.find((x:any)=>x && x.error);
+        const bad = j.find((x: any) => x?.error);
         if (bad) throw new Error(bad.error?.message || 'RPC batch error');
-      } else if (j && j.error) {
+      } else if (j?.error) {
         throw new Error(j.error?.message || 'RPC error');
       }
       return j;
-    } catch (e:any) {
+    } catch (e: any) {
       lastErr = e;
-      const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i)) + Math.floor(Math.random() * RPC_JITTER_MS);
-      await new Promise(r => setTimeout(r, wait));
+      await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(1.5, i) + Math.random() * RPC_JITTER_MS));
     }
   }
-  throw lastErr || new Error('RPC failed after retries');
+  throw lastErr || new Error('RPC failed');
 }
+
 async function getLatestBlock() {
   const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: ['latest', false] });
-  const blk = j?.result;
-  if (!blk) throw new Error('Block not found');
-  return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
+  if (!j?.result) throw new Error('Block not found');
+  return { num: parseInt(j.result.number, 16), ts: parseInt(j.result.timestamp, 16) };
 }
-async function getBlockByNumber(n: number) {
-  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] });
-  const blk = j?.result;
-  if (!blk) throw new Error('Block not found');
-  return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
-}
-async function findBlockByTs(targetTs: number, latestNum: number) {
-  let low = 0;
-  let high = latestNum;
-  let best = 0;
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    const blk = await getBlockByNumber(mid);
-    if (blk.ts >= targetTs) {
-      best = mid;
-      high = mid - 1;
-    } else {
-      low = mid + 1;
-    }
-  }
-  return best;
-}
+
 async function getLogsChunked(fromBlock: number, toBlock: number) {
   const ranges = buildRanges(fromBlock, toBlock);
   const payoutTopic = toTopicAddr(PAYOUT_CONTRACT);
   const all: any[] = [];
   for (let i = 0; i < ranges.length; i += CONCURRENCY) {
     const slice = ranges.slice(i, i + CONCURRENCY);
-    const reqs = slice.flatMap((r, idx) => ([
-      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2, method: 'eth_getLogs', params: [{
-        fromBlock: toHex(r.from),
-        toBlock: toHex(r.to),
-        address: USDM_TOKEN,
-        topics: [TRANSFER_TOPIC, payoutTopic],
-      }] }),
-      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2 + 1, method: 'eth_getLogs', params: [{
-        fromBlock: toHex(r.from),
-        toBlock: toHex(r.to),
-        address: USDM_TOKEN,
-        topics: [TRANSFER_TOPIC, null, payoutTopic],
-      }] }),
-    ]));
+    const reqs = slice.flatMap((r, idx) => [
+      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: USDM_TOKEN, topics: [TRANSFER_TOPIC, payoutTopic] }] }),
+      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2 + 1, method: 'eth_getLogs', params: [{ fromBlock: toHex(r.from), toBlock: toHex(r.to), address: USDM_TOKEN, topics: [TRANSFER_TOPIC, null, payoutTopic] }] }),
+    ]);
     const parts = await Promise.all(reqs);
     const seen = new Set<string>();
     for (const p of parts) {
-      for (const log of (p?.result || [])) {
-        const key = `${log.transactionHash || ''}:${log.logIndex || ''}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        all.push(log);
+      for (const log of p?.result || []) {
+        const key = `${log.transactionHash}:${log.logIndex}`;
+        if (!seen.has(key)) { seen.add(key); all.push(log); }
       }
     }
     if (LOG_BATCH_DELAY_MS) await new Promise(r => setTimeout(r, LOG_BATCH_DELAY_MS));
   }
   return all;
 }
-async function batchRpc(reqs: any[], maxBatch = 450) {
-  const out: any[] = [];
-  for (let i = 0; i < reqs.length; i += maxBatch) {
-    const slice = reqs.slice(i, i + maxBatch);
+
+async function batchGetBlocks(blockNums: number[]) {
+  if (blockNums.length === 0) return new Map<number, number>();
+  const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
+  const chunks: any[] = [];
+  for (let i = 0; i < reqs.length; i += 400) {
+    const slice = reqs.slice(i, i + 400);
     const res = await rpc(slice);
-    out.push(...res);
+    chunks.push(...res);
     if (BATCH_DELAY_MS) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
   }
-  return out;
-}
-async function batchGetBlocks(blockNums: number[]) {
-  const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
-  const res = await batchRpc(reqs);
   const map = new Map<number, number>();
-  for (const r of res) {
-    const b = r?.result;
-    if (b) map.set(parseInt(b.number, 16), parseInt(b.timestamp, 16));
+  for (const r of chunks) {
+    if (r?.result) map.set(parseInt(r.result.number, 16), parseInt(r.result.timestamp, 16));
   }
   return map;
 }
 
-function updateStateFromLogs(state: State, logs: any[], blockTs: Map<number, number>) {
+function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
   for (const log of logs) {
     const from = parseAddr(log.topics?.[1]);
     const to = parseAddr(log.topics?.[2]);
@@ -183,17 +147,15 @@ function updateStateFromLogs(state: State, logs: any[], blockTs: Map<number, num
     if (ts > 0) {
       const d = new Date(ts * 1000);
       const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-      const prev = BigInt(state.volumeByDay[day] || '0');
-      state.volumeByDay[day] = (prev + value).toString();
-      const totalPrev = BigInt(state.totalVolume || '0');
-      state.totalVolume = (totalPrev + value).toString();
+      state.volumeByDay[day] = (BigInt(state.volumeByDay[day] || '0') + value).toString();
+      state.totalVolume = (BigInt(state.totalVolume || '0') + value).toString();
     }
     if (from === PAYOUT_CONTRACT) {
       const s = state.totals[to] || { won: '0', lost: '0', txs: 0 };
       s.won = (BigInt(s.won) + value).toString();
       s.txs += 1;
       state.totals[to] = s;
-    } else if (to === PAYOUT_CONTRACT) {
+    } else {
       const s = state.totals[from] || { won: '0', lost: '0', txs: 0 };
       s.lost = (BigInt(s.lost) + value).toString();
       s.txs += 1;
@@ -202,7 +164,7 @@ function updateStateFromLogs(state: State, logs: any[], blockTs: Map<number, num
   }
 }
 
-function computeRows(state: State) {
+function computeCache(state: State): CachedData {
   const rows: ProfitRow[] = Object.entries(state.totals).map(([player, s]) => ({
     player,
     won: s.won,
@@ -211,147 +173,95 @@ function computeRows(state: State) {
     txs: s.txs,
   }));
   rows.sort((a, b) => {
-    const na = BigInt(a.net);
-    const nb = BigInt(b.net);
-    if (na === nb) return b.txs - a.txs;
-    return na > nb ? -1 : 1;
+    const na = BigInt(a.net), nb = BigInt(b.net);
+    return na === nb ? b.txs - a.txs : (na > nb ? -1 : 1);
   });
-  return rows.slice(0, 10);
-}
-function computeVolumeSeries(state: State) {
-  return Object.entries(state.volumeByDay)
+  const volumeSeries = Object.entries(state.volumeByDay)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([day, volume]) => ({ day, volume }));
+  return {
+    rows: rows.slice(0, 10),
+    volumeSeries,
+    totalVolume: state.totalVolume || '0',
+    lastBlock: state.lastBlock,
+    updatedAt: nowMs(),
+  };
 }
 
-type CachedResult = { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string };
-const RESULTS_CACHE_KEY = 'usdm:results:v4';
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const fresh = req.query?.fresh === '1';
+  const kvOk = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+
+  // 1) Return cached data immediately for non-fresh requests
+  if (!fresh) {
+    if (memCache) {
+      return res.status(200).json({ ok: true, ...memCache, source: 'memory' });
+    }
+    if (kvOk) {
+      try {
+        const kvCache = await kv.get<CachedData>(CACHE_KEY);
+        if (kvCache) {
+          memCache = kvCache;
+          return res.status(200).json({ ok: true, ...kvCache, source: 'kv' });
+        }
+      } catch {}
+    }
+  }
+
+  // 2) Fresh request or no cache - do incremental sync
+  let state: State | null = null;
+  let warning: string | null = null;
+
+  // Load existing state
+  if (kvOk) {
+    try { state = await kv.get<State>(STATE_KEY); } catch {}
+  }
+  if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+
   try {
-    const fresh = req.query?.fresh === '1';
-    const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-    let kvWarning: string | null = null;
+    const latest = await getLatestBlock();
+    let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : (isMainnet ? DEFAULT_USDM_START_BLOCK : Math.max(latest.num - 50000, 0));
+    const toBlock = latest.num;
 
-    // 1) Check in-memory cache first
-    if (!fresh && cached && nowMs() - cached.updatedAt < CACHE_TTL_MS) {
-      return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
-    }
+    if (fromBlock <= toBlock) {
+      const logs = await getLogsChunked(fromBlock, toBlock);
+      if (logs.length > 0) {
+        const blockNums = [...new Set(logs.map(l => parseInt(l.blockNumber, 16)))];
+        const blockTs = await batchGetBlocks(blockNums);
+        updateState(state, logs, blockTs);
+      }
+      state.lastBlock = toBlock;
 
-    // 2) Load KV results cache (for fallback even if fresh=1)
-    let kvCached: CachedResult | null = null;
-    if (kvConfigured) {
-      try {
-        kvCached = await kv.get<CachedResult>(RESULTS_CACHE_KEY);
-        if (kvCached) cached = kvCached;
-        if (!fresh && kvCached && nowMs() - kvCached.updatedAt < CACHE_TTL_MS) {
-          return res.status(200).json({ ok: true, rows: kvCached.rows, updatedAt: kvCached.updatedAt, volumeSeries: kvCached.volumeSeries, totalVolume: kvCached.totalVolume });
-        }
-      } catch {}
+      // Save state and cache to KV
+      if (kvOk) {
+        try { await kv.set(STATE_KEY, state); } catch {}
+      }
     }
 
-    const stateKey = 'usdm:state:v4';
-    let state: State | null = null;
-    if (kvConfigured) {
-      try {
-        state = await kv.get<State>(stateKey);
-      } catch (e:any) {
-        kvWarning = `KV read failed: ${e?.message || String(e)}`;
-      }
-    } else {
-      kvWarning = 'KV not configured; USDm cache is in-memory only.';
-    }
-    if (!state) {
-      state = memoryState || { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
-    }
-    try {
-      const latest = await getLatestBlock();
-      let fromBlock = Math.max(state.lastBlock + 1, 0);
-      if (state.lastBlock === 0 && fromBlock === 1) {
-        if (USDM_START_BLOCK !== null) {
-          fromBlock = USDM_START_BLOCK;
-        } else {
-          if (isMainnet) {
-            try {
-              fromBlock = await findBlockByTs(DEFAULT_USDM_START_TS, latest.num);
-              kvWarning = [kvWarning, 'USDM start block not set; using Jan 20, 2026 timestamp.']
-                .filter(Boolean)
-                .join(' | ');
-            } catch (e:any) {
-              fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
-              kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
-                .filter(Boolean)
-                .join(' | ');
-            }
-          } else {
-            fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
-            kvWarning = [kvWarning, `USDM start block not set for this chain; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
-              .filter(Boolean)
-              .join(' | ');
-          }
-        }
-      }
-      let toBlock = latest.num;
-      if (toBlock - fromBlock + 1 > MAX_BLOCKS_PER_CALL) {
-        toBlock = fromBlock + MAX_BLOCKS_PER_CALL - 1;
-        kvWarning = [kvWarning, `USDm sync partial: processing ${MAX_BLOCKS_PER_CALL} blocks (refresh again to continue).`]
-          .filter(Boolean)
-          .join(' | ');
-      }
-      if (fromBlock <= toBlock) {
-        const logs = await getLogsChunked(fromBlock, toBlock);
-        if (logs.length > 0) {
-          const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
-          const blockTs = await batchGetBlocks(blockNums);
-          updateStateFromLogs(state, logs, blockTs);
-        }
-        state.lastBlock = toBlock;
-        memoryState = state;
-        if (kvConfigured) {
-          try {
-            await kv.set(stateKey, state);
-          } catch (e:any) {
-            kvWarning = `KV write failed: ${e?.message || String(e)}`;
-          }
-        }
-      }
-    } catch (e:any) {
-      if (cached) {
-        return res.status(200).json({
-          ok: true,
-          rows: cached.rows,
-          updatedAt: cached.updatedAt,
-          volumeSeries: cached.volumeSeries,
-          totalVolume: cached.totalVolume,
-          warning: [kvWarning, e?.message || String(e)].filter(Boolean).join(' | ') || undefined,
-        });
-      }
-      // Fall back to current KV/memory state even if refresh failed.
-      const rows = computeRows(state);
-      const volumeSeries = computeVolumeSeries(state);
-      return res.status(200).json({
-        ok: true,
-        rows,
-        updatedAt: nowMs(),
-        volumeSeries,
-        totalVolume: state.totalVolume || '0',
-        warning: [kvWarning, e?.message || String(e)].filter(Boolean).join(' | ') || undefined,
-      });
+    const cache = computeCache(state);
+    memCache = cache;
+    if (kvOk) {
+      try { await kv.set(CACHE_KEY, cache); } catch {}
     }
 
-    const rows = computeRows(state);
-    const volumeSeries = computeVolumeSeries(state);
-    cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: state.totalVolume || '0' };
-    // Save computed results to KV for fast cold-start loading
-    if (kvConfigured) {
-      try {
-        await kv.set(RESULTS_CACHE_KEY, cached);
-      } catch {}
-    }
-    // Tell frontend if there's more to sync (for auto-retry)
-    const needsMoreSync = state.lastBlock < (await getLatestBlock().catch(() => ({ num: state.lastBlock }))).num - 100;
-    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume, warning: kvWarning || undefined, needsMoreSync });
+    return res.status(200).json({ ok: true, ...cache, source: 'fresh' });
   } catch (e: any) {
-    return res.status(200).json({ ok: false, error: e?.message || String(e) });
+    warning = e?.message || String(e);
+    // Return cached data with warning if available
+    if (memCache) {
+      return res.status(200).json({ ok: true, ...memCache, warning, source: 'memory-fallback' });
+    }
+    if (kvOk) {
+      try {
+        const kvCache = await kv.get<CachedData>(CACHE_KEY);
+        if (kvCache) {
+          memCache = kvCache;
+          return res.status(200).json({ ok: true, ...kvCache, warning, source: 'kv-fallback' });
+        }
+      } catch {}
+    }
+    // Last resort: compute from current state
+    const cache = computeCache(state);
+    return res.status(200).json({ ok: true, ...cache, warning, source: 'state-fallback' });
   }
 }
