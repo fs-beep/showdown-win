@@ -20,8 +20,10 @@ const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
 const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
   ? Number(process.env.USDM_START_BLOCK)
   : (isMainnet ? DEFAULT_USDM_START_BLOCK : null);
-const RPC_ATTEMPTS = 5;
-const RPC_BASE_DELAY_MS = 800;
+const RPC_ATTEMPTS = 6;
+const RPC_BASE_DELAY_MS = 900;
+const RPC_JITTER_MS = 250;
+const BATCH_DELAY_MS = 120;
 
 type ProfitRow = {
   player: string;
@@ -63,9 +65,9 @@ async function rpc(body: any) {
       const timeout = setTimeout(() => controller.abort(), 20_000);
       const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
       clearTimeout(timeout);
-      if (res.status === 429 || res.status === 503) {
+      if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
         lastErr = new Error(`RPC HTTP ${res.status}`);
-        const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i));
+        const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i)) + Math.floor(Math.random() * RPC_JITTER_MS);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -80,7 +82,7 @@ async function rpc(body: any) {
       return j;
     } catch (e:any) {
       lastErr = e;
-      const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i));
+      const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i)) + Math.floor(Math.random() * RPC_JITTER_MS);
       await new Promise(r => setTimeout(r, wait));
     }
   }
@@ -139,6 +141,7 @@ async function batchRpc(reqs: any[], maxBatch = 450) {
     const slice = reqs.slice(i, i + maxBatch);
     const res = await rpc(slice);
     out.push(...res);
+    if (BATCH_DELAY_MS) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
   }
   return out;
 }
@@ -301,7 +304,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           warning: [kvWarning, e?.message || String(e)].filter(Boolean).join(' | ') || undefined,
         });
       }
-      throw e;
+      // Fall back to current KV/memory state even if refresh failed.
+      const rows = computeRows(state);
+      const volumeSeries = computeVolumeSeries(state);
+      return res.status(200).json({
+        ok: true,
+        rows,
+        updatedAt: nowMs(),
+        volumeSeries,
+        totalVolume: state.totalVolume || '0',
+        warning: [kvWarning, e?.message || String(e)].filter(Boolean).join(' | ') || undefined,
+      });
     }
 
     const rows = computeRows(state);
