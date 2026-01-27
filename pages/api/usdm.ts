@@ -224,15 +224,30 @@ function computeVolumeSeries(state: State) {
     .map(([day, volume]) => ({ day, volume }));
 }
 
+type CachedResult = { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string };
+const RESULTS_CACHE_KEY = 'usdm:results:v3';
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const fresh = req.query?.fresh === '1';
+    const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+    let kvWarning: string | null = null;
+
+    // 1) Check in-memory cache first
     if (!fresh && cached && nowMs() - cached.updatedAt < CACHE_TTL_MS) {
       return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
     }
 
-    const kvConfigured = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-    let kvWarning: string | null = null;
+    // 2) Check KV results cache (survives cold starts)
+    if (!fresh && kvConfigured) {
+      try {
+        const kvCached = await kv.get<CachedResult>(RESULTS_CACHE_KEY);
+        if (kvCached && nowMs() - kvCached.updatedAt < CACHE_TTL_MS) {
+          cached = kvCached;
+          return res.status(200).json({ ok: true, rows: kvCached.rows, updatedAt: kvCached.updatedAt, volumeSeries: kvCached.volumeSeries, totalVolume: kvCached.totalVolume });
+        }
+      } catch {}
+    }
 
     const stateKey = 'usdm:state:v3';
     let state: State | null = null;
@@ -326,6 +341,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rows = computeRows(state);
     const volumeSeries = computeVolumeSeries(state);
     cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: state.totalVolume || '0' };
+    // Save computed results to KV for fast cold-start loading
+    if (kvConfigured) {
+      try {
+        await kv.set(RESULTS_CACHE_KEY, cached);
+      } catch {}
+    }
     return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume, warning: kvWarning || undefined });
   } catch (e: any) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
