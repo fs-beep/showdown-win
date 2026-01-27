@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Moon, Sun, Clipboard, Check, ArrowUp } from 'lucide-react';
+import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Clipboard, Check, ArrowUp } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -153,7 +153,6 @@ export default function Home() {
   const [startDate, setStartDate] = useState<string>(BALANCE_PATCH_DATE);
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('barry');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const hydrated = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,21 +186,12 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
-      const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initial: 'light' | 'dark' = stored === 'dark' || (!stored && prefersDark) ? 'dark' : 'light';
-      setTheme(initial);
-      if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', initial === 'dark');
+      // Always dark mode
+      if (typeof document !== 'undefined') document.documentElement.classList.add('dark');
       const rp = typeof window !== 'undefined' ? localStorage.getItem('recentPlayers') : null;
       if (rp) setRecentPlayers(JSON.parse(rp));
     } catch {}
   }, []);
-  useEffect(() => {
-    try {
-      if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', theme === 'dark');
-      if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
-    } catch {}
-  }, [theme]);
 
 
   // 1) Initialize state from URL query once
@@ -219,7 +209,6 @@ export default function Home() {
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
-    if (t === 'dark') setTheme('dark');
     if (cmp) setPlayer2(cmp);
     const share = typeof q.share === 'string' ? q.share : undefined;
     if (share) {
@@ -259,10 +248,9 @@ export default function Home() {
     if (endDate) nextQuery.end = endDate;
     if (player) nextQuery.player = player;
     if (matrixOnlyPlayer) nextQuery.only = '1';
-    if (theme === 'dark') nextQuery.theme = 'dark';
     if (player2.trim()) nextQuery.compare = player2.trim();
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
-  }, [startDate, endDate, player, player2, matrixOnlyPlayer, theme]);
+  }, [startDate, endDate, player, player2, matrixOnlyPlayer]);
 
   
 
@@ -998,14 +986,6 @@ export default function Home() {
             >
               Play Now
             </a>
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5"/> : <Moon className="h-5 w-5"/>}
-              {theme === 'dark' ? 'Light' : 'Dark'}
-            </button>
           </div>
         </div>
         {/* subtitle removed per request */}
