@@ -5,15 +5,15 @@ const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
 const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
 const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const MAX_SPAN = 10000;
-const CONCURRENCY = 2;
-const LOG_BATCH_DELAY_MS = 100;
+const MAX_SPAN = 5000;
+const CONCURRENCY = 1;
+const LOG_BATCH_DELAY_MS = 200;
 const USDM_START_BLOCK = 5721028;
-const MAX_BLOCKS_PER_SYNC = 200000; // Limit per request to avoid timeouts
-const RPC_ATTEMPTS = 4;
-const RPC_BASE_DELAY_MS = 600;
-const RPC_JITTER_MS = 200;
-const BATCH_DELAY_MS = 80;
+const MAX_BLOCKS_PER_SYNC = 50000; // Smaller chunks for RPC stability
+const RPC_ATTEMPTS = 5;
+const RPC_BASE_DELAY_MS = 1000;
+const RPC_JITTER_MS = 500;
+const BATCH_DELAY_MS = 150;
 
 type ProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
 type VolumePoint = { day: string; volume: string };
@@ -57,7 +57,7 @@ async function rpc(body: any) {
   for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15_000);
+      const timeout = setTimeout(() => controller.abort(), 25_000);
       const res = await fetch(MAINNET_RPC, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
