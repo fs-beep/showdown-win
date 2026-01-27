@@ -1506,18 +1506,26 @@ export default function Home() {
             {/* Top USDm profits */}
             <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
-                <a
-                  className="text-xs text-blue-600 underline"
-                  href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  payout contract
-                </a>
-              </div>
-              <div className="mt-1 text-[10px] text-gray-500">
-                Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
+                <div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
+                  <div className="mt-1 text-[10px] text-gray-500">
+                    Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500">Total volume</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatUsdm(usdmTotalVolume)}</div>
+                  </div>
+                  <a
+                    className="text-xs text-blue-600 underline"
+                    href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    payout contract
+                  </a>
+                </div>
               </div>
           <div className="mt-2">
             <button
@@ -1581,50 +1589,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* USDm volume */}
-            <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-100">USDM volume over time</div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">Total volume</div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatUsdm(usdmTotalVolume)}</div>
-                </div>
-              </div>
-              <div className="mt-1 text-[10px] text-gray-500">Daily USDm transferred via the payout contract (game settlement only).</div>
-              <div className="mt-3">
-                {usdmVolumeSeries.length === 0 && usdmLoading && (
-                  <div className="h-28 rounded-xl bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
-                )}
-                {usdmVolumeSeries.length === 0 && !usdmLoading && (
-                  <div className="h-28 rounded-xl bg-gray-50 dark:bg-gray-700/40 flex items-center justify-center text-xs text-gray-500">No volume data yet.</div>
-                )}
-                {usdmVolumeSeries.length > 0 && (() => {
-                  const w = 600;
-                  const h = 120;
-                  const pad = 8;
-                  const vols = usdmVolumeSeries.map(p => BigInt(p.volume || '0'));
-                  const max = vols.reduce((a, b) => (a > b ? a : b), 0n) || 1n;
-                  const startLabel = fmtDisplayDate(usdmVolumeSeries[0]?.day);
-                  const endLabel = fmtDisplayDate(usdmVolumeSeries[usdmVolumeSeries.length - 1]?.day);
-                  const points = usdmVolumeSeries.map((p, i) => {
-                    const x = usdmVolumeSeries.length === 1 ? w / 2 : pad + (i / (usdmVolumeSeries.length - 1)) * (w - pad * 2);
-                    const ratio = ratioToFloat(BigInt(p.volume || '0'), max);
-                    const y = pad + (1 - ratio) * (h - pad * 2);
-                    return `${x.toFixed(2)},${y.toFixed(2)}`;
-                  }).join(' ');
-                  return (
-                    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28">
-                      <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#94a3b8" strokeWidth="1" />
-                      <line x1={pad} y1={h - pad} x2={pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
-                      <line x1={w - pad} y1={h - pad} x2={w - pad} y2={h - pad + 4} stroke="#94a3b8" strokeWidth="1" />
-                      <text x={pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="start">{startLabel}</text>
-                      <text x={w - pad} y={h} fontSize="9" fill="#94a3b8" textAnchor="end">{endLabel}</text>
-                      <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" />
-                    </svg>
-                  );
-                })()}
-              </div>
-            </div>
           </>
         )}
 
