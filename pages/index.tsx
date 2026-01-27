@@ -962,7 +962,7 @@ export default function Home() {
           vibecoded by{' '}
           <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
           <span className="mx-2 text-gray-700">|</span>
-          <span className="text-gray-600">100% on-chain MegaETH data, fully transparent</span>
+          <span className="text-gray-600">Track the meta, find your edge. Built on fully transparent onchain MegaETH data.</span>
         </div>
 
           <div className="flex items-center justify-between">
