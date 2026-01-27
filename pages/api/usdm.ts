@@ -9,6 +9,8 @@ const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 2000;
 const CONCURRENCY = 3;
+const RPC_ATTEMPTS = 5;
+const RPC_BASE_DELAY_MS = 800;
 
 type ProfitRow = {
   player: string;
@@ -42,16 +44,32 @@ function buildRanges(from: number, to: number) {
   return ranges;
 }
 async function rpc(body: any) {
-  const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-  const j = await res.json();
-  if (Array.isArray(j)) {
-    const bad = j.find((x:any)=>x && x.error);
-    if (bad) throw new Error(bad.error?.message || 'RPC batch error');
-  } else if (j && j.error) {
-    throw new Error(j.error?.message || 'RPC error');
+  let lastErr: any = null;
+  for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
+    try {
+      const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.status === 429 || res.status === 503) {
+        lastErr = new Error(`RPC HTTP ${res.status}`);
+        const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i));
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+      const j = await res.json();
+      if (Array.isArray(j)) {
+        const bad = j.find((x:any)=>x && x.error);
+        if (bad) throw new Error(bad.error?.message || 'RPC batch error');
+      } else if (j && j.error) {
+        throw new Error(j.error?.message || 'RPC error');
+      }
+      return j;
+    } catch (e:any) {
+      lastErr = e;
+      const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i));
+      await new Promise(r => setTimeout(r, wait));
+    }
   }
-  return j;
+  throw lastErr || new Error('RPC failed after retries');
 }
 async function getLatestBlock() {
   const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: ['latest', false] });
@@ -176,21 +194,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const stateKey = 'usdm:state';
     let state = await kv.get<State>(stateKey);
-    const latest = await getLatestBlock();
     if (!state) {
       state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
     }
-    const fromBlock = Math.max(state.lastBlock + 1, 0);
-    const toBlock = latest.num;
-    if (fromBlock <= toBlock) {
-      const logs = await getLogsChunked(fromBlock, toBlock);
-      const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
-      const txSelectors = await batchGetTransactions(txHashes);
-      const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
-      const blockTs = await batchGetBlocks(blockNums);
-      updateStateFromLogs(state, logs, txSelectors, blockTs);
-      state.lastBlock = toBlock;
-      await kv.set(stateKey, state);
+    try {
+      const latest = await getLatestBlock();
+      const fromBlock = Math.max(state.lastBlock + 1, 0);
+      const toBlock = latest.num;
+      if (fromBlock <= toBlock) {
+        const logs = await getLogsChunked(fromBlock, toBlock);
+        const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
+        const txSelectors = await batchGetTransactions(txHashes);
+        const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
+        const blockTs = await batchGetBlocks(blockNums);
+        updateStateFromLogs(state, logs, txSelectors, blockTs);
+        state.lastBlock = toBlock;
+        await kv.set(stateKey, state);
+      }
+    } catch (e:any) {
+      if (cached) {
+        return res.status(200).json({
+          ok: true,
+          rows: cached.rows,
+          updatedAt: cached.updatedAt,
+          volumeSeries: cached.volumeSeries,
+          totalVolume: cached.totalVolume,
+          warning: e?.message || String(e),
+        });
+      }
+      throw e;
     }
 
     const rows = computeRows(state);
