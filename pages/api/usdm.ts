@@ -10,6 +10,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 5000;
 const CONCURRENCY = 5;
 const START_BLOCK_LOOKBACK = 200_000;
+const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
 const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
   ? Number(process.env.USDM_START_BLOCK)
   : null;
@@ -81,6 +82,28 @@ async function getLatestBlock() {
   const blk = j?.result;
   if (!blk) throw new Error('Block not found');
   return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
+}
+async function getBlockByNumber(n: number) {
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] });
+  const blk = j?.result;
+  if (!blk) throw new Error('Block not found');
+  return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
+}
+async function findBlockByTs(targetTs: number, latestNum: number) {
+  let low = 0;
+  let high = latestNum;
+  let best = 0;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const blk = await getBlockByNumber(mid);
+    if (blk.ts >= targetTs) {
+      best = mid;
+      high = mid - 1;
+    } else {
+      low = mid + 1;
+    }
+  }
+  return best;
 }
 async function getLogsChunked(fromBlock: number, toBlock: number) {
   const ranges = buildRanges(fromBlock, toBlock);
@@ -217,10 +240,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (USDM_START_BLOCK !== null) {
           fromBlock = USDM_START_BLOCK;
         } else {
-          fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
-          kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
-            .filter(Boolean)
-            .join(' | ');
+          try {
+            fromBlock = await findBlockByTs(DEFAULT_USDM_START_TS, latest.num);
+            kvWarning = [kvWarning, 'USDM start block not set; using Jan 20, 2026 timestamp.']
+              .filter(Boolean)
+              .join(' | ');
+          } catch (e:any) {
+            fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
+            kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
+              .filter(Boolean)
+              .join(' | ');
+          }
         }
       }
       const toBlock = latest.num;
