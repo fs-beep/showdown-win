@@ -44,7 +44,8 @@ async function fetchAllTransfers() {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    if (cached && nowMs() - cached.updatedAt < CACHE_TTL_MS) {
+    const fresh = req.query?.fresh === '1';
+    if (!fresh && cached && nowMs() - cached.updatedAt < CACHE_TTL_MS) {
       return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
     }
 

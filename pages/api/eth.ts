@@ -382,6 +382,27 @@ function parseStartedAtTs(str: string): number | null {
   if (isNaN(ms)) return null;
   return Math.floor(ms / 1000);
 }
+async function getCachedRowsRange(startTs: number, endTs: number) {
+  const startDay = Math.floor(startTs / 86400);
+  const endDay = Math.floor(endTs / 86400);
+  const rows: Row[] = [];
+  const missing: number[] = [];
+  for (let d = startDay; d <= endDay; d++) {
+    const mem = dayCache.get(memKey(d));
+    if (mem && mem.rows.length > 0) {
+      rows.push(...mem.rows);
+      continue;
+    }
+    const fromKv = await kvGetDay(d);
+    if (fromKv && fromKv.rows.length > 0) {
+      remember(d, fromKv);
+      rows.push(...fromKv.rows);
+      continue;
+    }
+    missing.push(d);
+  }
+  return { rows: dedupeRows(rows).sort(sortByTimestamp), missing };
+}
 function isLogsNotAvailable(err: any) {
   const msg = (err?.message || String(err || '')).toLowerCase();
   return msg.includes('logs for the requested block range are not yet available');
@@ -656,7 +677,7 @@ async function fetchRangeRowsMainnet(startTs: number, endTs: number, allowRecent
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { startTs, endTs, rebuildDay, wantAgg, clearCache } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean };
+    const { startTs, endTs, rebuildDay, wantAgg, clearCache, live, cacheOnly } = (req.body || {}) as { startTs?: number; endTs?: number; rebuildDay?: number; wantAgg?: boolean; clearCache?: boolean; live?: boolean; cacheOnly?: boolean };
     // Admin: rebuild a specific day (UTC day index)
     if (typeof rebuildDay === 'number' && rebuildDay >= 0) {
       const earliest = await getEarliest();
@@ -694,6 +715,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const legacyEndTs = Math.min(eTs, MAINNET_START_TS);
     const mainnetStartTs = Math.max(sTs, MAINNET_START_TS + 1);
     const needsMainnet = eTs > MAINNET_START_TS;
+
+    if (cacheOnly) {
+      const cached = await getCachedRowsRange(sTs, eTs);
+      resultRows = cached.rows;
+      if (cached.missing.length > 0) {
+        warning = `Cached data missing for ${cached.missing.length} day(s). Use Fetch latest to refresh.`;
+      }
+      const out = filterRowsByTs(resultRows, sTs, eTs).sort(sortByTimestamp);
+      if (wantAgg) {
+        const agg = computeAgg(out);
+        return sendJson(res, 200, { ok: true, rows: out, aggByClass: agg.byClass, aggLastUpdate: agg.lastUpdate, warning });
+      }
+      return sendJson(res, 200, { ok: true, rows: out, warning });
+    }
 
     // If clearCache is true, clear cache for the date range and fetch fresh data
     if (clearCache) {
@@ -974,7 +1009,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Only do live fetch for today's data (to get latest matches), skip for historical dates
-    if (legacyEndTs >= sTs) {
+    if (live !== false && legacyEndTs >= sTs) {
       const todayDay = Math.floor(latest.ts / 86400);
       const endDay = Math.floor(legacyEndTs / 86400);
       if (endDay >= todayDay) {
@@ -1016,16 +1051,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
     }
-    if (needsMainnet) {
+    if (live !== false && needsMainnet) {
       try {
         const mainnetEndTs = eTs;
         const recentStart = Math.max(mainnetStartTs, mainnetEndTs - LIVE_WINDOW_SEC);
         if (isLatestQuery && mainnetStartTs < recentStart - 1) {
           const historicalRows = await fetchRangeRowsMainnet(mainnetStartTs, recentStart - 1, false);
           resultRows = mergeRows(resultRows, historicalRows);
+          await cacheRowsByDay(historicalRows);
         }
         const mainnetRows = await fetchRangeRowsMainnet(recentStart, mainnetEndTs, isLatestQuery);
         resultRows = mergeRows(resultRows, mainnetRows);
+        await cacheRowsByDay(mainnetRows);
       } catch (err: any) {
         console.error('fetchRangeRowsMainnet failed', err?.message || String(err));
         let fallbackRows: Row[] = [];

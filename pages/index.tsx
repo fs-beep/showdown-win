@@ -70,6 +70,19 @@ function fmtDisplayDate(dateStr?: string): string {
   const year2 = String(p.y).slice(-2);
   return `${month} ${p.d} ${year2}`;
 }
+function parseStartedAtTsClient(str?: string): number | null {
+  if (!str) return null;
+  const s = str.trim();
+  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\s*(?:UTC|Z))?$/i.exec(s);
+  if (m) {
+    const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+    return Math.floor(ms / 1000);
+  }
+  const iso = s.replace(' ', 'T').replace(/\s*UTC$/i, 'Z');
+  const ms = Date.parse(iso);
+  if (isNaN(ms)) return null;
+  return Math.floor(ms / 1000);
+}
 function toStartOfDayEpoch(dateStr?: string): number | undefined {
   const p = parseDateFlexible(dateStr);
   if (!p) return undefined;
@@ -97,6 +110,18 @@ function ratioToFloat(n: bigint, d: bigint) {
   if (d === 0n) return 0;
   const scaled = (n * 10000n) / d;
   return Number(scaled) / 10000;
+}
+function mergeRowsClient(a: Row[], b: Row[]) {
+  const map = new Map<string, Row>();
+  for (const r of a) {
+    const key = typeof (r as any).logIndex === 'number' ? `${r.txHash}:${(r as any).logIndex}` : (r.gameId ? `gid:${r.gameId}` : `${r.txHash}:${r.blockNumber}`);
+    map.set(key, r);
+  }
+  for (const r of b) {
+    const key = typeof (r as any).logIndex === 'number' ? `${r.txHash}:${(r as any).logIndex}` : (r.gameId ? `gid:${r.gameId}` : `${r.txHash}:${r.blockNumber}`);
+    map.set(key, r);
+  }
+  return Array.from(map.values());
 }
 function shortAddr(addr?: string) {
   if (!addr) return '';
@@ -137,12 +162,10 @@ export default function Home() {
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [lastQueryLive, setLastQueryLive] = useState<boolean>(false);
+  const [dataPhase, setDataPhase] = useState<'idle' | 'cached' | 'live'>('idle');
 
-  const showMoneyTables = useMemo(() => {
-    const q = router.query;
-    const v = typeof q.money === 'string' ? q.money : Array.isArray(q.money) ? q.money[0] : '';
-    return v === '1' || v === 'true' || v === 'yes';
-  }, [router.query]);
+  const showMoneyTables = true;
 
   useEffect(() => {
     try {
@@ -255,6 +278,15 @@ export default function Home() {
 
     return { wins, losses, total, winrate, dominantClass, dominantClassPct };
   }, [statRows, player]);
+
+  const cachedThrough = useMemo(() => {
+    let max = 0;
+    for (const r of rows) {
+      const ts = parseStartedAtTsClient(r.startedAt);
+      if (ts && ts > max) max = ts;
+    }
+    return max ? new Date(max * 1000).toLocaleString() : null;
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -728,7 +760,7 @@ export default function Home() {
   };
 
   const run = async () => {
-    setError(null); setWarning(null); setRows([]); setLoading(true);
+    setError(null); setWarning(null); setRows([]); setLoading(true); setDataPhase('idle');
     try {
       // Use exact balance patch timestamp if start date matches
       const startTs = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
@@ -736,6 +768,8 @@ export default function Home() {
         startTs,
         endTs: toEndOfDayEpoch(endDate),
         wantAgg: true,
+        live: false,
+        cacheOnly: true,
       };
       const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -756,9 +790,56 @@ export default function Home() {
       try { localStorage.setItem('recentPlayers', JSON.stringify(next)); } catch {}
       setAggByClass(j.aggByClass || null);
       setAggUpdatedAt(j.aggLastUpdate || null);
+      setLastQueryLive(false);
+      setDataPhase('cached');
       if (!usdmLoading && usdmRows.length === 0) {
         void fetchUsdmTop();
       }
+      const todayStart = new Date();
+      const todayDayStart = Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth(), todayStart.getUTCDate()) / 1000;
+      const endTs = toEndOfDayEpoch(endDate);
+      const needsToday = endTs === undefined || endTs >= todayDayStart;
+      if (needsToday) {
+        void fetchLatest(true);
+      }
+    } catch (e:any) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchLatest = async (mergeOnly = false) => {
+    setError(null); setWarning(null); setLoading(true);
+    try {
+      const baseStart = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
+      const now = new Date();
+      const todayStartTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+      const startTs = Math.max(baseStart || 0, todayStartTs);
+      const body = {
+        startTs,
+        endTs: toEndOfDayEpoch(endDate),
+        wantAgg: true,
+        live: true,
+        cacheOnly: false,
+      };
+      const res = await fetch('/api/eth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const j: ApiResponse = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Unknown error');
+      if (j.warning) setWarning(j.warning);
+      const normalized = (j.rows || []).map(r => ({
+        ...r,
+        winningPlayer: stripPlayerSuffix(r.winningPlayer),
+        losingPlayer: stripPlayerSuffix(r.losingPlayer),
+      }));
+      const merged = mergeOnly ? mergeRowsClient(rows, normalized) : normalized;
+      setRows(merged);
+      if (!mergeOnly) {
+        setAggByClass(j.aggByClass || null);
+        setAggUpdatedAt(j.aggLastUpdate || null);
+      }
+      setLastQueryLive(true);
+      setDataPhase('live');
     } catch (e:any) {
       setError(e?.message || String(e));
     } finally {
@@ -771,7 +852,7 @@ export default function Home() {
     if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
     setUsdmLoading(true); setUsdmError(null);
     try {
-      const res = await fetch('/api/usdm');
+      const res = await fetch(force ? '/api/usdm?fresh=1' : '/api/usdm');
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
@@ -973,6 +1054,21 @@ export default function Home() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
               {loading ? "Fetching..." : "Compute Winrate"}
             </button>
+            <button
+              onClick={() => fetchLatest(false)}
+              disabled={loading || rows.length === 0}
+              className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-4 w-4"/>}
+              Fetch latest (last 10 min)
+            </button>
+            {rows.length > 0 && (
+              <div className="mt-2 text-xs text-gray-500">
+                {dataPhase === 'cached' && `Showing cached data through ${cachedThrough || 'latest cached block'}. Fetching today now…`}
+                {dataPhase === 'live' && `Updated with today’s matches. Cached through ${cachedThrough || 'latest cached block'}.`}
+                {dataPhase === 'idle' && `Showing cached data through ${cachedThrough || 'latest cached block'}.`}
+              </div>
+            )}
             <button
               onClick={shareSnapshot}
               disabled={shareLoading || rows.length === 0}
@@ -1382,7 +1478,7 @@ export default function Home() {
             {/* Top USDm profits */}
             <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-100">Top 10 USDm profits (all-time)</div>
                 <a
                   className="text-xs text-blue-600 underline"
                   href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
@@ -1395,6 +1491,16 @@ export default function Home() {
               <div className="mt-1 text-[10px] text-gray-500">
                 Net = wins - losses (USDm transfers for game settlement). {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
               </div>
+          <div className="mt-2">
+            <button
+              onClick={() => fetchUsdmTop(true)}
+              disabled={usdmLoading}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs"
+            >
+              {usdmLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
+              Refresh USDm
+            </button>
+          </div>
               {usdmError && (
                 <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
                   {usdmError}
