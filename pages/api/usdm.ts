@@ -7,8 +7,12 @@ const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_SPAN = 2000;
-const CONCURRENCY = 3;
+const MAX_SPAN = 5000;
+const CONCURRENCY = 5;
+const START_BLOCK_LOOKBACK = 200_000;
+const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
+  ? Number(process.env.USDM_START_BLOCK)
+  : null;
 const RPC_ATTEMPTS = 5;
 const RPC_BASE_DELAY_MS = 800;
 
@@ -208,7 +212,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     try {
       const latest = await getLatestBlock();
-      const fromBlock = Math.max(state.lastBlock + 1, 0);
+      let fromBlock = Math.max(state.lastBlock + 1, 0);
+      if (state.lastBlock === 0 && fromBlock === 1) {
+        if (USDM_START_BLOCK !== null) {
+          fromBlock = USDM_START_BLOCK;
+        } else {
+          fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
+          kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
+            .filter(Boolean)
+            .join(' | ');
+        }
+      }
       const toBlock = latest.num;
       if (fromBlock <= toBlock) {
         const logs = await getLogsChunked(fromBlock, toBlock);
