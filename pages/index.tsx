@@ -1082,18 +1082,6 @@ export default function Home() {
                 {dataPhase === 'idle' && `Showing cached data through ${cachedThroughLabel}.`}
               </div>
             )}
-            <button
-              onClick={shareSnapshot}
-              disabled={shareLoading || rows.length === 0}
-              className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
-              title="Copy a shareable snapshot link"
-            >
-              {shareLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
-              Share snapshot
-            </button>
-            {shareStatus && (
-              <div className="mt-2 text-xs text-gray-500">{shareStatus}</div>
-            )}
             {error && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700 flex items-start gap-2">
                 <ShieldAlert className="h-4 w-4 mt-0.5"/>
