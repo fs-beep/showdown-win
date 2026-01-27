@@ -1215,7 +1215,7 @@ export default function Home() {
             <a href="#global-class-stats" className="rounded-full border border-cyan-200 bg-cyan-50/50 px-3 py-1.5 text-cyan-700 hover:bg-cyan-100 hover:scale-105 transition-all dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:hover:bg-cyan-800/40">🌍 Global stats</a>
             <a href="#top-players" className="rounded-full border border-amber-200 bg-amber-50/50 px-3 py-1.5 text-amber-700 hover:bg-amber-100 hover:scale-105 transition-all dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-800/40">🏆 Top players</a>
             <a href="#top-by-class" className="rounded-full border border-orange-200 bg-orange-50/50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 hover:scale-105 transition-all dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-800/40">🎯 Best by class</a>
-            <a href="#all-decoded" className="rounded-full border border-gray-200 bg-gray-50/50 px-3 py-1.5 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all dark:border-gray-600 dark:bg-gray-700/30 dark:text-gray-300 dark:hover:bg-gray-600/40">📜 All matches</a>
+            <a href="#all-decoded" className="rounded-full border border-gray-200 bg-gray-50/50 px-3 py-1.5 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all dark:border-gray-600 dark:bg-gray-700/30 dark:text-gray-300 dark:hover:bg-gray-600/40">📜 All games</a>
             {showMoneyTables && (
               <a href="#top-usdm-profits" className="rounded-full border border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 text-emerald-700 font-semibold hover:from-emerald-100 hover:to-green-100 hover:scale-105 transition-all dark:border-emerald-600 dark:from-emerald-900/40 dark:to-green-900/30 dark:text-emerald-300">💰 Top Earners</a>
             )}
@@ -1872,7 +1872,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <span className="text-lg">📜</span>
-              All Decoded Matches
+              All Games
               <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{rows.length} total</span>
             </div>
             {rows.length > 0 && (
