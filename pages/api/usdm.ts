@@ -8,11 +8,7 @@ const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 const MAX_SPAN = 10000;
 const CONCURRENCY = 2;
 const LOG_BATCH_DELAY_MS = 100;
-const MAINNET_CHAIN_ID = 4326;
-const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
-const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
-const isMainnet = chainId === MAINNET_CHAIN_ID || chainName === 'megaeth';
-const DEFAULT_USDM_START_BLOCK = 5721028;
+const USDM_START_BLOCK = 5721028;
 const RPC_ATTEMPTS = 4;
 const RPC_BASE_DELAY_MS = 600;
 const RPC_JITTER_MS = 200;
@@ -34,8 +30,8 @@ type CachedData = {
   updatedAt: number;
 };
 
-const STATE_KEY = 'usdm:state:v5';
-const CACHE_KEY = 'usdm:cache:v5';
+const STATE_KEY = 'usdm:state:v6';
+const CACHE_KEY = 'usdm:cache:v6';
 
 let memCache: CachedData | null = null;
 
@@ -220,7 +216,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const latest = await getLatestBlock();
-    let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : (isMainnet ? DEFAULT_USDM_START_BLOCK : Math.max(latest.num - 50000, 0));
+    let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : USDM_START_BLOCK;
     const toBlock = latest.num;
 
     if (fromBlock <= toBlock) {
