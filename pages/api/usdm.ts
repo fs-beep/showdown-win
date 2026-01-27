@@ -10,10 +10,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 5000;
 const CONCURRENCY = 5;
 const START_BLOCK_LOOKBACK = 200_000;
+const DEFAULT_USDM_START_BLOCK = 6141480;
 const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
 const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
   ? Number(process.env.USDM_START_BLOCK)
-  : null;
+  : DEFAULT_USDM_START_BLOCK;
 const RPC_ATTEMPTS = 5;
 const RPC_BASE_DELAY_MS = 800;
 
