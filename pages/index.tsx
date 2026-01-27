@@ -1327,13 +1327,6 @@ export default function Home() {
           {/* Show selected dual-class and its matchups */}
           {selectedDualClass && classVsClass.matchups[selectedDualClass] && (
             <div className="mt-5">
-              <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-                <div className="text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Showing win rates for </span>
-                  <span className="font-bold text-blue-700 dark:text-blue-300">{selectedDualClass}</span>
-                  <span className="text-gray-600 dark:text-gray-400"> vs opponents</span>
-                </div>
-              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs md:text-sm">
                   <thead>
