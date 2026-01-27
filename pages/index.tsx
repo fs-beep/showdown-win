@@ -1027,15 +1027,6 @@ export default function Home() {
               )}
             </div>
 
-            <label className="mt-3 block text-xs text-gray-500">Compare vs (optional)</label>
-            <input
-              className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-              value={player2}
-              onChange={e=>setPlayer2(e.target.value)}
-              placeholder="opponent player"
-              list="player-suggestions"
-            />
-
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500">Start date</label>
@@ -1213,23 +1204,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-        {/* Top classes chips removed per request */}
-        {player2.trim() && stats2 && (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm">
-              <div className="text-xs uppercase tracking-wide text-gray-500">{player2} — Wins/Losses</div>
-              <div className="mt-1 text-2xl font-semibold">{stats2.wins}/{stats2.losses}</div>
-              <div className="text-xs text-gray-500">WR {(stats2.winrate*100).toFixed(1)}%</div>
-            </div>
-            {h2h && (
-              <div className="rounded-2xl bg-white dark:bg-gray-800 p-4 text-center shadow-sm md:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-gray-500">Head‑to‑Head vs {player2}</div>
-                <div className="mt-1 text-2xl font-semibold">{player} {h2h.p1Wins} – {h2h.p2Wins} {player2}</div>
-                <div className="text-xs text-gray-500">{h2h.total} matches</div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Tables navigation */}
         <div className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
