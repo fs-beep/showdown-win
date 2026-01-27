@@ -967,47 +967,43 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 text-gray-900 dark:from-gray-900 dark:via-blue-950/20 dark:to-purple-950/10 dark:text-gray-100`}>
+    <div className={`min-h-screen bg-[#0a0a0a] text-gray-100`}>
       <Head><title>Showdown Meta Tracker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <div className="mb-4 rounded-xl bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900 text-white px-4 py-2 text-sm shadow-lg border border-purple-500/20">
-          <span className="text-purple-300">✨</span> Built by{' '}
-          <a className="underline font-bold text-purple-300 hover:text-purple-200" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
-          <span className="ml-2 text-gray-400">|</span>
-          <span className="ml-2 text-xs text-gray-400">Find alpha, track the meta, win more 🎯</span>
+        <div className="mb-4 rounded-lg bg-[#1a1a1a] text-gray-300 px-4 py-2 text-sm border border-gray-800">
+          Built by{' '}
+          <a className="text-red-500 hover:text-red-400 font-semibold" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
+          <span className="mx-2 text-gray-600">|</span>
+          <span className="text-xs text-gray-500">Track the meta, find alpha</span>
         </div>
 
           <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-12 w-12 rounded-xl shadow-lg ring-2 ring-purple-500/30"/>
+            <img src={SHOWDOWN_LOGO} alt="Showdown logo" className="h-10 w-10 rounded"/>
             <div>
-              <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-black tracking-tight bg-gradient-to-r from-gray-900 via-purple-700 to-blue-700 dark:from-white dark:via-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
-                Showdown Meta Tracker
+              <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold tracking-wide text-red-500 uppercase">
+                Showdown
               </motion.h1>
-              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                  Live
-                </span>
-                <span>On-chain game analytics</span>
+              <div className="text-xs text-gray-500 uppercase tracking-widest">
+                Meta Tracker
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <a
               href={PLAY_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 text-xs font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+              className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 text-sm font-bold uppercase tracking-wide transition-colors"
             >
-              <Play className="h-3 w-3"/> Play Now
+              Play Now
             </a>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-yellow-400"/> : <Moon className="h-4 w-4 text-purple-600"/>}
+              {theme === 'dark' ? <Sun className="h-5 w-5"/> : <Moon className="h-5 w-5"/>}
               {theme === 'dark' ? 'Light' : 'Dark'}
             </button>
           </div>
@@ -1021,9 +1017,9 @@ export default function Home() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white dark:from-gray-800 dark:via-blue-900/10 dark:to-gray-800 p-4 shadow-lg md:sticky md:top-4 z-20 backdrop-blur-sm border border-blue-200/50 dark:border-blue-800/30">
-            <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-blue-400">
-              <span className="text-lg">🔍</span> Search & Filters
+          <div className="rounded-lg bg-[#1a1a1a] p-4 md:sticky md:top-4 z-20 border border-gray-800">
+            <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+              Filters
             </div>
             <label className="mt-3 block text-xs text-gray-500">Player Name</label>
             <div className="relative">
@@ -1093,17 +1089,17 @@ export default function Home() {
 
             {/* Removed class and end reason filters per request */}
 
-            <button onClick={() => run()} disabled={loading} className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 px-4 py-3 text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 disabled:opacity-60">
-              {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : <span className="text-lg">🚀</span>}
-              {loading ? "Analyzing..." : "Analyze Matches"}
+            <button onClick={() => run()} disabled={loading} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 px-4 py-3 text-white font-bold uppercase tracking-wide transition-colors disabled:opacity-60">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Play className="h-4 w-4"/>}
+              {loading ? "Loading..." : "Analyze"}
             </button>
             <button
               onClick={() => fetchLatest()}
               disabled={loading || rows.length === 0}
-              className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5 text-sm font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-60 transition-all"
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-[#252525] hover:bg-[#333] px-4 py-2.5 text-sm text-gray-300 hover:text-white transition-colors disabled:opacity-60"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <span>⚡</span>}
-              {loading ? 'Updating...' : 'Fetch Latest'}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-4 w-4"/>}
+              {loading ? 'Updating...' : 'Refresh'}
             </button>
             {rows.length > 0 && (
               <div className="mt-2 text-xs text-gray-500">
@@ -1204,38 +1200,37 @@ export default function Home() {
         )}
 
         {/* Tables navigation */}
-        <div className="mt-6 rounded-2xl border border-purple-200/50 bg-gradient-to-r from-white/80 via-purple-50/30 to-white/80 p-4 shadow-lg backdrop-blur dark:border-purple-700/30 dark:from-gray-800/80 dark:via-purple-900/20 dark:to-gray-800/80">
-          <div className="text-xs font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 flex items-center gap-2">
-            <span>🧭</span> Quick Navigation
+        <div className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+          <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+            Jump to
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <a href="#player-class-stats" className="rounded-full border border-blue-200 bg-blue-50/50 px-3 py-1.5 text-blue-700 hover:bg-blue-100 hover:scale-105 transition-all dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-800/40">📊 Player stats</a>
-            <a href="#class-vs-class" className="rounded-full border border-purple-200 bg-purple-50/50 px-3 py-1.5 text-purple-700 hover:bg-purple-100 hover:scale-105 transition-all dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-800/40">⚔️ Class vs Class</a>
-            <a href="#player-matches" className="rounded-full border border-indigo-200 bg-indigo-50/50 px-3 py-1.5 text-indigo-700 hover:bg-indigo-100 hover:scale-105 transition-all dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-800/40">🎮 Matches</a>
-            <a href="#global-class-stats" className="rounded-full border border-cyan-200 bg-cyan-50/50 px-3 py-1.5 text-cyan-700 hover:bg-cyan-100 hover:scale-105 transition-all dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:hover:bg-cyan-800/40">🌍 Global stats</a>
-            <a href="#top-players" className="rounded-full border border-amber-200 bg-amber-50/50 px-3 py-1.5 text-amber-700 hover:bg-amber-100 hover:scale-105 transition-all dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-800/40">🏆 Top players</a>
-            <a href="#top-by-class" className="rounded-full border border-orange-200 bg-orange-50/50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 hover:scale-105 transition-all dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-800/40">🎯 Best by class</a>
-            <a href="#all-decoded" className="rounded-full border border-gray-200 bg-gray-50/50 px-3 py-1.5 text-gray-700 hover:bg-gray-100 hover:scale-105 transition-all dark:border-gray-600 dark:bg-gray-700/30 dark:text-gray-300 dark:hover:bg-gray-600/40">📜 All games</a>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <a href="#player-class-stats" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Player stats</a>
+            <a href="#class-vs-class" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Class vs Class</a>
+            <a href="#player-matches" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Matches</a>
+            <a href="#global-class-stats" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Global stats</a>
+            <a href="#top-players" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Top players</a>
+            <a href="#top-by-class" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Best by class</a>
+            <a href="#all-decoded" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">All games</a>
             {showMoneyTables && (
-              <a href="#top-usdm-profits" className="rounded-full border border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 text-emerald-700 font-semibold hover:from-emerald-100 hover:to-green-100 hover:scale-105 transition-all dark:border-emerald-600 dark:from-emerald-900/40 dark:to-green-900/30 dark:text-emerald-300">💰 Top Earners</a>
+              <a href="#top-usdm-profits" className="px-3 py-1.5 bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 border border-red-800/50 transition-colors">Top Earners</a>
             )}
           </div>
         </div>
 
         {/* Player-focused tables */}
         <details id="player-section" className="mt-6" open>
-          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-blue-600 dark:text-blue-400">
-            <span className="flex items-center gap-2">🎮 Player Analysis</span>
-            <span className="h-px flex-1 bg-gradient-to-r from-blue-200 via-purple-200 to-transparent dark:from-blue-700 dark:via-purple-700 dark:to-transparent" />
-            <span className="text-[11px] normal-case font-normal px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">for {player || 'selected player'}</span>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-gray-400">
+            <span>Player Analysis</span>
+            <span className="h-px flex-1 bg-gray-800" />
+            <span className="text-[11px] normal-case font-normal text-red-500">{player || 'select player'}</span>
           </summary>
           <div className="mt-4">
         {/* Per-class performance (player specific) */}
-        <div id="player-class-stats" className="rounded-2xl bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-900/10 p-4 shadow-lg border border-blue-100 dark:border-blue-900/30">
+        <div id="player-class-stats" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">📊</span>
-              Per‑Class Performance for <span className="text-blue-600 dark:text-blue-400">{player || '—'}</span>
+            <div className="text-sm font-semibold text-gray-200">
+              Class Performance — <span className="text-red-500">{player || '—'}</span>
             </div>
             {classStats.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1283,11 +1278,10 @@ export default function Home() {
         </div>
 
         {/* Class-vs-Class matchups with base class selector */}
-        <div id="class-vs-class" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-900/10 p-4 shadow-lg border border-purple-100 dark:border-purple-900/30">
+        <div id="class-vs-class" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">⚔️</span>
-              Class vs Class — Win rates
+            <div className="text-sm font-semibold text-gray-200">
+              Class vs Class — Win Rates
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <input type="checkbox" className="h-4 w-4 rounded" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
@@ -1421,12 +1415,11 @@ export default function Home() {
           </div>
 
         {/* Player-specific matches */}
-        <div id="player-matches" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-900/10 p-4 shadow-lg border border-indigo-100 dark:border-indigo-900/30">
+        <div id="player-matches" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">🎮</span>
-              Matches for <span className="text-indigo-600 dark:text-indigo-400">{player || '—'}</span>
-              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">{filtered.length} games</span>
+            <div className="text-sm font-semibold text-gray-200">
+              Matches — <span className="text-red-500">{player || '—'}</span>
+              <span className="ml-2 text-xs text-gray-500">({filtered.length})</span>
             </div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1524,40 +1517,33 @@ export default function Home() {
         {showMoneyTables && (
           <>
             {/* Top USDm profits */}
-            <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-gradient-to-br from-white via-emerald-50/30 to-white dark:from-gray-800 dark:via-emerald-900/10 dark:to-gray-800 p-5 shadow-xl border border-emerald-200/50 dark:border-emerald-800/30">
+            <div id="top-usdm-profits" className="mt-6 rounded-lg bg-[#1a1a1a] p-5 border border-gray-800">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <div className="text-xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <span className="text-3xl" style={{filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))'}}>💰</span>
-                    <span className="bg-gradient-to-r from-gray-900 via-emerald-700 to-gray-900 dark:from-white dark:via-emerald-400 dark:to-white bg-clip-text text-transparent">
-                      Top Earners
-                    </span>
-                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">all-time</span>
+                  <div className="text-lg font-bold text-gray-100">
+                    Top Earners
+                    <span className="ml-2 text-xs font-normal text-gray-500">all-time</span>
                   </div>
-                  <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                      Live on-chain
-                    </span>
-                    {usdmUpdatedAt && <span className="text-[10px]">Updated {new Date(usdmUpdatedAt).toLocaleString()}</span>}
+                  <div className="mt-1 text-xs text-gray-500">
+                    {usdmUpdatedAt && <span>Updated {new Date(usdmUpdatedAt).toLocaleString()}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="text-right p-3 rounded-xl bg-gradient-to-br from-emerald-100/80 to-green-100/60 dark:from-emerald-900/30 dark:to-green-900/20 border border-emerald-200/50 dark:border-emerald-700/30">
-                    <div className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1 justify-end">
-                      <span>💎</span> Total Wagered
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-500">
+                      Total Wagered
                     </div>
-                    <div className="text-4xl font-black bg-gradient-to-r from-emerald-600 via-green-500 to-teal-500 dark:from-emerald-400 dark:via-green-400 dark:to-teal-400 bg-clip-text text-transparent" style={{textShadow: '0 2px 10px rgba(16, 185, 129, 0.2)'}}>
+                    <div className="text-3xl font-bold text-red-500">
                       {formatUsdm(usdmTotalVolume)}
                     </div>
                   </div>
                   <a
-                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                    className="text-xs text-gray-500 hover:text-gray-300"
                     href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <span>🔗</span> contract
+                    contract
                   </a>
                 </div>
               </div>
@@ -1565,9 +1551,9 @@ export default function Home() {
             <button
               onClick={() => fetchUsdmTop(true)}
               disabled={usdmLoading}
-              className="inline-flex items-center gap-2 rounded-full border border-emerald-300 dark:border-emerald-700 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/20 px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:shadow-md hover:scale-105 transition-all duration-200 disabled:opacity-50"
+              className="inline-flex items-center gap-2 bg-[#252525] hover:bg-[#333] px-4 py-2 text-xs text-gray-300 hover:text-white transition-colors disabled:opacity-50"
             >
-              {usdmLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <span>🔄</span>}
+              {usdmLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
               {usdmLoading ? 'Syncing...' : 'Refresh'}
             </button>
           </div>
@@ -1584,77 +1570,46 @@ export default function Home() {
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-left text-xs md:text-sm">
                   <thead>
-                    <tr className="border-b-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-gray-50 via-emerald-50/30 to-gray-50 dark:from-gray-700 dark:via-emerald-900/20 dark:to-gray-700">
-                      <th className="p-2 w-10 text-center">#</th>
-                      <th className="p-2">Player</th>
-                      <th className="p-2 text-emerald-700 dark:text-emerald-400">💵 Won</th>
-                      <th className="p-2 text-gray-400">Lost</th>
-                      <th className="p-2 text-emerald-700 dark:text-emerald-400">✨ Net</th>
-                      <th className="p-2">Activity</th>
+                    <tr className="border-b border-gray-700 bg-[#252525] text-gray-400 text-xs uppercase tracking-wide">
+                      <th className="p-3 w-10 text-center">#</th>
+                      <th className="p-3">Player</th>
+                      <th className="p-3">Won</th>
+                      <th className="p-3">Lost</th>
+                      <th className="p-3 text-red-500">Net</th>
+                      <th className="p-3">Games</th>
                     </tr>
                   </thead>
                   <tbody>
                     {usdmRows.map((r, i) => {
                       const netBi = BigInt(r.net || '0');
                       const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
-                      const wonAbs = Number(BigInt(r.won || '0') / 1000000000000000000n);
-                      const lostAbs = Number(BigInt(r.lost || '0') / 1000000000000000000n);
-                      const isTopWinner = netBi > 0n && netAbs >= 100;
-                      const isBigWinner = netBi > 0n && netAbs >= 1000;
-                      const isHugeWinner = netBi > 0n && netAbs >= 10000;
-                      const isHotPlayer = r.txs >= 20;
-                      const isActivePlayer = r.txs >= 10;
-                      // Calculate win rate (simplified: won / (won + lost))
-                      const totalPlayed = wonAbs + lostAbs;
-                      const winRate = totalPlayed > 0 ? Math.round((wonAbs / totalPlayed) * 100) : 0;
                       const isProfitable = netBi > 0n;
-                      // Row styling based on performance
-                      const rowClass = isHugeWinner
-                        ? 'bg-gradient-to-r from-yellow-100/80 via-emerald-100/60 to-yellow-100/80 dark:from-yellow-900/30 dark:via-emerald-900/25 dark:to-yellow-900/30 border-l-4 border-l-yellow-400'
-                        : isBigWinner
-                        ? 'bg-gradient-to-r from-emerald-100/60 to-green-100/40 dark:from-emerald-900/20 dark:to-green-900/15 border-l-4 border-l-emerald-400'
-                        : isTopWinner
-                        ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-l-2 border-l-emerald-300'
-                        : isProfitable
-                        ? 'border-l-2 border-l-emerald-200/50'
-                        : '';
-                      // Rank display with animations for top 3
-                      const rankDisplay = i === 0 && netBi > 0n 
-                        ? <span className="text-3xl drop-shadow-lg" style={{filter: 'drop-shadow(0 0 8px rgba(234, 179, 8, 0.6))'}}>🏆</span>
-                        : i === 1 && netBi > 0n 
-                        ? <span className="text-2xl drop-shadow-md">🥈</span>
-                        : i === 2 && netBi > 0n 
-                        ? <span className="text-xl">🥉</span>
-                        : <span className="text-gray-400 font-medium">{i + 1}</span>;
+                      // Net styling - most important column
+                      const netClass = isProfitable
+                        ? netAbs >= 1000 ? 'text-green-400 text-2xl font-bold'
+                        : netAbs >= 100 ? 'text-green-400 text-xl font-bold'
+                        : netAbs >= 10 ? 'text-green-400 text-lg font-semibold'
+                        : 'text-green-400 font-semibold'
+                        : netBi < 0n ? 'text-gray-500' : 'text-gray-400';
                       return (
-                        <tr key={r.player + i} className={`border-b dark:border-gray-700 hover:scale-[1.01] hover:shadow-md transition-all duration-200 ${rowClass}`}>
-                          <td className="p-2 tabular-nums text-center">
-                            {rankDisplay}
+                        <tr key={r.player + i} className="border-b border-gray-800 hover:bg-[#252525] transition-colors">
+                          <td className="p-3 tabular-nums text-center text-gray-500">
+                            {i + 1}
                           </td>
-                          <td className="p-2 font-mono">
-                            <div className="flex items-center gap-1">
-                              <a className={`underline ${isBigWinner ? 'text-emerald-600 dark:text-emerald-400 font-bold' : isTopWinner ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-blue-600 dark:text-blue-400'}`} href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                                {shortAddr(r.player)}
-                              </a>
-                              {isHotPlayer && <span title="Hot player! 20+ games">🔥</span>}
-                              {isProfitable && winRate >= 60 && <span title={`${winRate}% win rate`}>⭐</span>}
-                            </div>
+                          <td className="p-3 font-mono">
+                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                              {shortAddr(r.player)}
+                            </a>
                           </td>
-                          <td className={`p-2 tabular-nums ${wonAbs >= 1000 ? 'text-emerald-500 dark:text-emerald-400 font-black text-xl' : wonAbs >= 100 ? 'text-emerald-500 dark:text-emerald-400 font-bold text-lg' : wonAbs >= 10 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-emerald-600/70 dark:text-emerald-400/70'}`}>
+                          <td className="p-3 tabular-nums text-gray-400">
                             {formatUsdm(r.won)}
                           </td>
-                          <td className="p-2 tabular-nums text-gray-400/80 dark:text-gray-500/80 text-sm">{formatUsdm(r.lost)}</td>
-                          <td className={`p-2 tabular-nums ${usdmNetClass(r.net)}`}>
-                            <span className="flex items-center gap-1">
-                              {formatUsdm(r.net, true)}
-                              {isHugeWinner && <span>🚀</span>}
-                            </span>
+                          <td className="p-3 tabular-nums text-gray-600">{formatUsdm(r.lost)}</td>
+                          <td className={`p-3 tabular-nums ${netClass}`}>
+                            {formatUsdm(r.net, true)}
                           </td>
-                          <td className="p-2 tabular-nums">
-                            <div className="flex items-center gap-1">
-                              <span className={isHotPlayer ? 'text-orange-500 font-bold' : isActivePlayer ? 'text-blue-500' : 'text-gray-400'}>{r.txs}</span>
-                              <span className="text-[10px] text-gray-400">games</span>
-                            </div>
+                          <td className="p-3 tabular-nums text-gray-500">
+                            {r.txs}
                           </td>
                         </tr>
                       );
@@ -1680,20 +1635,19 @@ export default function Home() {
 
         {/* Global tables */}
         <details id="global-section" className="mt-10" open>
-          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-cyan-600 dark:text-cyan-400">
-            <span className="flex items-center gap-2">🌍 Global Meta Analysis</span>
-            <span className="h-px flex-1 bg-gradient-to-r from-cyan-200 via-blue-200 to-transparent dark:from-cyan-700 dark:via-blue-700 dark:to-transparent" />
-            <span className="text-[11px] normal-case font-normal px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400">{rangeLabel}</span>
+          <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-gray-400">
+            <span>Global Meta</span>
+            <span className="h-px flex-1 bg-gray-800" />
+            <span className="text-[11px] normal-case font-normal text-gray-500">{rangeLabel}</span>
           </summary>
           <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
-        <div id="global-class-stats" className="rounded-2xl bg-gradient-to-br from-white to-cyan-50/30 dark:from-gray-800 dark:to-cyan-900/10 p-4 shadow-lg border border-cyan-100 dark:border-cyan-900/30">
+        <div id="global-class-stats" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">🌍</span>
-              Per‑Class Performance — All Matches
-              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400">{rangeLabel}</span>
+            <div className="text-sm font-semibold text-gray-200">
+              Class Performance — All Matches
+              <span className="ml-2 text-xs text-gray-500">({rangeLabel})</span>
             </div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1742,12 +1696,11 @@ export default function Home() {
         </div>
 
         {/* Top Players by Win Rate (min 15 games) */}
-        <div id="top-players" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800 dark:to-amber-900/10 p-4 shadow-lg border border-amber-100 dark:border-amber-900/30">
+        <div id="top-players" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">🏆</span>
-              Top Players by Win Rate
-              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">min 30 games</span>
+            <div className="text-sm font-semibold text-gray-200">
+              Top Players
+              <span className="ml-2 text-xs text-gray-500">(min 30 games)</span>
             </div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1797,12 +1750,11 @@ export default function Home() {
         </div>
 
         {/* Top Player by Class */}
-        <div id="top-by-class" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-orange-50/30 dark:from-gray-800 dark:to-orange-900/10 p-4 shadow-lg border border-orange-100 dark:border-orange-900/30">
+        <div id="top-by-class" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">🎯</span>
-              Top Player by Class
-              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400">min 20 games</span>
+            <div className="text-sm font-semibold text-gray-200">
+              Best Player by Class
+              <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
             </div>
             {topPlayersByClass.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1861,12 +1813,11 @@ export default function Home() {
         </div>
 
         {/* All decoded list (newest first) */}
-        <div id="all-decoded" className="mt-6 rounded-2xl bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900/30 p-4 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div id="all-decoded" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <span className="text-lg">📜</span>
+            <div className="text-sm font-semibold text-gray-200">
               All Games
-              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{rows.length} total</span>
+              <span className="ml-2 text-xs text-gray-500">({rows.length})</span>
             </div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
