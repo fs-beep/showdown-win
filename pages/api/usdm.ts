@@ -7,8 +7,9 @@ const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_SPAN = 5000;
-const CONCURRENCY = 5;
+const MAX_SPAN = 1000;
+const CONCURRENCY = 2;
+const LOG_BATCH_DELAY_MS = 150;
 const START_BLOCK_LOOKBACK = 200_000;
 const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
@@ -58,7 +59,10 @@ async function rpc(body: any) {
   let lastErr: any = null;
   for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
     try {
-      const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20_000);
+      const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+      clearTimeout(timeout);
       if (res.status === 429 || res.status === 503) {
         lastErr = new Error(`RPC HTTP ${res.status}`);
         const wait = Math.round(RPC_BASE_DELAY_MS * Math.pow(1.7, i));
@@ -125,6 +129,7 @@ async function getLogsChunked(fromBlock: number, toBlock: number) {
     for (const p of parts) {
       all.push(...(p?.result || []));
     }
+    if (LOG_BATCH_DELAY_MS) await new Promise(r => setTimeout(r, LOG_BATCH_DELAY_MS));
   }
   return all;
 }
