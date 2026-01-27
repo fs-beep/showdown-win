@@ -347,7 +347,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await kv.set(RESULTS_CACHE_KEY, cached);
       } catch {}
     }
-    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume, warning: kvWarning || undefined });
+    // Tell frontend if there's more to sync (for auto-retry)
+    const needsMoreSync = state.lastBlock < (await getLatestBlock().catch(() => ({ num: state.lastBlock }))).num - 100;
+    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume, warning: kvWarning || undefined, needsMoreSync });
   } catch (e: any) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
