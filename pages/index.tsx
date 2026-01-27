@@ -287,6 +287,16 @@ export default function Home() {
     }
     return max ? new Date(max * 1000).toLocaleString() : null;
   }, [rows]);
+  const cachedThroughLabel = useMemo(() => {
+    const endTs = toEndOfDayEpoch(endDate);
+    const now = new Date();
+    const todayStartTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+    const yesterday = new Date((todayStartTs - 1) * 1000);
+    if (!lastQueryLive && (!endTs || endTs >= todayStartTs)) {
+      return yesterday.toLocaleString();
+    }
+    return cachedThrough || 'latest cached block';
+  }, [cachedThrough, endDate, lastQueryLive]);
 
   const filtered = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -1060,13 +1070,13 @@ export default function Home() {
               className="mt-2 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-4 w-4"/>}
-              Fetch latest (last 10 min)
+              Fetch today (live)
             </button>
             {rows.length > 0 && (
               <div className="mt-2 text-xs text-gray-500">
-                {dataPhase === 'cached' && `Showing cached data through ${cachedThrough || 'latest cached block'}. Fetching today now…`}
-                {dataPhase === 'live' && `Updated with today’s matches. Cached through ${cachedThrough || 'latest cached block'}.`}
-                {dataPhase === 'idle' && `Showing cached data through ${cachedThrough || 'latest cached block'}.`}
+                {dataPhase === 'cached' && `Showing cached data through ${cachedThroughLabel}. Fetching today now…`}
+                {dataPhase === 'live' && `Updated with today’s matches. Cached through ${cachedThroughLabel}.`}
+                {dataPhase === 'idle' && `Showing cached data through ${cachedThroughLabel}.`}
               </div>
             )}
             <button

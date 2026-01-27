@@ -403,6 +403,35 @@ async function getCachedRowsRange(startTs: number, endTs: number) {
   }
   return { rows: dedupeRows(rows).sort(sortByTimestamp), missing };
 }
+async function cacheDayFromRows(dayIndex: number, rows: Row[]) {
+  if (!rows.length) return;
+  const entry: DayEntry = {
+    fromBlock: Math.min(...rows.map(r => r.blockNumber)),
+    toBlock: Math.max(...rows.map(r => r.blockNumber)),
+    rows: rows.sort(sortByTimestamp),
+    lastUpdate: Date.now(),
+  };
+  remember(dayIndex, entry);
+  await kvSetDay(dayIndex, entry);
+}
+async function backfillMissingDays(missing: number[], bounds: BlockBounds) {
+  const CONC = 3;
+  for (let i = 0; i < missing.length; i += CONC) {
+    const slice = missing.slice(i, i + CONC);
+    await Promise.all(slice.map(async (d) => {
+      const dayStartTs = d * 86400;
+      const dayEndTs = dayStartTs + 86399;
+      if (dayEndTs <= MAINNET_START_TS) {
+        const built = await buildDay(dayStartTs, dayEndTs, bounds);
+        await kvSetDay(d, built.entry);
+        remember(d, built.entry);
+        return;
+      }
+      const rows = await fetchRangeRowsMainnet(dayStartTs, dayEndTs, true);
+      await cacheDayFromRows(d, rows);
+    }));
+  }
+}
 function isLogsNotAvailable(err: any) {
   const msg = (err?.message || String(err || '')).toLowerCase();
   return msg.includes('logs for the requested block range are not yet available');
@@ -721,6 +750,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resultRows = cached.rows;
       if (cached.missing.length > 0) {
         warning = `Cached data missing for ${cached.missing.length} day(s). Use Fetch latest to refresh.`;
+      }
+      if (cached.missing.length > 0) {
+        const todayDay = Math.floor(bounds.latest.ts / 86400);
+        const missingHistorical = cached.missing.filter(d => d < todayDay);
+        if (missingHistorical.length > 0) {
+          setTimeout(() => {
+            backfillMissingDays(missingHistorical, bounds).catch((err) => {
+              console.error('backfillMissingDays failed', err?.message || String(err));
+            });
+          }, 0);
+        }
       }
       const out = filterRowsByTs(resultRows, sTs, eTs).sort(sortByTimestamp);
       if (wantAgg) {
