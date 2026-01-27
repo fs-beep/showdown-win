@@ -1010,12 +1010,6 @@ export default function Home() {
         </div>
         {/* subtitle removed per request */}
 
-        <div className="mt-4">
-          <a href={PLAY_URL} target="_blank" rel="noreferrer" aria-label="Play Showdown (opens in new tab)">
-            <img src={SHOWDOWN_BANNER} alt="Showdown game artwork" className="w-full rounded-2xl shadow-sm object-cover"/>
-          </a>
-        </div>
-
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-lg bg-[#1a1a1a] p-4 md:sticky md:top-4 z-20 border border-gray-800">
             <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
@@ -1139,6 +1133,77 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* Top Earners - right column */}
+          {showMoneyTables && (
+            <div id="top-usdm-profits" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-sm font-bold text-gray-100">Top Earners</div>
+                  <div className="text-[10px] text-gray-500">
+                    {usdmUpdatedAt && new Date(usdmUpdatedAt).toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-500">Wagered</div>
+                  <div className="text-xl font-bold text-red-500">{formatUsdm(usdmTotalVolume)}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => fetchUsdmTop(true)}
+                disabled={usdmLoading}
+                className="w-full mb-3 inline-flex items-center justify-center gap-2 bg-[#252525] hover:bg-[#333] px-3 py-1.5 text-xs text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+              >
+                {usdmLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
+                {usdmLoading ? 'Syncing...' : 'Refresh'}
+              </button>
+              {usdmError && usdmRows.length === 0 && (
+                <div className="mb-3 rounded border border-red-800 bg-red-900/20 p-2 text-xs text-red-400">{usdmError}</div>
+              )}
+              {usdmError && usdmRows.length > 0 && (
+                <div className="mb-3 rounded border border-amber-800 bg-amber-900/20 p-2 text-[10px] text-amber-400">Cached. Error: {usdmError}</div>
+              )}
+              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="sticky top-0">
+                    <tr className="border-b border-gray-700 bg-[#252525] text-gray-400 text-[10px] uppercase tracking-wide">
+                      <th className="p-2 w-8 text-center">#</th>
+                      <th className="p-2">Player</th>
+                      <th className="p-2 text-green-500">Profit</th>
+                      <th className="p-2">Games</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usdmRows.map((r, i) => {
+                      const netBi = BigInt(r.net || '0');
+                      const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
+                      const isProfitable = netBi > 0n;
+                      const netClass = isProfitable
+                        ? netAbs >= 100 ? 'text-green-400 font-bold'
+                        : netAbs >= 10 ? 'text-green-400 font-semibold'
+                        : 'text-green-400'
+                        : netBi < 0n ? 'text-gray-600' : 'text-gray-500';
+                      return (
+                        <tr key={r.player + i} className="border-b border-gray-800 hover:bg-[#252525]">
+                          <td className="p-2 text-center text-gray-500">{i + 1}</td>
+                          <td className="p-2 font-mono">
+                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
+                          </td>
+                          <td className={`p-2 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
+                          <td className="p-2 text-gray-500">{r.txs}</td>
+                        </tr>
+                      );
+                    })}
+                    {usdmLoading && usdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
+                    {!usdmLoading && usdmRows.length === 0 && !usdmError && (
+                      <tr><td className="p-4 text-center text-gray-500" colSpan={4}>No data yet</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <a className="mt-2 block text-[10px] text-gray-600 hover:text-gray-400" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
+            </div>
+          )}
         </div>
 
         {/* Stats - Compact horizontal layout */}
@@ -1513,122 +1578,6 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        {showMoneyTables && (
-          <>
-            {/* Top USDm profits */}
-            <div id="top-usdm-profits" className="mt-6 rounded-lg bg-[#1a1a1a] p-5 border border-gray-800">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="text-lg font-bold text-gray-100">
-                    Top Earners
-                    <span className="ml-2 text-xs font-normal text-gray-500">all-time</span>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500">
-                    {usdmUpdatedAt && <span>Updated {new Date(usdmUpdatedAt).toLocaleString()}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-500">
-                      Total Wagered
-                    </div>
-                    <div className="text-3xl font-bold text-red-500">
-                      {formatUsdm(usdmTotalVolume)}
-                    </div>
-                  </div>
-                  <a
-                    className="text-xs text-gray-500 hover:text-gray-300"
-                    href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    contract
-                  </a>
-                </div>
-              </div>
-          <div className="mt-3">
-            <button
-              onClick={() => fetchUsdmTop(true)}
-              disabled={usdmLoading}
-              className="inline-flex items-center gap-2 bg-[#252525] hover:bg-[#333] px-4 py-2 text-xs text-gray-300 hover:text-white transition-colors disabled:opacity-50"
-            >
-              {usdmLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
-              {usdmLoading ? 'Syncing...' : 'Refresh'}
-            </button>
-          </div>
-              {usdmError && usdmRows.length === 0 && (
-                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                  {usdmError}
-                </div>
-              )}
-              {usdmError && usdmRows.length > 0 && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
-                  Using cached data. Refresh error: {usdmError}
-                </div>
-              )}
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-left text-xs md:text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-700 bg-[#252525] text-gray-400 text-xs uppercase tracking-wide">
-                      <th className="p-3 w-10 text-center">#</th>
-                      <th className="p-3">Player</th>
-                      <th className="p-3">Won</th>
-                      <th className="p-3">Lost</th>
-                      <th className="p-3 text-green-500">Profit</th>
-                      <th className="p-3">Games</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usdmRows.map((r, i) => {
-                      const netBi = BigInt(r.net || '0');
-                      const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
-                      const isProfitable = netBi > 0n;
-                      // Net styling - most important column
-                      const netClass = isProfitable
-                        ? netAbs >= 1000 ? 'text-green-400 text-2xl font-bold'
-                        : netAbs >= 100 ? 'text-green-400 text-xl font-bold'
-                        : netAbs >= 10 ? 'text-green-400 text-lg font-semibold'
-                        : 'text-green-400 font-semibold'
-                        : netBi < 0n ? 'text-gray-500' : 'text-gray-400';
-                      return (
-                        <tr key={r.player + i} className="border-b border-gray-800 hover:bg-[#252525] transition-colors">
-                          <td className="p-3 tabular-nums text-center text-gray-500">
-                            {i + 1}
-                          </td>
-                          <td className="p-3 font-mono">
-                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                              {shortAddr(r.player)}
-                            </a>
-                          </td>
-                          <td className="p-3 tabular-nums text-gray-400">
-                            {formatUsdm(r.won)}
-                          </td>
-                          <td className="p-3 tabular-nums text-gray-600">{formatUsdm(r.lost)}</td>
-                          <td className={`p-3 tabular-nums ${netClass}`}>
-                            {formatUsdm(r.net, true)}
-                          </td>
-                          <td className="p-3 tabular-nums text-gray-500">
-                            {r.txs}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {usdmLoading && usdmRows.length === 0 && (
-                      <SkeletonTableRows rows={5} cols={6} />
-                    )}
-                    {!usdmLoading && usdmRows.length === 0 && !usdmError && (
-                      <tr>
-                        <td className="p-6 text-center text-gray-500" colSpan={6}>No USDm game settlement transfers yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </>
-        )}
 
           </div>
         </details>
