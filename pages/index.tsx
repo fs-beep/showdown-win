@@ -1053,11 +1053,11 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="text-gray-500 mr-1">Presets:</span>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              <span className="text-gray-500">Presets:</span>
+              <button className="rounded-full border px-2 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Balance patch</button>
+              <button className="rounded-full border px-2 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
+              <button className="rounded-full border px-2 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
             </div>
 
             {/* Removed class and end reason filters per request */}
