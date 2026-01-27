@@ -1041,14 +1041,14 @@ export default function Home() {
                 <label className="block text-xs text-gray-500">Start date</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={startDate} onChange={e=>setStartDate(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-gray-500">End date (empty = latest)</label>
                 <div className="relative">
                   <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD.MM.YYYY" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={endDate} onChange={e=>setEndDate(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -1056,7 +1056,6 @@ export default function Home() {
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="text-gray-500 mr-1">Presets:</span>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('today')}>Today</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
               <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
             </div>
