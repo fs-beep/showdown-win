@@ -1506,39 +1506,51 @@ export default function Home() {
         {showMoneyTables && (
           <>
             {/* Top USDm profits */}
-            <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-lg border border-emerald-100 dark:border-emerald-900/30">
-              <div className="flex items-center justify-between">
+            <div id="top-usdm-profits" className="mt-6 rounded-2xl bg-gradient-to-br from-white via-emerald-50/30 to-white dark:from-gray-800 dark:via-emerald-900/10 dark:to-gray-800 p-5 shadow-xl border border-emerald-200/50 dark:border-emerald-800/30">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <span className="text-2xl">💰</span> Top Earners <span className="text-xs font-normal text-gray-500 dark:text-gray-400">(all-time)</span>
+                  <div className="text-xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <span className="text-3xl" style={{filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))'}}>💰</span>
+                    <span className="bg-gradient-to-r from-gray-900 via-emerald-700 to-gray-900 dark:from-white dark:via-emerald-400 dark:to-white bg-clip-text text-transparent">
+                      Top Earners
+                    </span>
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">all-time</span>
                   </div>
-                  <div className="mt-1 text-[10px] text-gray-500">
-                    Real money won on-chain. {usdmUpdatedAt ? `Updated ${new Date(usdmUpdatedAt).toLocaleString()}` : ''}
+                  <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                      Live on-chain
+                    </span>
+                    {usdmUpdatedAt && <span className="text-[10px]">Updated {new Date(usdmUpdatedAt).toLocaleString()}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-semibold">Total Wagered</div>
-                    <div className="text-3xl font-black bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 dark:from-emerald-400 dark:via-green-400 dark:to-emerald-400 bg-clip-text text-transparent">{formatUsdm(usdmTotalVolume)}</div>
+                  <div className="text-right p-3 rounded-xl bg-gradient-to-br from-emerald-100/80 to-green-100/60 dark:from-emerald-900/30 dark:to-green-900/20 border border-emerald-200/50 dark:border-emerald-700/30">
+                    <div className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1 justify-end">
+                      <span>💎</span> Total Wagered
+                    </div>
+                    <div className="text-4xl font-black bg-gradient-to-r from-emerald-600 via-green-500 to-teal-500 dark:from-emerald-400 dark:via-green-400 dark:to-teal-400 bg-clip-text text-transparent" style={{textShadow: '0 2px 10px rgba(16, 185, 129, 0.2)'}}>
+                      {formatUsdm(usdmTotalVolume)}
+                    </div>
                   </div>
                   <a
-                    className="text-xs text-blue-600 underline"
+                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                     href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    payout contract
+                    <span>🔗</span> contract
                   </a>
                 </div>
               </div>
-          <div className="mt-2">
+          <div className="mt-3">
             <button
               onClick={() => fetchUsdmTop(true)}
               disabled={usdmLoading}
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-300 dark:border-emerald-700 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/20 px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:shadow-md hover:scale-105 transition-all duration-200 disabled:opacity-50"
             >
-              {usdmLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
-              Refresh USDm
+              {usdmLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <span>🔄</span>}
+              {usdmLoading ? 'Syncing...' : 'Refresh'}
             </button>
           </div>
               {usdmError && usdmRows.length === 0 && (
@@ -1554,13 +1566,13 @@ export default function Home() {
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-left text-xs md:text-sm">
                   <thead>
-                    <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                      <th className="p-2 w-10">#</th>
+                    <tr className="border-b-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-gray-50 via-emerald-50/30 to-gray-50 dark:from-gray-700 dark:via-emerald-900/20 dark:to-gray-700">
+                      <th className="p-2 w-10 text-center">#</th>
                       <th className="p-2">Player</th>
-                      <th className="p-2">Won</th>
-                      <th className="p-2">Lost</th>
-                      <th className="p-2">Net</th>
-                      <th className="p-2">#games</th>
+                      <th className="p-2 text-emerald-700 dark:text-emerald-400">💵 Won</th>
+                      <th className="p-2 text-gray-400">Lost</th>
+                      <th className="p-2 text-emerald-700 dark:text-emerald-400">✨ Net</th>
+                      <th className="p-2">Activity</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1568,36 +1580,64 @@ export default function Home() {
                       const netBi = BigInt(r.net || '0');
                       const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
                       const wonAbs = Number(BigInt(r.won || '0') / 1000000000000000000n);
+                      const lostAbs = Number(BigInt(r.lost || '0') / 1000000000000000000n);
                       const isTopWinner = netBi > 0n && netAbs >= 100;
                       const isBigWinner = netBi > 0n && netAbs >= 1000;
                       const isHugeWinner = netBi > 0n && netAbs >= 10000;
+                      const isHotPlayer = r.txs >= 20;
+                      const isActivePlayer = r.txs >= 10;
+                      // Calculate win rate (simplified: won / (won + lost))
+                      const totalPlayed = wonAbs + lostAbs;
+                      const winRate = totalPlayed > 0 ? Math.round((wonAbs / totalPlayed) * 100) : 0;
+                      const isProfitable = netBi > 0n;
                       // Row styling based on performance
                       const rowClass = isHugeWinner
-                        ? 'bg-gradient-to-r from-yellow-50 via-emerald-50 to-yellow-50 dark:from-yellow-900/20 dark:via-emerald-900/20 dark:to-yellow-900/20 border-yellow-300 dark:border-yellow-600'
+                        ? 'bg-gradient-to-r from-yellow-100/80 via-emerald-100/60 to-yellow-100/80 dark:from-yellow-900/30 dark:via-emerald-900/25 dark:to-yellow-900/30 border-l-4 border-l-yellow-400'
                         : isBigWinner
-                        ? 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/15 dark:to-green-900/15 border-emerald-200 dark:border-emerald-700'
+                        ? 'bg-gradient-to-r from-emerald-100/60 to-green-100/40 dark:from-emerald-900/20 dark:to-green-900/15 border-l-4 border-l-emerald-400'
                         : isTopWinner
-                        ? 'bg-green-50/30 dark:bg-green-900/10'
+                        ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-l-2 border-l-emerald-300'
+                        : isProfitable
+                        ? 'border-l-2 border-l-emerald-200/50'
                         : '';
-                      // Rank display
-                      const rankDisplay = i === 0 && netBi > 0n ? <span className="text-2xl">🏆</span>
-                        : i === 1 && netBi > 0n ? <span className="text-xl">🥈</span>
-                        : i === 2 && netBi > 0n ? <span className="text-lg">🥉</span>
-                        : <span className="text-gray-500">{i + 1}</span>;
+                      // Rank display with animations for top 3
+                      const rankDisplay = i === 0 && netBi > 0n 
+                        ? <span className="text-3xl drop-shadow-lg" style={{filter: 'drop-shadow(0 0 8px rgba(234, 179, 8, 0.6))'}}>🏆</span>
+                        : i === 1 && netBi > 0n 
+                        ? <span className="text-2xl drop-shadow-md">🥈</span>
+                        : i === 2 && netBi > 0n 
+                        ? <span className="text-xl">🥉</span>
+                        : <span className="text-gray-400 font-medium">{i + 1}</span>;
                       return (
-                        <tr key={r.player + i} className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all ${rowClass}`}>
+                        <tr key={r.player + i} className={`border-b dark:border-gray-700 hover:scale-[1.01] hover:shadow-md transition-all duration-200 ${rowClass}`}>
                           <td className="p-2 tabular-nums text-center">
                             {rankDisplay}
                           </td>
                           <td className="p-2 font-mono">
-                            <a className={`underline ${isBigWinner ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-blue-600'}`} href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                              {shortAddr(r.player)}
-                            </a>
+                            <div className="flex items-center gap-1">
+                              <a className={`underline ${isBigWinner ? 'text-emerald-600 dark:text-emerald-400 font-bold' : isTopWinner ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-blue-600 dark:text-blue-400'}`} href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                                {shortAddr(r.player)}
+                              </a>
+                              {isHotPlayer && <span title="Hot player! 20+ games">🔥</span>}
+                              {isProfitable && winRate >= 60 && <span title={`${winRate}% win rate`}>⭐</span>}
+                            </div>
                           </td>
-                          <td className={`p-2 tabular-nums ${wonAbs >= 1000 ? 'text-emerald-600 dark:text-emerald-400 font-bold text-lg' : wonAbs >= 100 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-emerald-600/80 dark:text-emerald-400/80'}`}>{formatUsdm(r.won)}</td>
-                          <td className="p-2 tabular-nums text-gray-400 dark:text-gray-500">{formatUsdm(r.lost)}</td>
-                          <td className={`p-2 tabular-nums ${usdmNetClass(r.net)}`}>{formatUsdm(r.net, true)}</td>
-                          <td className="p-2 tabular-nums text-gray-500">{r.txs}</td>
+                          <td className={`p-2 tabular-nums ${wonAbs >= 1000 ? 'text-emerald-500 dark:text-emerald-400 font-black text-xl' : wonAbs >= 100 ? 'text-emerald-500 dark:text-emerald-400 font-bold text-lg' : wonAbs >= 10 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-emerald-600/70 dark:text-emerald-400/70'}`}>
+                            {formatUsdm(r.won)}
+                          </td>
+                          <td className="p-2 tabular-nums text-gray-400/80 dark:text-gray-500/80 text-sm">{formatUsdm(r.lost)}</td>
+                          <td className={`p-2 tabular-nums ${usdmNetClass(r.net)}`}>
+                            <span className="flex items-center gap-1">
+                              {formatUsdm(r.net, true)}
+                              {isHugeWinner && <span>🚀</span>}
+                            </span>
+                          </td>
+                          <td className="p-2 tabular-nums">
+                            <div className="flex items-center gap-1">
+                              <span className={isHotPlayer ? 'text-orange-500 font-bold' : isActivePlayer ? 'text-blue-500' : 'text-gray-400'}>{r.txs}</span>
+                              <span className="text-[10px] text-gray-400">games</span>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
