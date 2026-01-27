@@ -1,0 +1,19 @@
+0 verbose cli /opt/homebrew/Cellar/node/24.5.0/bin/node /opt/homebrew/bin/npm
+1 info using npm@11.5.1
+2 info using node@v24.5.0
+3 silly config load:file:/opt/homebrew/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/fisiroky/cursor_showdown_win/showdown-win/.npmrc
+5 silly config load:file:/Users/fisiroky/.npmrc
+6 silly config load:file:/opt/homebrew/etc/npmrc
+7 verbose title npm run build
+8 verbose argv "run" "build"
+9 verbose logfile logs-max:10 dir:/Users/fisiroky/cursor_showdown_win/showdown-win/.npm-cache/_logs/2026-01-15T17_05_47_005Z-
+10 verbose logfile /Users/fisiroky/cursor_showdown_win/showdown-win/.npm-cache/_logs/2026-01-15T17_05_47_005Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd /Users/fisiroky/cursor_showdown_win/showdown-win
+13 verbose os Darwin 25.2.0
+14 verbose node v24.5.0
+15 verbose npm  v11.5.1
+16 verbose exit 1
+17 verbose code 1
+18 error A complete log of this run can be found in: /Users/fisiroky/cursor_showdown_win/showdown-win/.npm-cache/_logs/2026-01-15T17_05_47_005Z-debug-0.log

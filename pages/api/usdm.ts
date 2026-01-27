@@ -9,6 +9,7 @@ const MAX_SPAN = 10000;
 const CONCURRENCY = 2;
 const LOG_BATCH_DELAY_MS = 100;
 const USDM_START_BLOCK = 5721028;
+const MAX_BLOCKS_PER_SYNC = 200000; // Limit per request to avoid timeouts
 const RPC_ATTEMPTS = 4;
 const RPC_BASE_DELAY_MS = 600;
 const RPC_JITTER_MS = 200;
@@ -217,7 +218,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const latest = await getLatestBlock();
     let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : USDM_START_BLOCK;
-    const toBlock = latest.num;
+    // Limit how many blocks we scan per request
+    const targetToBlock = latest.num;
+    const toBlock = Math.min(fromBlock + MAX_BLOCKS_PER_SYNC - 1, targetToBlock);
+    const needsMoreSync = toBlock < targetToBlock;
 
     if (fromBlock <= toBlock) {
       const logs = await getLogsChunked(fromBlock, toBlock);
@@ -228,7 +232,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       state.lastBlock = toBlock;
 
-      // Save state and cache to KV
+      // Save state and cache to KV immediately
       if (kvOk) {
         try { await kv.set(STATE_KEY, state); } catch {}
       }
@@ -240,7 +244,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try { await kv.set(CACHE_KEY, cache); } catch {}
     }
 
-    return res.status(200).json({ ok: true, ...cache, source: 'fresh' });
+    return res.status(200).json({ ok: true, ...cache, source: 'fresh', needsMoreSync, syncedTo: toBlock, latestBlock: targetToBlock });
   } catch (e: any) {
     warning = e?.message || String(e);
     // Return cached data with warning if available

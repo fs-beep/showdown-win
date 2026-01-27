@@ -884,6 +884,10 @@ export default function Home() {
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
       if (j.warning) setUsdmError(j.warning);
+      // Auto-continue syncing if not caught up
+      if (j.needsMoreSync) {
+        setTimeout(() => fetchUsdmTop(true), 500);
+      }
     } catch (e:any) {
       setUsdmError(e?.message || String(e));
     } finally {
