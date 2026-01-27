@@ -842,8 +842,7 @@ export default function Home() {
         winningPlayer: stripPlayerSuffix(r.winningPlayer),
         losingPlayer: stripPlayerSuffix(r.losingPlayer),
       }));
-      const merged = mergeRowsClient(rows, normalized);
-      setRows(merged);
+      setRows(prev => mergeRowsClient(prev, normalized));
       setAggByClass(j.aggByClass || null);
       setAggUpdatedAt(j.aggLastUpdate || null);
       setLastQueryLive(true);
