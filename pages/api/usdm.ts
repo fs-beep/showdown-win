@@ -7,11 +7,11 @@ const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_SPAN = 1000;
-const CONCURRENCY = 2;
-const LOG_BATCH_DELAY_MS = 150;
+const MAX_SPAN = 5000;
+const CONCURRENCY = 3;
+const LOG_BATCH_DELAY_MS = 50;
 const START_BLOCK_LOOKBACK = 200_000;
-const MAX_BLOCKS_PER_CALL = 1500;
+const MAX_BLOCKS_PER_CALL = 20000;
 const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
 const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
@@ -48,6 +48,7 @@ function nowMs() { return Date.now(); }
 function toLower(x: string | null | undefined) { return (x || '').toLowerCase(); }
 function toHex(n: number) { return '0x' + n.toString(16); }
 function parseAddr(topic?: string) { return topic ? '0x' + topic.slice(-40).toLowerCase() : ''; }
+function toTopicAddr(addr: string) { return '0x' + addr.toLowerCase().replace(/^0x/, '').padStart(64, '0'); }
 function buildRanges(from: number, to: number) {
   const ranges: Array<{ from: number; to: number }> = [];
   let s = from;
@@ -119,18 +120,33 @@ async function findBlockByTs(targetTs: number, latestNum: number) {
 }
 async function getLogsChunked(fromBlock: number, toBlock: number) {
   const ranges = buildRanges(fromBlock, toBlock);
+  const payoutTopic = toTopicAddr(PAYOUT_CONTRACT);
   const all: any[] = [];
   for (let i = 0; i < ranges.length; i += CONCURRENCY) {
     const slice = ranges.slice(i, i + CONCURRENCY);
-    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000 + i + idx, method: 'eth_getLogs', params: [{
-      fromBlock: toHex(r.from),
-      toBlock: toHex(r.to),
-      address: USDM_TOKEN,
-      topics: [TRANSFER_TOPIC],
-    }] }));
+    const reqs = slice.flatMap((r, idx) => ([
+      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2, method: 'eth_getLogs', params: [{
+        fromBlock: toHex(r.from),
+        toBlock: toHex(r.to),
+        address: USDM_TOKEN,
+        topics: [TRANSFER_TOPIC, payoutTopic],
+      }] }),
+      rpc({ jsonrpc: '2.0', id: 1000 + i + idx * 2 + 1, method: 'eth_getLogs', params: [{
+        fromBlock: toHex(r.from),
+        toBlock: toHex(r.to),
+        address: USDM_TOKEN,
+        topics: [TRANSFER_TOPIC, null, payoutTopic],
+      }] }),
+    ]));
     const parts = await Promise.all(reqs);
+    const seen = new Set<string>();
     for (const p of parts) {
-      all.push(...(p?.result || []));
+      for (const log of (p?.result || [])) {
+        const key = `${log.transactionHash || ''}:${log.logIndex || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        all.push(log);
+      }
     }
     if (LOG_BATCH_DELAY_MS) await new Promise(r => setTimeout(r, LOG_BATCH_DELAY_MS));
   }
