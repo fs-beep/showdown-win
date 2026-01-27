@@ -6,11 +6,11 @@ const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
 const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_SPAN = 5000;
-const CONCURRENCY = 3;
-const LOG_BATCH_DELAY_MS = 50;
+const MAX_SPAN = 50000;
+const CONCURRENCY = 4;
+const LOG_BATCH_DELAY_MS = 20;
 const START_BLOCK_LOOKBACK = 200_000;
-const MAX_BLOCKS_PER_CALL = 20000;
+const MAX_BLOCKS_PER_CALL = 500000;
 const MAINNET_CHAIN_ID = 4326;
 const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
 const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
@@ -225,7 +225,7 @@ function computeVolumeSeries(state: State) {
 }
 
 type CachedResult = { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string };
-const RESULTS_CACHE_KEY = 'usdm:results:v3';
+const RESULTS_CACHE_KEY = 'usdm:results:v4';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -249,7 +249,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch {}
     }
 
-    const stateKey = 'usdm:state:v3';
+    const stateKey = 'usdm:state:v4';
     let state: State | null = null;
     if (kvConfigured) {
       try {
