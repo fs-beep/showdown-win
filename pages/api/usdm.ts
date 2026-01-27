@@ -10,11 +10,15 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_SPAN = 5000;
 const CONCURRENCY = 5;
 const START_BLOCK_LOOKBACK = 200_000;
+const MAINNET_CHAIN_ID = 4326;
+const chainId = Number(process.env.GAME_RESULTS_CHAIN_ID);
+const chainName = (process.env.GAME_RESULTS_CHAIN_NAME || '').toLowerCase();
+const isMainnet = chainId === MAINNET_CHAIN_ID || chainName === 'megaeth';
 const DEFAULT_USDM_START_BLOCK = 6141480;
 const DEFAULT_USDM_START_TS = Math.floor(Date.UTC(2026, 0, 20) / 1000);
 const USDM_START_BLOCK = Number.isFinite(Number(process.env.USDM_START_BLOCK))
   ? Number(process.env.USDM_START_BLOCK)
-  : DEFAULT_USDM_START_BLOCK;
+  : (isMainnet ? DEFAULT_USDM_START_BLOCK : null);
 const RPC_ATTEMPTS = 5;
 const RPC_BASE_DELAY_MS = 800;
 
@@ -241,14 +245,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (USDM_START_BLOCK !== null) {
           fromBlock = USDM_START_BLOCK;
         } else {
-          try {
-            fromBlock = await findBlockByTs(DEFAULT_USDM_START_TS, latest.num);
-            kvWarning = [kvWarning, 'USDM start block not set; using Jan 20, 2026 timestamp.']
-              .filter(Boolean)
-              .join(' | ');
-          } catch (e:any) {
+          if (isMainnet) {
+            try {
+              fromBlock = await findBlockByTs(DEFAULT_USDM_START_TS, latest.num);
+              kvWarning = [kvWarning, 'USDM start block not set; using Jan 20, 2026 timestamp.']
+                .filter(Boolean)
+                .join(' | ');
+            } catch (e:any) {
+              fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
+              kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
+                .filter(Boolean)
+                .join(' | ');
+            }
+          } else {
             fromBlock = Math.max(latest.num - START_BLOCK_LOOKBACK, 0);
-            kvWarning = [kvWarning, `USDM start block not set; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
+            kvWarning = [kvWarning, `USDM start block not set for this chain; scanning last ${START_BLOCK_LOOKBACK} blocks only.`]
               .filter(Boolean)
               .join(' | ');
           }
