@@ -1,13 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { kv } from '@vercel/kv';
 
 const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
-const BLOCKSCOUT_API = 'https://megaeth.blockscout.com/api';
-const TOKEN_SYMBOL = 'USDm';
-const TOKEN_NAME = 'MegaUSD';
+const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
+const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const GAME_METHOD_SELECTORS = ['0xf5b488dd', '0xc0326157'];
-const OFFSET = 1000;
-const MAX_PAGES = 200;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_SPAN = 2000;
+const CONCURRENCY = 3;
 
 type ProfitRow = {
   player: string;
@@ -17,29 +18,140 @@ type ProfitRow = {
   txs: number;
 };
 type VolumePoint = { day: string; volume: string };
+type State = {
+  lastBlock: number;
+  totals: Record<string, { won: string; lost: string; txs: number }>;
+  volumeByDay: Record<string, string>;
+  totalVolume: string;
+};
 
 let cached: { rows: ProfitRow[]; updatedAt: number; volumeSeries: VolumePoint[]; totalVolume: string } | null = null;
 
 function nowMs() { return Date.now(); }
 function toLower(x: string | null | undefined) { return (x || '').toLowerCase(); }
-
-async function fetchJson(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+function toHex(n: number) { return '0x' + n.toString(16); }
+function parseAddr(topic?: string) { return topic ? '0x' + topic.slice(-40).toLowerCase() : ''; }
+function buildRanges(from: number, to: number) {
+  const ranges: Array<{ from: number; to: number }> = [];
+  let s = from;
+  while (s <= to) {
+    const e = Math.min(s + MAX_SPAN - 1, to);
+    ranges.push({ from: s, to: e });
+    s = e + 1;
+  }
+  return ranges;
+}
+async function rpc(body: any) {
+  const res = await fetch(MAINNET_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+  const j = await res.json();
+  if (Array.isArray(j)) {
+    const bad = j.find((x:any)=>x && x.error);
+    if (bad) throw new Error(bad.error?.message || 'RPC batch error');
+  } else if (j && j.error) {
+    throw new Error(j.error?.message || 'RPC error');
+  }
+  return j;
+}
+async function getLatestBlock() {
+  const j = await rpc({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: ['latest', false] });
+  const blk = j?.result;
+  if (!blk) throw new Error('Block not found');
+  return { num: parseInt(blk.number, 16), ts: parseInt(blk.timestamp, 16) };
+}
+async function getLogsChunked(fromBlock: number, toBlock: number) {
+  const ranges = buildRanges(fromBlock, toBlock);
+  const all: any[] = [];
+  for (let i = 0; i < ranges.length; i += CONCURRENCY) {
+    const slice = ranges.slice(i, i + CONCURRENCY);
+    const reqs = slice.map((r, idx) => rpc({ jsonrpc: '2.0', id: 1000 + i + idx, method: 'eth_getLogs', params: [{
+      fromBlock: toHex(r.from),
+      toBlock: toHex(r.to),
+      address: USDM_TOKEN,
+      topics: [TRANSFER_TOPIC],
+    }] }));
+    const parts = await Promise.all(reqs);
+    for (const p of parts) {
+      all.push(...(p?.result || []));
+    }
+  }
+  return all;
+}
+async function batchGetTransactions(hashes: string[]) {
+  const reqs = hashes.map((h, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getTransactionByHash', params: [h] }));
+  const res = await rpc(reqs);
+  const map = new Map<string, string>();
+  for (const r of res) {
+    if (r?.result?.hash) {
+      map.set(r.result.hash.toLowerCase(), (r.result.input || '').slice(0, 10));
+    }
+  }
+  return map;
+}
+async function batchGetBlocks(blockNums: number[]) {
+  const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
+  const res = await rpc(reqs);
+  const map = new Map<number, number>();
+  for (const r of res) {
+    const b = r?.result;
+    if (b) map.set(parseInt(b.number, 16), parseInt(b.timestamp, 16));
+  }
+  return map;
 }
 
-async function fetchAllTransfers() {
-  const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const url = `${BLOCKSCOUT_API}?module=account&action=tokentx&address=${PAYOUT_CONTRACT}&page=${page}&offset=${OFFSET}&sort=asc`;
-    const data = await fetchJson(url);
-    const batch = Array.isArray(data?.result) ? data.result : [];
-    if (batch.length === 0) break;
-    results.push(...batch);
-    if (batch.length < OFFSET) break;
+function updateStateFromLogs(state: State, logs: any[], txSelectors: Map<string, string>, blockTs: Map<number, number>) {
+  for (const log of logs) {
+    const txHash = String(log.transactionHash || '').toLowerCase();
+    const selector = txSelectors.get(txHash) || '';
+    if (selector && !GAME_METHOD_SELECTORS.includes(selector)) continue;
+    const from = parseAddr(log.topics?.[1]);
+    const to = parseAddr(log.topics?.[2]);
+    if (from !== PAYOUT_CONTRACT && to !== PAYOUT_CONTRACT) continue;
+    const value = BigInt(log.data || '0x0');
+    if (value === 0n) continue;
+    const ts = blockTs.get(parseInt(log.blockNumber, 16)) || 0;
+    if (ts > 0) {
+      const d = new Date(ts * 1000);
+      const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      const prev = BigInt(state.volumeByDay[day] || '0');
+      state.volumeByDay[day] = (prev + value).toString();
+      const totalPrev = BigInt(state.totalVolume || '0');
+      state.totalVolume = (totalPrev + value).toString();
+    }
+    if (from === PAYOUT_CONTRACT) {
+      const s = state.totals[to] || { won: '0', lost: '0', txs: 0 };
+      s.won = (BigInt(s.won) + value).toString();
+      s.txs += 1;
+      state.totals[to] = s;
+    } else if (to === PAYOUT_CONTRACT) {
+      const s = state.totals[from] || { won: '0', lost: '0', txs: 0 };
+      s.lost = (BigInt(s.lost) + value).toString();
+      s.txs += 1;
+      state.totals[from] = s;
+    }
   }
-  return results;
+}
+
+function computeRows(state: State) {
+  const rows: ProfitRow[] = Object.entries(state.totals).map(([player, s]) => ({
+    player,
+    won: s.won,
+    lost: s.lost,
+    net: (BigInt(s.won) - BigInt(s.lost)).toString(),
+    txs: s.txs,
+  }));
+  rows.sort((a, b) => {
+    const na = BigInt(a.net);
+    const nb = BigInt(b.net);
+    if (na === nb) return b.txs - a.txs;
+    return na > nb ? -1 : 1;
+  });
+  return rows.slice(0, 10);
+}
+function computeVolumeSeries(state: State) {
+  return Object.entries(state.volumeByDay)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([day, volume]) => ({ day, volume }));
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -49,58 +161,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: true, rows: cached.rows, updatedAt: cached.updatedAt, volumeSeries: cached.volumeSeries, totalVolume: cached.totalVolume });
     }
 
-    const transfers = await fetchAllTransfers();
-    const totals = new Map<string, { won: bigint; lost: bigint; txs: number }>();
-    const volumeByDay = new Map<string, bigint>();
-    let totalVolume = 0n;
-
-    for (const t of transfers) {
-      const symbol = t?.tokenSymbol || t?.tokenName || '';
-      if (symbol && symbol !== TOKEN_SYMBOL && symbol !== TOKEN_NAME) continue;
-      const input = (t?.input || '').slice(0, 10);
-      if (input && !GAME_METHOD_SELECTORS.includes(input)) continue;
-      const from = toLower(t?.from);
-      const to = toLower(t?.to);
-      const value = BigInt(t?.value || '0');
-      if (value === 0n) continue;
-      const ts = Number(t?.timeStamp || 0);
-      if (ts > 0) {
-        const d = new Date(ts * 1000);
-        const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-        volumeByDay.set(day, (volumeByDay.get(day) || 0n) + value);
-        totalVolume += value;
-      }
-      if (from === PAYOUT_CONTRACT) {
-        const s = totals.get(to) || { won: 0n, lost: 0n, txs: 0 };
-        s.won += value; s.txs += 1; totals.set(to, s);
-      } else if (to === PAYOUT_CONTRACT) {
-        const s = totals.get(from) || { won: 0n, lost: 0n, txs: 0 };
-        s.lost += value; s.txs += 1; totals.set(from, s);
-      }
+    if (!process.env.KV_REST_API_URL && !process.env.UPSTASH_REDIS_REST_URL) {
+      return res.status(200).json({ ok: false, error: 'USDm tracking requires KV to be configured.' });
     }
 
-    const rows: ProfitRow[] = Array.from(totals.entries())
-      .map(([player, s]) => ({
-        player,
-        won: s.won.toString(),
-        lost: s.lost.toString(),
-        net: (s.won - s.lost).toString(),
-        txs: s.txs,
-      }))
-      .sort((a, b) => {
-        const na = BigInt(a.net);
-        const nb = BigInt(b.net);
-        if (na === nb) return b.txs - a.txs;
-        return na > nb ? -1 : 1;
-      })
-      .slice(0, 10);
+    const stateKey = 'usdm:state';
+    let state = await kv.get<State>(stateKey);
+    const latest = await getLatestBlock();
+    if (!state) {
+      state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+    }
+    const fromBlock = Math.max(state.lastBlock + 1, 0);
+    const toBlock = latest.num;
+    if (fromBlock <= toBlock) {
+      const logs = await getLogsChunked(fromBlock, toBlock);
+      const txHashes = Array.from(new Set(logs.map(l => String(l.transactionHash || '').toLowerCase()))).filter(Boolean);
+      const txSelectors = await batchGetTransactions(txHashes);
+      const blockNums = Array.from(new Set(logs.map(l => parseInt(l.blockNumber, 16))));
+      const blockTs = await batchGetBlocks(blockNums);
+      updateStateFromLogs(state, logs, txSelectors, blockTs);
+      state.lastBlock = toBlock;
+      await kv.set(stateKey, state);
+    }
 
-    const volumeSeries: VolumePoint[] = Array.from(volumeByDay.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([day, volume]) => ({ day, volume: volume.toString() }));
-
-    cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: totalVolume.toString() };
-    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: totalVolume.toString() });
+    const rows = computeRows(state);
+    const volumeSeries = computeVolumeSeries(state);
+    cached = { rows, updatedAt: nowMs(), volumeSeries, totalVolume: state.totalVolume || '0' };
+    return res.status(200).json({ ok: true, rows, updatedAt: cached.updatedAt, volumeSeries, totalVolume: cached.totalVolume });
   } catch (e: any) {
     return res.status(200).json({ ok: false, error: e?.message || String(e) });
   }
