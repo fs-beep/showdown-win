@@ -1113,12 +1113,14 @@ export default function Home() {
     <div className={`min-h-screen bg-[#0a0a0a] text-gray-100`}>
       <Head><title>Showdown Meta Tracker</title></Head>
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <div className="mb-4 rounded-lg bg-[#1a1a1a] text-gray-500 px-4 py-2 text-xs border border-gray-800">
-          vibecoded by{' '}
-          <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
-        </div>
-        <div className="text-sm text-gray-400 tracking-wide">
-          Track the meta, find your edge. <span className="text-gray-500">Built on fully transparent onchain MegaETH data.</span>
+        <div className="mb-4 rounded-lg bg-[#1a1a1a] px-4 py-3 text-xs border border-gray-800">
+          <div className="text-gray-500">
+            vibecoded by{' '}
+            <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
+          </div>
+          <div className="mt-1 text-sm text-gray-400">
+            Track the meta, find your edge. <span className="text-gray-500">Built on fully transparent onchain MegaETH data.</span>
+          </div>
         </div>
 
           <div className="flex items-center justify-between">
