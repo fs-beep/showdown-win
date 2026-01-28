@@ -870,6 +870,71 @@ export default function Home() {
   const [usdmLastSyncTime, setUsdmLastSyncTime] = useState<number>(0);
   const [usdmDebug, setUsdmDebug] = useState<string>('');
   
+  // Client-side RPC helper for when Vercel is rate-limited
+  const clientRpc = async (method: string, params: any[]) => {
+    const res = await fetch('https://mainnet.megaeth.com/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    });
+    const j = await res.json();
+    if (j.error) throw new Error(j.error.message || 'RPC error');
+    return j.result;
+  };
+  
+  // Client-side sync when API fails
+  const clientSideSync = async (lastBlock: number) => {
+    try {
+      setUsdmDebug('Syncing from browser...');
+      const PAYOUT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
+      const USDM = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
+      const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+      
+      const latestHex = await clientRpc('eth_blockNumber', []);
+      const latest = parseInt(latestHex, 16);
+      const from = Math.max(lastBlock + 1, 5721028);
+      if (from >= latest) {
+        setUsdmDebug('Up to date');
+        return null;
+      }
+      
+      setUsdmDebug(`Browser sync: blocks ${from.toLocaleString()} to ${latest.toLocaleString()}...`);
+      
+      // Fetch logs in one big request (client-side has better rate limits)
+      const logs = await clientRpc('eth_getLogs', [{
+        fromBlock: '0x' + from.toString(16),
+        toBlock: '0x' + latest.toString(16),
+        address: USDM,
+        topics: [TRANSFER_TOPIC],
+      }]);
+      
+      // Filter for payout contract transfers
+      const relevant = (logs || []).filter((l: any) => {
+        const fromAddr = l.topics[1]?.slice(-40).toLowerCase();
+        const toAddr = l.topics[2]?.slice(-40).toLowerCase();
+        return fromAddr === PAYOUT.slice(2) || toAddr === PAYOUT.slice(2);
+      });
+      
+      if (relevant.length === 0) {
+        setUsdmDebug('No new transfers');
+        return null;
+      }
+      
+      // Calculate new volume
+      let newVolume = BigInt(0);
+      for (const log of relevant) {
+        newVolume += BigInt(log.data);
+      }
+      
+      setUsdmDebug(`Found ${relevant.length} new transfers (+$${Math.round(Number(newVolume) / 1e18)})`);
+      return { newVolume: newVolume.toString(), logs: relevant.length, toBlock: latest };
+    } catch (e: any) {
+      console.error('Client sync error:', e);
+      setUsdmDebug(`Browser sync failed: ${e?.message || 'Unknown'}`);
+      return null;
+    }
+  };
+  
   const fetchUsdmTop = async (force = false, isAutoRetry = false) => {
     if (usdmLoading) return;
     if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
@@ -890,6 +955,21 @@ export default function Home() {
       const isFallback = j.source?.includes('fallback');
       const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
       
+      // If API is rate-limited, try client-side sync
+      if (isFallback && isRateLimit && j.lastBlock) {
+        const clientResult = await clientSideSync(j.lastBlock);
+        if (clientResult) {
+          // Update volume with client-side data
+          const currentVol = BigInt(j.totalVolume || '0');
+          const newTotal = currentVol + BigInt(clientResult.newVolume);
+          setUsdmTotalVolume(newTotal.toString());
+          setUsdmUpdatedAt(Date.now());
+          setUsdmDebug(`Synced! +${clientResult.logs} transfers from browser`);
+          setUsdmLastSyncTime(Date.now());
+          return;
+        }
+      }
+      
       // Show progress info
       if (j.debug || j.syncedTo) {
         const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
@@ -902,7 +982,7 @@ export default function Home() {
           setUsdmDebug('Up to date');
         }
       } else if (isFallback && isRateLimit) {
-        setUsdmDebug('RPC busy, retrying in 15s...');
+        setUsdmDebug('Server busy, will try browser sync...');
       }
       
       // Auto-continue syncing
