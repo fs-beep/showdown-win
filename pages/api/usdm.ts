@@ -10,16 +10,16 @@ const RPC_URLS = [
   'https://mainnet.megaeth.com/rpc',
 ].filter(Boolean) as string[];
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const MAX_SPAN = 2000;
+const MAX_SPAN = 5000; // Larger span = fewer requests
 const CONCURRENCY = 1;
-const LOG_BATCH_DELAY_MS = 200;
+const LOG_BATCH_DELAY_MS = 500; // More delay between batches
 const USDM_START_BLOCK = 5721028;
-const MAX_BLOCKS_PER_SYNC = 20000;
-const RPC_COOLDOWN_MS = 2000; // Wait between sync batches
-const RPC_ATTEMPTS = 3;
-const RPC_BASE_DELAY_MS = 500;
-const RPC_JITTER_MS = 300;
-const BATCH_DELAY_MS = 50;
+const MAX_BLOCKS_PER_SYNC = 50000; // Sync more per request to reduce total requests
+const RPC_COOLDOWN_MS = 3000; // Wait between sync batches
+const RPC_ATTEMPTS = 5; // More retries
+const RPC_BASE_DELAY_MS = 2000; // Longer base delay for retries
+const RPC_JITTER_MS = 1000;
+const BATCH_DELAY_MS = 200;
 
 let currentRpcIndex = 0;
 
@@ -79,7 +79,9 @@ async function rpc(body: any) {
         clearTimeout(timeout);
         if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
           lastErr = new Error(`RPC HTTP ${res.status}`);
-          await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS + Math.random() * RPC_JITTER_MS));
+          // Exponential backoff: 2s, 4s, 8s...
+          const delay = RPC_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * RPC_JITTER_MS;
+          await new Promise(r => setTimeout(r, delay));
           continue;
         }
         if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
