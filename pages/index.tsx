@@ -192,6 +192,14 @@ export default function Home() {
     } catch {}
   }, []);
 
+  // Load cached USDM data on page load
+  useEffect(() => {
+    if (showMoneyTables && usdmRows.length === 0 && !usdmLoading) {
+      void fetchUsdmTop();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMoneyTables]);
+
 
   // 1) Initialize state from URL query once
   useEffect(() => {
