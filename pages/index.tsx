@@ -898,25 +898,23 @@ export default function Home() {
       }
       
       // Auto-continue syncing until caught up
-      if (j.needsMoreSync) {
-        if (j.warning?.includes('429')) {
-          setUsdmDebug('Rate limited, retrying in 5s...');
+      const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
+      if (j.needsMoreSync || isRateLimit) {
+        if (isRateLimit) {
+          setUsdmDebug('RPC busy, retrying in 5s...');
           setTimeout(() => fetchUsdmTop(true, true), 5000);
         } else {
           setTimeout(() => fetchUsdmTop(true, true), 500);
         }
       } else {
         setUsdmLastSyncTime(Date.now());
-        if (j.warning) {
-          setUsdmError(`Sync issue: ${j.warning}`);
-        }
       }
     } catch (e:any) {
       const errMsg = e?.message || String(e);
-      // On rate limit (429), auto-retry after delay
-      if (errMsg.includes('429')) {
-        setUsdmDebug('Rate limited, retrying in 3s...');
-        setTimeout(() => fetchUsdmTop(true, true), 3000);
+      // On rate limit or upstream error, auto-retry
+      if (errMsg.includes('429') || errMsg.toLowerCase().includes('upstream')) {
+        setUsdmDebug('RPC busy, retrying in 5s...');
+        setTimeout(() => fetchUsdmTop(true, true), 5000);
       } else {
         const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;
         if (!isDataFresh) {
