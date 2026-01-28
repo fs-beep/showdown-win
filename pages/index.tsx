@@ -1265,7 +1265,7 @@ export default function Home() {
               <button
                 onClick={() => fetchUsdmTop(true)}
                 disabled={usdmLoading}
-                className="w-full mb-2 inline-flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#282828] rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40"
+                className="w-full mb-2 inline-flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-600 rounded-lg px-3 py-2 text-xs text-white font-medium transition-colors disabled:opacity-40"
               >
                 {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
                 {usdmLoading ? 'Syncing...' : 'Refresh'}
@@ -1277,7 +1277,7 @@ export default function Home() {
                 <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
               )}
               <div className="overflow-hidden rounded-lg border border-gray-800/50">
-                <div className="max-h-72 overflow-y-auto">
+                <div>
                   <table className="min-w-full text-left text-xs">
                     <thead className="sticky top-0 bg-[#1c1c1c]">
                       <tr className="text-gray-500 text-[10px] uppercase tracking-wide">
