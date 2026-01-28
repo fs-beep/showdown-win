@@ -898,8 +898,9 @@ export default function Home() {
       }
       
       // Auto-continue syncing until caught up
-      const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
-      if (j.needsMoreSync || isRateLimit) {
+      // Only auto-retry if we actually need more sync
+      if (j.needsMoreSync) {
+        const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
         if (isRateLimit) {
           setUsdmDebug('RPC busy, retrying in 15s...');
           setTimeout(() => fetchUsdmTop(true, true), 15000);
@@ -908,6 +909,7 @@ export default function Home() {
           setTimeout(() => fetchUsdmTop(true, true), 2000);
         }
       } else {
+        // Fully synced!
         setUsdmLastSyncTime(Date.now());
         setUsdmDebug('');
       }
