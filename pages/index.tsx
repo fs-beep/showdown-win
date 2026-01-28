@@ -897,14 +897,19 @@ export default function Home() {
         }
       }
       
-      if (j.warning) {
-        setUsdmError(`Sync issue: ${j.warning}`);
-      }
       // Auto-continue syncing until caught up
-      if (j.needsMoreSync && !j.warning) {
-        setTimeout(() => fetchUsdmTop(true, true), 300); // Fast retry while catching up
+      if (j.needsMoreSync) {
+        if (j.warning?.includes('429')) {
+          setUsdmDebug('Rate limited, retrying in 5s...');
+          setTimeout(() => fetchUsdmTop(true, true), 5000);
+        } else {
+          setTimeout(() => fetchUsdmTop(true, true), 500);
+        }
       } else {
-        setUsdmLastSyncTime(Date.now()); // Only set cooldown when fully synced
+        setUsdmLastSyncTime(Date.now());
+        if (j.warning) {
+          setUsdmError(`Sync issue: ${j.warning}`);
+        }
       }
     } catch (e:any) {
       const errMsg = e?.message || String(e);
