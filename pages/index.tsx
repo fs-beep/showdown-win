@@ -907,9 +907,16 @@ export default function Home() {
         setUsdmLastSyncTime(Date.now()); // Only set cooldown when fully synced
       }
     } catch (e:any) {
-      const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;
-      if (!isDataFresh) {
-        setUsdmError(e?.message || String(e));
+      const errMsg = e?.message || String(e);
+      // On rate limit (429), auto-retry after delay
+      if (errMsg.includes('429')) {
+        setUsdmDebug('Rate limited, retrying in 3s...');
+        setTimeout(() => fetchUsdmTop(true, true), 3000);
+      } else {
+        const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;
+        if (!isDataFresh) {
+          setUsdmError(errMsg);
+        }
       }
     } finally {
       setUsdmLoading(false);
