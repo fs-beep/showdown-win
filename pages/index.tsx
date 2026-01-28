@@ -119,7 +119,7 @@ function usdmNetClass(weiStr?: string) {
     if (rounded >= 100) return 'text-green-400 text-lg font-bold';
     return 'text-green-400 font-semibold';
   } else if (bi < 0n) {
-    return 'text-gray-600 font-normal';
+    return 'text-gray-500 font-normal';
   }
   return '';
 }
@@ -1116,7 +1116,7 @@ export default function Home() {
         <div className="mb-4 rounded-lg bg-[#1a1a1a] text-gray-500 px-4 py-2 text-xs border border-gray-800">
           vibecoded by{' '}
           <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
-          <span className="mx-2 text-gray-700">|</span>
+          <span className="mx-2 text-gray-600">|</span>
           <span className="text-gray-400">Track the meta, find your edge.</span>{' '}
           <span className="text-gray-500">Built on fully transparent onchain MegaETH data.</span>
         </div>
@@ -1128,7 +1128,7 @@ export default function Home() {
               <motion.h1 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold tracking-wide text-red-500 uppercase">
                 Showdown
               </motion.h1>
-              <div className="text-xs text-gray-500 uppercase tracking-widest">
+              <div className="text-xs text-gray-400 uppercase tracking-widest">
                 Meta Tracker
               </div>
             </div>
@@ -1148,7 +1148,7 @@ export default function Home() {
 
         <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="rounded-lg bg-[#141414] p-5 lg:sticky lg:top-4 z-20 border border-gray-800/60">
-            <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">
               Filters
             </div>
             <label className="block text-[11px] text-gray-400 mb-1">Player Name</label>
@@ -1241,8 +1241,8 @@ export default function Home() {
             <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Top Earners</div>
-                  <div className="text-[10px] text-gray-600 mt-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Top Earners</div>
+                  <div className="text-[10px] text-gray-500 mt-1">
                     {usdmUpdatedAt && (() => {
                       const age = Date.now() - usdmUpdatedAt;
                       const mins = Math.floor(age / 60000);
@@ -1258,7 +1258,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-500">Total Wagered</div>
+                  <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Wagered</div>
                   <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
                 </div>
               </div>
@@ -1280,7 +1280,7 @@ export default function Home() {
                 <div>
                   <table className="min-w-full text-left text-xs">
                     <thead className="sticky top-0 bg-[#1c1c1c]">
-                      <tr className="text-gray-500 text-[10px] uppercase tracking-wide">
+                      <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
                         <th className="px-3 py-2.5">Player</th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
@@ -1296,7 +1296,7 @@ export default function Home() {
                           ? netAbs >= 100 ? 'text-green-400 font-bold'
                           : netAbs >= 10 ? 'text-green-400 font-semibold'
                           : 'text-green-400'
-                          : netBi < 0n ? 'text-gray-600' : 'text-gray-500';
+                          : netBi < 0n ? 'text-red-400/70' : 'text-gray-400';
                         return (
                           <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                             <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
@@ -1316,7 +1316,7 @@ export default function Home() {
                   </table>
                 </div>
               </div>
-              <a className="mt-3 inline-block text-[10px] text-gray-600 hover:text-gray-400 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
+              <a className="mt-3 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
             </div>
           )}
         </div>
@@ -1325,7 +1325,7 @@ export default function Home() {
         <div className="mt-6 rounded-lg bg-[#141414] p-5 border border-gray-800/60">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500">Wins</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Wins</div>
               {loading && stats.wins === 0 ? (
                 <div className="mt-1 h-8 w-16 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
@@ -1333,7 +1333,7 @@ export default function Home() {
               )}
             </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500">Losses</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Losses</div>
               {loading && stats.losses === 0 ? (
                 <div className="mt-1 h-8 w-16 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
@@ -1341,7 +1341,7 @@ export default function Home() {
               )}
             </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500">Win Rate</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Win Rate</div>
               {loading && stats.wins === 0 && stats.losses === 0 ? (
                 <div className="mt-1 h-8 w-20 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
@@ -1349,7 +1349,7 @@ export default function Home() {
               )}
             </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500">Top Class</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Top Class</div>
               {loading && !stats.dominantClass ? (
                 <div className="mt-1 h-6 w-24 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
@@ -1364,7 +1364,7 @@ export default function Home() {
 
         {/* Tables navigation */}
         <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-3">
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
             Jump to
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
