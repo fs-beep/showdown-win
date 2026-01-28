@@ -872,18 +872,21 @@ export default function Home() {
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
-      // Show warning or sync status
+      setUsdmError(null); // Clear any previous errors on success
+      // Show warning only if sync actually failed
       if (j.warning) {
-        setUsdmError(`Sync failed: ${j.warning}`);
-      } else if (j.source && j.source.includes('fallback')) {
-        setUsdmError(`Using cached data (${j.source})`);
+        setUsdmError(`Sync issue: ${j.warning}`);
       }
       // Auto-continue syncing if not caught up
       if (j.needsMoreSync && !j.warning) {
         setTimeout(() => fetchUsdmTop(true), 500);
       }
     } catch (e:any) {
-      setUsdmError(e?.message || String(e));
+      // Only show error if we don't have recent data (< 5 min old)
+      const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;
+      if (!isDataFresh) {
+        setUsdmError(e?.message || String(e));
+      }
     } finally {
       setUsdmLoading(false);
     }
