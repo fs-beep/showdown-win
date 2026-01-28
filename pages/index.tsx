@@ -868,6 +868,7 @@ export default function Home() {
   };
 
   const [usdmLastSyncTime, setUsdmLastSyncTime] = useState<number>(0);
+  const [usdmDebug, setUsdmDebug] = useState<string>('');
   
   const fetchUsdmTop = async (force = false, isAutoRetry = false) => {
     if (usdmLoading) return;
@@ -890,6 +891,11 @@ export default function Home() {
       setUsdmUpdatedAt(j.updatedAt || null);
       setUsdmLastSyncTime(Date.now());
       setUsdmError(null);
+      
+      // Show debug info
+      if (j.debug) {
+        setUsdmDebug(`Scanned ${j.debug.blocksToScan} blocks, found ${j.debug.logsFound} logs`);
+      }
       
       if (j.warning) {
         setUsdmError(`Sync issue: ${j.warning}`);
@@ -1132,11 +1138,14 @@ export default function Home() {
               <button
                 onClick={() => fetchUsdmTop(true)}
                 disabled={usdmLoading}
-                className="w-full mb-4 inline-flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#282828] rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40"
+                className="w-full mb-2 inline-flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#282828] rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40"
               >
                 {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
                 {usdmLoading ? 'Syncing...' : 'Refresh'}
               </button>
+              {usdmDebug && !usdmError && (
+                <div className="mb-2 text-[10px] text-gray-600">{usdmDebug}</div>
+              )}
               {usdmError && (
                 <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
               )}

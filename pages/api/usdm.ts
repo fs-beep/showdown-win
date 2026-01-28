@@ -187,7 +187,7 @@ function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
   }
 }
 
-function computeCache(state: State): CachedData {
+function computeCache(state: State, prevUpdatedAt?: number, logsFound?: number): CachedData {
   const rows: ProfitRow[] = Object.entries(state.totals).map(([player, s]) => ({
     player,
     won: s.won,
@@ -202,12 +202,14 @@ function computeCache(state: State): CachedData {
   const volumeSeries = Object.entries(state.volumeByDay)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([day, volume]) => ({ day, volume }));
+  // Only update timestamp if we actually found new logs
+  const newUpdatedAt = (logsFound && logsFound > 0) ? nowMs() : (prevUpdatedAt || nowMs());
   return {
     rows: rows.slice(0, 10),
     volumeSeries,
     totalVolume: state.totalVolume || '0',
     lastBlock: state.lastBlock,
-    updatedAt: nowMs(),
+    updatedAt: newUpdatedAt,
   };
 }
 
@@ -273,7 +275,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const cache = computeCache(state);
+    const prevUpdatedAt = memCache?.updatedAt;
+    const cache = computeCache(state, prevUpdatedAt, logsFound);
     memCache = cache;
     if (kvOk) {
       try { await kv.set(CACHE_KEY, cache); } catch (e: any) {
@@ -288,7 +291,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       needsMoreSync, 
       syncedTo: toBlock, 
       latestBlock: targetToBlock,
-      debug: { fromBlock, toBlock, blocksToScan, logsFound, stateLastBlock: state.lastBlock }
+      debug: { fromBlock, toBlock, blocksToScan, logsFound, stateLastBlock: state.lastBlock, totalVolume: state.totalVolume }
     });
   } catch (e: any) {
     const warning = e?.message || String(e);
@@ -308,7 +311,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch {}
     }
     // Last resort: compute from current state
-    const cache = computeCache(state);
+    const cache = computeCache(state, undefined, 0);
     return res.status(200).json({ ok: true, ...cache, warning, source: 'state-fallback' });
   }
 }
