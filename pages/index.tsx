@@ -114,13 +114,12 @@ function usdmNetClass(weiStr?: string) {
   const base = 1000000000000000000n;
   const rounded = Number((bi < 0n ? -bi : bi) / base);
   if (bi > 0n) {
-    if (rounded >= 10000) return 'text-emerald-500 dark:text-emerald-400 text-2xl font-black';
-    if (rounded >= 1000) return 'text-emerald-500 dark:text-emerald-400 text-xl font-bold';
-    if (rounded >= 100) return 'text-emerald-500 dark:text-emerald-400 text-lg font-bold';
-    return 'text-emerald-600 dark:text-emerald-400 font-semibold';
+    if (rounded >= 10000) return 'text-green-400 text-2xl font-black';
+    if (rounded >= 1000) return 'text-green-400 text-xl font-bold';
+    if (rounded >= 100) return 'text-green-400 text-lg font-bold';
+    return 'text-green-400 font-semibold';
   } else if (bi < 0n) {
-    // Muted red - less alarming
-    return 'text-rose-400/70 dark:text-rose-400/60 font-normal';
+    return 'text-gray-600 font-normal';
   }
   return '';
 }
@@ -990,23 +989,23 @@ export default function Home() {
         </div>
         {/* subtitle removed per request */}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-lg bg-[#1a1a1a] p-4 md:sticky md:top-4 z-20 border border-gray-800">
-            <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="rounded-lg bg-[#141414] p-5 lg:sticky lg:top-4 z-20 border border-gray-800/60">
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-4">
               Filters
             </div>
-            <label className="mt-3 block text-xs text-gray-500">Player Name</label>
+            <label className="block text-[11px] text-gray-400 mb-1">Player Name</label>
             <div className="relative">
             <input
-              className="mt-1 w-full rounded-xl border p-2 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+              className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none"
               value={player}
                 onChange={e => { setPlayer(e.target.value); setShowPlayerDropdown(true); }}
                 onFocus={() => { setPlayerInputFocused(true); setShowPlayerDropdown(true); }}
                 onBlur={() => { setPlayerInputFocused(false); setTimeout(() => setShowPlayerDropdown(false), 150); }}
-                placeholder="barry"
+                placeholder="Enter player name"
             />
               {showPlayerDropdown && playerInputFocused && recentPlayers.length > 0 && (
-                <div className="absolute z-30 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg">
+                <div className="absolute z-30 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-700/60 bg-[#1c1c1c] shadow-xl">
                   {recentPlayers
                     .filter(p => p.toLowerCase().includes(player.toLowerCase()))
                     .slice(0, 10)
@@ -1014,12 +1013,12 @@ export default function Home() {
                       <button
                         key={p}
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-xl last:rounded-b-xl"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-[#282828] first:rounded-t-lg last:rounded-b-lg"
                         onMouseDown={() => { setPlayer(p); setShowPlayerDropdown(false); }}
                       >
                         {p}
                       </button>
-              ))}
+                    ))}
                   {recentPlayers.filter(p => p.toLowerCase().includes(player.toLowerCase())).length === 0 && (
                     <div className="px-3 py-2 text-sm text-gray-500">No matching players</div>
                   )}
@@ -1027,43 +1026,43 @@ export default function Home() {
               )}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500">Start date</label>
+                <label className="block text-[11px] text-gray-400 mb-1">Start date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
+                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={startDate} onChange={e=>setStartDate(e.target.value)} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500">End date (empty = latest)</label>
+                <label className="block text-[11px] text-gray-400 mb-1">End date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-2 top-2.5 h-4 w-4 text-gray-400"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="mt-1 w-full rounded-xl border p-2 pl-7 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
+                  <input type="text" inputMode="numeric" placeholder="Latest" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={endDate} onChange={e=>setEndDate(e.target.value)} />
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <span className="text-gray-500">Presets:</span>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('sincePatch')}>Since last balance patch</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('thisMonth')}>This month</button>
-              <button className="rounded-full border px-3 py-1 dark:border-gray-600" onClick={()=>applyPreset('allTime')}>All time</button>
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-gray-500 mr-1">Presets:</span>
+              <button className="rounded-full bg-[#1c1c1c] border border-gray-700/60 px-2.5 py-1 text-[11px] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors" onClick={()=>applyPreset('sincePatch')}>Since last patch</button>
+              <button className="rounded-full bg-[#1c1c1c] border border-gray-700/60 px-2.5 py-1 text-[11px] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors" onClick={()=>applyPreset('thisMonth')}>This month</button>
+              <button className="rounded-full bg-[#1c1c1c] border border-gray-700/60 px-2.5 py-1 text-[11px] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors" onClick={()=>applyPreset('allTime')}>All time</button>
             </div>
 
             {/* Removed class and end reason filters per request */}
 
-            <button onClick={() => run()} disabled={loading} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 px-4 py-3 text-white font-bold uppercase tracking-wide transition-colors disabled:opacity-60">
-              {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Play className="h-4 w-4"/>}
+            <button onClick={() => run()} disabled={loading} className="mt-5 w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 rounded-lg px-4 py-3 text-sm text-white font-semibold uppercase tracking-wide transition-colors disabled:opacity-50">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
               {loading ? "Loading..." : "Analyze"}
             </button>
             <button
               onClick={() => fetchLatest()}
               disabled={loading || rows.length === 0}
-              className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-[#252525] hover:bg-[#333] px-4 py-2.5 text-sm text-gray-300 hover:text-white transition-colors disabled:opacity-60"
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#282828] rounded-lg px-4 py-2.5 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-40"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ArrowUp className="h-4 w-4"/>}
-              {loading ? 'Updating...' : 'Refresh'}
+              Refresh
             </button>
             {rows.length > 0 && (
               <div className="mt-2 text-xs text-gray-500">
@@ -1073,131 +1072,121 @@ export default function Home() {
               </div>
             )}
             {error && (
-              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2 text-sm text-red-700 flex items-start gap-2">
-                <ShieldAlert className="h-4 w-4 mt-0.5"/>
-                <div>
-                  <div className="font-medium">Heads up</div>
-                  <div>{error}</div>
-                </div>
-              </div>
+              <div className="rounded-lg bg-red-900/20 border border-red-800/50 p-3 text-xs text-red-400">{error}</div>
             )}
             {warning && !error && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700 flex items-start gap-2">
-                <ShieldAlert className="h-4 w-4 mt-0.5"/>
-                <div>
-                  <div className="font-medium">Heads up</div>
-                  <div>{warning}</div>
-                </div>
-              </div>
+              <div className="rounded-lg bg-amber-900/20 border border-amber-800/50 p-3 text-xs text-amber-400">{warning}</div>
             )}
           </div>
 
-          {/* Top Earners - right column */}
+          {/* Top Earners */}
           {showMoneyTables && (
-            <div id="top-usdm-profits" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
-              <div className="flex items-center justify-between mb-3">
+            <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <div className="text-sm font-bold text-gray-100">Top Earners</div>
-                  <div className="text-[10px] text-gray-500">
+                  <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Top Earners</div>
+                  <div className="text-[10px] text-gray-600 mt-1">
                     {usdmUpdatedAt && new Date(usdmUpdatedAt).toLocaleString()}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-500">Wagered</div>
-                  <div className="text-xl font-bold text-red-500">{formatUsdm(usdmTotalVolume)}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-gray-500">Total Wagered</div>
+                  <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
                 </div>
               </div>
               <button
                 onClick={() => fetchUsdmTop(true)}
                 disabled={usdmLoading}
-                className="w-full mb-3 inline-flex items-center justify-center gap-2 bg-[#252525] hover:bg-[#333] px-3 py-1.5 text-xs text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                className="w-full mb-4 inline-flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#282828] rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-40"
               >
-                {usdmLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : <ArrowUp className="h-3 w-3"/>}
+                {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
                 {usdmLoading ? 'Syncing...' : 'Refresh'}
               </button>
               {usdmError && usdmRows.length === 0 && (
-                <div className="mb-3 rounded border border-red-800 bg-red-900/20 p-2 text-xs text-red-400">{usdmError}</div>
+                <div className="mb-3 rounded-lg bg-red-900/20 border border-red-800/50 p-2.5 text-xs text-red-400">{usdmError}</div>
               )}
               {usdmError && usdmRows.length > 0 && (
-                <div className="mb-3 rounded border border-amber-800 bg-amber-900/20 p-2 text-[10px] text-amber-400">Cached. Error: {usdmError}</div>
+                <div className="mb-3 rounded-lg bg-amber-900/20 border border-amber-800/50 p-2.5 text-[10px] text-amber-400">Using cached data</div>
               )}
-              <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                <table className="min-w-full text-left text-xs">
-                  <thead className="sticky top-0">
-                    <tr className="border-b border-gray-700 bg-[#252525] text-gray-400 text-[10px] uppercase tracking-wide">
-                      <th className="p-2 w-8 text-center">#</th>
-                      <th className="p-2">Player</th>
-                      <th className="p-2 text-green-500">Profit</th>
-                      <th className="p-2">Games</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usdmRows.map((r, i) => {
-                      const netBi = BigInt(r.net || '0');
-                      const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
-                      const isProfitable = netBi > 0n;
-                      const netClass = isProfitable
-                        ? netAbs >= 100 ? 'text-green-400 font-bold'
-                        : netAbs >= 10 ? 'text-green-400 font-semibold'
-                        : 'text-green-400'
-                        : netBi < 0n ? 'text-gray-600' : 'text-gray-500';
-                      return (
-                        <tr key={r.player + i} className="border-b border-gray-800 hover:bg-[#252525]">
-                          <td className="p-2 text-center text-gray-500">{i + 1}</td>
-                          <td className="p-2 font-mono">
-                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
-                          </td>
-                          <td className={`p-2 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
-                          <td className="p-2 text-gray-500">{r.txs}</td>
-                        </tr>
+              <div className="overflow-hidden rounded-lg border border-gray-800/50">
+                <div className="max-h-72 overflow-y-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-[#1c1c1c]">
+                      <tr className="text-gray-500 text-[10px] uppercase tracking-wide">
+                        <th className="px-3 py-2.5 w-10 text-center">#</th>
+                        <th className="px-3 py-2.5">Player</th>
+                        <th className="px-3 py-2.5 text-green-500">Profit</th>
+                        <th className="px-3 py-2.5 text-right">Games</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/50">
+                      {usdmRows.map((r, i) => {
+                        const netBi = BigInt(r.net || '0');
+                        const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
+                        const isProfitable = netBi > 0n;
+                        const netClass = isProfitable
+                          ? netAbs >= 100 ? 'text-green-400 font-bold'
+                          : netAbs >= 10 ? 'text-green-400 font-semibold'
+                          : 'text-green-400'
+                          : netBi < 0n ? 'text-gray-600' : 'text-gray-500';
+                        return (
+                          <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
+                            <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
+                            <td className="px-3 py-2.5 font-mono text-[11px]">
+                              <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
+                            </td>
+                            <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
+                          </tr>
                       );
                     })}
-                    {usdmLoading && usdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
-                    {!usdmLoading && usdmRows.length === 0 && !usdmError && (
-                      <tr><td className="p-4 text-center text-gray-500" colSpan={4}>No data yet</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                      {usdmLoading && usdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
+                      {!usdmLoading && usdmRows.length === 0 && !usdmError && (
+                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>No data yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <a className="mt-2 block text-[10px] text-gray-600 hover:text-gray-400" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
+              <a className="mt-3 inline-block text-[10px] text-gray-600 hover:text-gray-400 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
             </div>
           )}
         </div>
 
-        {/* Stats - Compact horizontal layout */}
-        <div className="mt-6 rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-sm">
+        {/* Stats */}
+        <div className="mt-6 rounded-lg bg-[#141414] p-5 border border-gray-800/60">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Wins</div>
+            <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500">Wins</div>
               {loading && stats.wins === 0 ? (
-                <div className="mt-1 h-8 w-16 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                <div className="mt-1 h-8 w-16 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
-                <div className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{stats.wins}</div>
+                <div className="mt-1 text-2xl font-bold text-green-400">{stats.wins}</div>
               )}
-          </div>
-            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Losses</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500">Losses</div>
               {loading && stats.losses === 0 ? (
-                <div className="mt-1 h-8 w-16 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                <div className="mt-1 h-8 w-16 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
-                <div className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{stats.losses}</div>
+                <div className="mt-1 text-2xl font-bold text-red-400">{stats.losses}</div>
               )}
-          </div>
-            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Win Rate</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500">Win Rate</div>
               {loading && stats.wins === 0 && stats.losses === 0 ? (
-                <div className="mt-1 h-8 w-20 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                <div className="mt-1 h-8 w-20 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
-                <div className="mt-1 text-2xl font-bold">{(stats.winrate*100).toFixed(1)}%</div>
+                <div className="mt-1 text-2xl font-bold text-gray-100">{(stats.winrate*100).toFixed(1)}%</div>
               )}
-          </div>
-            <div className="text-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Top Class</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500">Top Class</div>
               {loading && !stats.dominantClass ? (
-                <div className="mt-1 h-6 w-24 mx-auto bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                <div className="mt-1 h-6 w-24 mx-auto bg-gray-700 rounded animate-pulse" />
               ) : (
                 <>
-                  <div className="mt-1 text-sm font-semibold truncate">{stats.dominantClass || '—'}</div>
+                  <div className="mt-1 text-sm font-semibold truncate text-gray-100">{stats.dominantClass || '—'}</div>
                   {stats.dominantClass && <div className="text-[10px] text-gray-500">{Math.round((stats.dominantClassPct||0) * 100)}% of wins</div>}
                 </>
               )}
@@ -1206,20 +1195,20 @@ export default function Home() {
         </div>
 
         {/* Tables navigation */}
-        <div className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
-          <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+        <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 mb-3">
             Jump to
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <a href="#player-class-stats" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Player stats</a>
-            <a href="#class-vs-class" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Class vs Class</a>
-            <a href="#player-matches" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Matches</a>
-            <a href="#global-class-stats" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Global stats</a>
-            <a href="#top-players" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Top players</a>
-            <a href="#top-by-class" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">Best by class</a>
-            <a href="#all-decoded" className="px-3 py-1.5 bg-[#252525] text-gray-300 hover:bg-[#333] hover:text-white transition-colors">All games</a>
+            <a href="#player-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Player stats</a>
+            <a href="#class-vs-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Class vs Class</a>
+            <a href="#player-matches" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Matches</a>
+            <a href="#global-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Global stats</a>
+            <a href="#top-players" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Top players</a>
+            <a href="#top-by-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Best by class</a>
+            <a href="#all-decoded" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">All games</a>
             {showMoneyTables && (
-              <a href="#top-usdm-profits" className="px-3 py-1.5 bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 border border-red-800/50 transition-colors">Top Earners</a>
+              <a href="#top-usdm-profits" className="px-3 py-1.5 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 border border-red-800/50 transition-colors">Top Earners</a>
             )}
           </div>
         </div>
@@ -1233,18 +1222,18 @@ export default function Home() {
           </summary>
           <div className="mt-4">
         {/* Per-class performance (player specific) */}
-        <div id="player-class-stats" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="player-class-stats" className="rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Class Performance — <span className="text-red-500">{player || '—'}</span>
             </div>
             {classStats.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> JSON
+                <button onClick={() => dl("showdown_class_stats_" + (player||'player') + ".json", classStats)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
+                  <Download className="h-3.5 w-3.5"/> JSON
                 </button>
-                <button onClick={() => dlCsv("showdown_class_stats_" + (player||'player') + ".csv", classStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
-                  <Download className="h-4 w-4"/> CSV
+                <button onClick={() => dlCsv("showdown_class_stats_" + (player||'player') + ".csv", classStats)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
+                  <Download className="h-3.5 w-3.5"/> CSV
                 </button>
               </div>
             )}
@@ -1252,8 +1241,8 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
+                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-[#1c1c1c]" aria-sort={playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {playerClassSort.key==='klass' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='wins' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {playerClassSort.key==='wins' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='losses' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {playerClassSort.key==='losses' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={playerClassSort.key==='total' ? (playerClassSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setPlayerClassSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {playerClassSort.key==='total' ? (playerClassSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -1262,8 +1251,8 @@ export default function Home() {
               </thead>
               <tbody>
                 {classStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
+                  <tr key={r.klass + i} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
+                    <td className="p-2 sticky left-0 bg-[#141414]">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
@@ -1284,12 +1273,12 @@ export default function Home() {
         </div>
 
         {/* Class-vs-Class matchups with base class selector */}
-        <div id="class-vs-class" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="class-vs-class" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-sm font-semibold text-gray-200">
               Class vs Class — Win Rates
             </div>
-            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+            <label className="flex items-center gap-2 text-xs text-gray-400">
               <input type="checkbox" className="h-4 w-4 rounded" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
               Only matches incl. <span className="font-semibold">{player || 'player'}</span>
             </label>
@@ -1306,10 +1295,10 @@ export default function Home() {
                   <button
                     key={cls}
                     onClick={() => toggleBaseClass(cls)}
-                    className={`px-2 py-2 sm:px-4 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    className={`px-2 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       isSelected
-                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-800'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
+                        ? 'bg-red-600 text-white shadow-md ring-2 ring-red-400'
+                        : 'bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:scale-105'
                     }`}
                   >
                     {cls}
@@ -1318,7 +1307,7 @@ export default function Home() {
               })}
             </div>
             {selectedBaseClasses.length === 1 && (
-              <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              <div className="mt-2 text-xs text-amber-400">
                 Select one more class to see matchups
               </div>
             )}
@@ -1330,33 +1319,33 @@ export default function Home() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs md:text-sm">
                   <thead>
-                    <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                    <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                       <th 
-                        className="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 cursor-pointer hover:bg-[#282828] transition-colors"
                         onClick={() => setClassVsClassSort(s => ({ key: 'opponent', dir: s.key === 'opponent' && s.dir === 'asc' ? 'desc' : 'asc' }))}
                       >
                         Opponent {classVsClassSort.key === 'opponent' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
                       </th>
                       <th 
-                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 text-center cursor-pointer hover:bg-[#282828] transition-colors"
                         onClick={() => setClassVsClassSort(s => ({ key: 'winRate', dir: s.key === 'winRate' && s.dir === 'desc' ? 'asc' : 'desc' }))}
                       >
-                        <span className="font-bold text-blue-600 dark:text-blue-400">{selectedDualClass}</span> WR {classVsClassSort.key === 'winRate' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
+                        <span className="font-bold text-blue-400">{selectedDualClass}</span> WR {classVsClassSort.key === 'winRate' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
                       </th>
                       <th 
-                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 text-center cursor-pointer hover:bg-[#282828] transition-colors"
                         onClick={() => setClassVsClassSort(s => ({ key: 'wins', dir: s.key === 'wins' && s.dir === 'desc' ? 'asc' : 'desc' }))}
                       >
                         Wins {classVsClassSort.key === 'wins' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
                       </th>
                       <th 
-                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 text-center cursor-pointer hover:bg-[#282828] transition-colors"
                         onClick={() => setClassVsClassSort(s => ({ key: 'losses', dir: s.key === 'losses' && s.dir === 'desc' ? 'asc' : 'desc' }))}
                       >
                         Losses {classVsClassSort.key === 'losses' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
                       </th>
                       <th 
-                        className="p-2 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 text-center cursor-pointer hover:bg-[#282828] transition-colors"
                         onClick={() => setClassVsClassSort(s => ({ key: 'total', dir: s.key === 'total' && s.dir === 'desc' ? 'asc' : 'desc' }))}
                       >
                         Games {classVsClassSort.key === 'total' ? (classVsClassSort.dir === 'asc' ? '↑' : '↓') : ''}
@@ -1381,7 +1370,7 @@ export default function Home() {
                         .map(m => {
                           const hue = Math.round(m.winRate * 120);
                           return (
-                            <tr key={m.opponent} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <tr key={m.opponent} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
                               <td className="p-2 font-medium">{m.opponent}</td>
                               <td className="p-2 text-center">
                                 <span
@@ -1391,8 +1380,8 @@ export default function Home() {
                                   {(m.winRate * 100).toFixed(0)}%
                                 </span>
                               </td>
-                              <td className="p-2 text-center tabular-nums text-green-600 dark:text-green-400">{m.wins}</td>
-                              <td className="p-2 text-center tabular-nums text-red-600 dark:text-red-400">{m.losses}</td>
+                              <td className="p-2 text-center tabular-nums text-green-400">{m.wins}</td>
+                              <td className="p-2 text-center tabular-nums text-red-400">{m.losses}</td>
                               <td className="p-2 text-center tabular-nums">{m.total}</td>
                             </tr>
                           );
@@ -1404,12 +1393,12 @@ export default function Home() {
             </div>
           )}
           {selectedDualClass && !classVsClass.matchups[selectedDualClass] && classVsClass.classes.length > 0 && (
-            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-xl dark:border-gray-700">
+            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-lg border-gray-700">
               No data found for <span className="font-semibold">{selectedDualClass}</span> in the current dataset
             </div>
           )}
           {!selectedDualClass && classVsClass.classes.length > 0 && (
-            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-xl dark:border-gray-700">
+            <div className="mt-4 p-4 text-center text-gray-500 text-sm border border-dashed rounded-lg border-gray-700">
               Select 2 classes above to see matchup win rates
             </div>
           )}
@@ -1421,7 +1410,7 @@ export default function Home() {
           </div>
 
         {/* Player-specific matches */}
-        <div id="player-matches" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="player-matches" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Matches — <span className="text-red-500">{player || '—'}</span>
@@ -1429,10 +1418,10 @@ export default function Home() {
             </div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> JSON
                 </button>
-                <button onClick={() => dlCsv("showdown_matches_for_" + (player||'player') + ".csv", filtered)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dlCsv("showdown_matches_for_" + (player||'player') + ".csv", filtered)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> CSV
                 </button>
               </div>
@@ -1441,7 +1430,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-20 cursor-pointer" aria-sort={filteredSort.key==='result' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'result' as any, dir: s.key==='result' && s.dir==='asc' ? 'desc' : 'asc' }))}>Result {filteredSort.key==='result' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40 cursor-pointer" onClick={()=>setFilteredSort(s=>({ key:'opponent' as any, dir: (s.key as any)=='opponent' && s.dir==='asc' ? 'desc' : 'asc' }))}>Opponent</th>
@@ -1457,7 +1446,7 @@ export default function Home() {
                   const metadataPretty = prettyMetadata(r.metadata);
                   return (
                     <Fragment key={r.txHash + i}>
-                      <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
+                      <tr className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors cursor-pointer" onClick={()=>toggleExpandedFiltered(r.txHash)}>
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2 font-medium">{r.result}</td>
                         <td className="p-2">{r.opponent}</td>
@@ -1473,7 +1462,7 @@ export default function Home() {
                         </td>
                       </tr>
                       {expandedFiltered.has(r.txHash) && (
-                        <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                        <tr className="border-b border-gray-700 bg-[#1a1a1a]">
                           <td colSpan={8} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               <div><span className="text-gray-500">Player class:</span> {(r as any).playerClasses}</div>
@@ -1502,7 +1491,7 @@ export default function Home() {
               <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.max(1,p-1))} disabled={pageFiltered===1}>Prev</button>
               <div>Page {pageFiltered} / {Math.ceil(filtered.length / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageFiltered(p=>Math.min(Math.ceil(filtered.length / pageSize),p+1))} disabled={pageFiltered>=Math.ceil(filtered.length / pageSize)}>Next</button>
-              <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+              <select className="ml-2 rounded border px-2 py-1 bg-[#1c1c1c] border-gray-700/60" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
                 <option value={5}>5</option>
                 <option value={15}>15</option>
                 <option value={25}>25</option>
@@ -1513,7 +1502,7 @@ export default function Home() {
                 value={jumpFiltered}
                 onChange={e=>setJumpFiltered(e.target.value)}
                 onKeyDown={e=>{ if (e.key==='Enter') { const n=parseInt(jumpFiltered||'1',10); if (!isNaN(n)) setPageFiltered(Math.min(Math.max(1,n), Math.ceil(filtered.length/pageSize))); } }}
-                className="ml-2 w-16 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="ml-2 w-16 rounded border px-2 py-1 bg-[#1c1c1c] border-gray-700/60"
                 placeholder="Go"
               />
             </div>
@@ -1533,7 +1522,7 @@ export default function Home() {
           <div className="mt-4">
 
         {/* All matches per-class performance (global) */}
-        <div id="global-class-stats" className="rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="global-class-stats" className="rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Class Performance — All Matches
@@ -1541,10 +1530,10 @@ export default function Home() {
             </div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dl("showdown_class_stats_all.json", overallClassStats)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> JSON
                 </button>
-                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dlCsv("showdown_class_stats_all.csv", overallClassStats)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> CSV
                 </button>
               </div>
@@ -1554,8 +1543,8 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
-                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-gray-50 dark:bg-gray-700" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
+                  <th className="p-2 w-52 cursor-pointer sticky left-0 bg-[#1c1c1c]" aria-sort={overallSort.key==='klass' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'klass' as any, dir: s.key==='klass' && s.dir==='asc' ? 'desc' : 'asc' }))}>Class {overallSort.key==='klass' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='wins' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'wins' as any, dir: s.key==='wins' && s.dir==='asc' ? 'desc' : 'asc' }))}>Wins {overallSort.key==='wins' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='losses' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'losses' as any, dir: s.key==='losses' && s.dir==='asc' ? 'desc' : 'asc' }))}>Losses {overallSort.key==='losses' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-24 cursor-pointer" aria-sort={overallSort.key==='total' ? (overallSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setOverallSort(s=>({ key:'total' as any, dir: s.key==='total' && s.dir==='asc' ? 'desc' : 'asc' }))}>Games {overallSort.key==='total' ? (overallSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -1564,8 +1553,8 @@ export default function Home() {
               </thead>
               <tbody>
                 {overallClassStats.map((r, i) => (
-                  <tr key={r.klass + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="p-2 sticky left-0 bg-white dark:bg-gray-800">{r.klass}</td>
+                  <tr key={r.klass + i} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
+                    <td className="p-2 sticky left-0 bg-[#141414]">{r.klass}</td>
                     <td className="p-2 tabular-nums">{r.wins}</td>
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
@@ -1586,7 +1575,7 @@ export default function Home() {
         </div>
 
         {/* Top Players by Win Rate (min 15 games) */}
-        <div id="top-players" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="top-players" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Top Players
@@ -1594,10 +1583,10 @@ export default function Home() {
             </div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> JSON
                 </button>
-                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> CSV
                 </button>
               </div>
@@ -1606,7 +1595,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                   <th className="p-2 w-10">#</th>
                   <th className="p-2">Player</th>
                   <th className="p-2">Wins</th>
@@ -1617,7 +1606,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {topPlayers.map((p, i) => (
-                  <tr key={p.player + i} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <tr key={p.player + i} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
                     <td className="p-2 tabular-nums">{i+1}</td>
                     <td className="p-2">{p.player}</td>
                     <td className="p-2 tabular-nums">{p.wins}</td>
@@ -1640,7 +1629,7 @@ export default function Home() {
         </div>
 
         {/* Top Player by Class */}
-        <div id="top-by-class" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="top-by-class" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Best Player by Class
@@ -1648,7 +1637,7 @@ export default function Home() {
             </div>
             {topPlayersByClass.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> JSON
                 </button>
               </div>
@@ -1657,7 +1646,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead>
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                   <th className="p-2">Class</th>
                   <th className="p-2">Best Player</th>
                   <th className="p-2 text-center">W/L</th>
@@ -1669,13 +1658,13 @@ export default function Home() {
                 {topPlayersByClass.map((row) => {
                   const hue = Math.round(row.winrate * 120);
                   return (
-                    <tr key={row.klass} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <tr key={row.klass} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
                       <td className="p-2 font-medium">{row.klass}</td>
                       <td className="p-2">{row.player}</td>
                       <td className="p-2 text-center tabular-nums">
-                        <span className="text-green-600 dark:text-green-400">{row.wins}</span>
+                        <span className="text-green-400">{row.wins}</span>
                         <span className="text-gray-400 mx-1">/</span>
-                        <span className="text-red-600 dark:text-red-400">{row.losses}</span>
+                        <span className="text-red-400">{row.losses}</span>
                       </td>
                       <td className="p-2 text-center tabular-nums">{row.total}</td>
                       <td className="p-2 text-center">
@@ -1703,7 +1692,7 @@ export default function Home() {
         </div>
 
         {/* All decoded list (newest first) */}
-        <div id="all-decoded" className="mt-6 rounded-lg bg-[#1a1a1a] p-4 border border-gray-800">
+        <div id="all-decoded" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               All Games
@@ -1711,10 +1700,10 @@ export default function Home() {
             </div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> JSON
                 </button>
-                <button onClick={() => dlCsv("showdown_winrate_results.csv", rows)} className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                <button onClick={() => dlCsv("showdown_winrate_results.csv", rows)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
                   <Download className="h-4 w-4"/> CSV
                 </button>
               </div>
@@ -1723,7 +1712,7 @@ export default function Home() {
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-700">
+                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                   <th className="p-2 w-24 cursor-pointer" aria-sort={decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {decodedSort.key==='gameNumber' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-40">Game ID</th>
                   <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setDecodedSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {decodedSort.key==='startedAt' ? (decodedSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -1738,7 +1727,7 @@ export default function Home() {
                   const metadataPretty = prettyMetadata(r.metadata);
                   return (
                     <Fragment key={r.txHash + i}>
-                      <tr className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
+                      <tr className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors cursor-pointer" onClick={()=>toggleExpandedAll(r.txHash)}>
                         <td className="p-2 tabular-nums">{r.gameNumber}</td>
                         <td className="p-2">{r.gameId}</td>
                         <td className="p-2">{r.startedAt}</td>
@@ -1753,7 +1742,7 @@ export default function Home() {
                         </td>
                       </tr>
                       {expandedAll.has(r.txHash) && (
-                        <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40">
+                        <tr className="border-b border-gray-700 bg-[#1a1a1a]">
                           <td colSpan={7} className="p-3 text-xs">
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                               <div><span className="text-gray-500">Winning classes:</span> {r.winningClasses}</div>
@@ -1780,7 +1769,7 @@ export default function Home() {
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.max(1,p-1))} disabled={pageAll===1}>Prev</button>
               <div>Page {pageAll} / {Math.ceil((rows.length) / pageSize)}</div>
               <button className="rounded border px-2 py-1" onClick={()=>setPageAll(p=>Math.min(Math.ceil((rows.length) / pageSize),p+1))} disabled={pageAll>=Math.ceil((rows.length) / pageSize)}>Next</button>
-              <select className="ml-2 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
+              <select className="ml-2 rounded border px-2 py-1 bg-[#1c1c1c] border-gray-700/60" value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}>
                 <option value={5}>5</option>
                 <option value={15}>15</option>
                 <option value={25}>25</option>
@@ -1791,7 +1780,7 @@ export default function Home() {
                 value={jumpAll}
                 onChange={e=>setJumpAll(e.target.value)}
                 onKeyDown={e=>{ if (e.key==='Enter') { const n=parseInt(jumpAll||'1',10); if (!isNaN(n)) setPageAll(Math.min(Math.max(1,n), Math.ceil(rows.length/pageSize))); } }}
-                className="ml-2 w-16 rounded border px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="ml-2 w-16 rounded border px-2 py-1 bg-[#1c1c1c] border-gray-700/60"
                 placeholder="Go"
               />
             </div>
@@ -1807,7 +1796,7 @@ export default function Home() {
       </div>
       {/* copy toast */}
       {copiedTx && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black text-white px-3 py-1 text-xs shadow dark:bg-white dark:text-black">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-gray-100 text-gray-900 px-3 py-1 text-xs shadow">
           Copied tx: {copiedTx.slice(0,10)}…
         </div>
       )}
@@ -1882,7 +1871,7 @@ function BackToTop({ visible }: { visible: boolean }) {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className="fixed bottom-6 right-6 z-20 rounded-full bg-black text-white p-3 shadow-lg dark:bg-white dark:text-black"
+      className="fixed bottom-6 right-6 z-20 rounded-full bg-[#1c1c1c] text-white p-3 shadow-lg border border-gray-700/60 hover:bg-[#282828] transition-colors"
       title="Back to top"
     >
       <ArrowUp className="h-4 w-4"/>
@@ -1900,7 +1889,7 @@ function SkeletonTableRows({ rows, cols }: { rows: number; cols: number }) {
         <tr key={i} className="animate-pulse">
           {c.map((__, j) => (
             <td key={j} className="p-2">
-              <div className="h-3 rounded bg-gray-200 dark:bg-gray-700"/>
+              <div className="h-3 rounded bg-gray-700"/>
             </td>
           ))}
         </tr>
