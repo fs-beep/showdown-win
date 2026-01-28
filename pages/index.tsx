@@ -1116,8 +1116,9 @@ export default function Home() {
         <div className="mb-4 rounded-lg bg-[#1a1a1a] text-gray-500 px-4 py-2 text-xs border border-gray-800">
           vibecoded by{' '}
           <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
-          <span className="mx-2 text-gray-700">|</span>
-          <span className="text-gray-600">Track the meta, find your edge. Built on fully transparent onchain MegaETH data.</span>
+        </div>
+        <div className="text-sm text-gray-400 tracking-wide">
+          Track the meta, find your edge. <span className="text-gray-500">Built on fully transparent onchain MegaETH data.</span>
         </div>
 
           <div className="flex items-center justify-between">
