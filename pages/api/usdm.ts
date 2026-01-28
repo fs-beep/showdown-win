@@ -38,8 +38,9 @@ type CachedData = {
   updatedAt: number;
 };
 
-const STATE_KEY = 'usdm:state:v6';
-const CACHE_KEY = 'usdm:cache:v6';
+// v7: Force resync after fixing RPC to use mainnet only
+const STATE_KEY = 'usdm:state:v7';
+const CACHE_KEY = 'usdm:cache:v7';
 
 let memCache: CachedData | null = null;
 
@@ -249,6 +250,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const latest = await getLatestBlock();
+    // Safety: if stored lastBlock is ahead of chain (e.g., synced on wrong chain), reset
+    if (state.lastBlock > latest.num) {
+      console.warn(`USDM state lastBlock ${state.lastBlock} > latest ${latest.num}, resetting`);
+      state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+    }
     let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : USDM_START_BLOCK;
     // Limit how many blocks we scan per request
     const targetToBlock = latest.num;
