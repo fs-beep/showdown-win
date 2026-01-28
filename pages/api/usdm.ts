@@ -3,17 +3,24 @@ import { kv } from '@vercel/kv';
 
 const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
 const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
-const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+const RPC_URLS = [
+  process.env.GAME_RESULTS_RPC_URL,
+  process.env.MAINNET_RPC_URL,
+  'https://carrot.megaeth.com/rpc',
+  'https://rpc.megaeth.com',
+].filter(Boolean) as string[];
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const MAX_SPAN = 2000; // Smaller span to avoid RPC errors
+const MAX_SPAN = 1000; // Very small span for stability
 const CONCURRENCY = 1;
-const LOG_BATCH_DELAY_MS = 300;
+const LOG_BATCH_DELAY_MS = 100;
 const USDM_START_BLOCK = 5721028;
-const MAX_BLOCKS_PER_SYNC = 20000; // Smaller chunks for RPC stability
-const RPC_ATTEMPTS = 6;
-const RPC_BASE_DELAY_MS = 1500;
-const RPC_JITTER_MS = 800;
-const BATCH_DELAY_MS = 200;
+const MAX_BLOCKS_PER_SYNC = 10000;
+const RPC_ATTEMPTS = 3;
+const RPC_BASE_DELAY_MS = 500;
+const RPC_JITTER_MS = 300;
+const BATCH_DELAY_MS = 50;
+
+let currentRpcIndex = 0;
 
 type ProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
 type VolumePoint = { day: string; volume: string };
@@ -54,53 +61,56 @@ function buildRanges(from: number, to: number) {
 
 async function rpc(body: any) {
   let lastErr: any = null;
-  for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30_000);
-      const res = await fetch(MAINNET_RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
-        lastErr = new Error(`RPC HTTP ${res.status}`);
-        await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * RPC_JITTER_MS));
-        continue;
-      }
-      if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-      const j = await res.json();
-      if (Array.isArray(j)) {
-        const bad = j.find((x: any) => x?.error);
-        if (bad) {
-          const errMsg = bad.error?.message || 'RPC batch error';
-          // Retry on "Upstream" errors
-          if (errMsg.toLowerCase().includes('upstream')) {
+  // Try each RPC endpoint
+  for (let rpcIdx = 0; rpcIdx < RPC_URLS.length; rpcIdx++) {
+    const rpcUrl = RPC_URLS[(currentRpcIndex + rpcIdx) % RPC_URLS.length];
+    for (let i = 0; i < RPC_ATTEMPTS; i += 1) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15_000);
+        const res = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
+          lastErr = new Error(`RPC HTTP ${res.status}`);
+          await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS + Math.random() * RPC_JITTER_MS));
+          continue;
+        }
+        if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+        const j = await res.json();
+        if (Array.isArray(j)) {
+          const bad = j.find((x: any) => x?.error);
+          if (bad) {
+            const errMsg = bad.error?.message || 'RPC batch error';
+            if (errMsg.toLowerCase().includes('upstream') || errMsg.toLowerCase().includes('timeout')) {
+              lastErr = new Error(errMsg);
+              break; // Try next RPC
+            }
+            throw new Error(errMsg);
+          }
+        } else if (j?.error) {
+          const errMsg = j.error?.message || 'RPC error';
+          if (errMsg.toLowerCase().includes('upstream') || errMsg.toLowerCase().includes('timeout')) {
             lastErr = new Error(errMsg);
-            await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * RPC_JITTER_MS));
-            continue;
+            break; // Try next RPC
           }
           throw new Error(errMsg);
         }
-      } else if (j?.error) {
-        const errMsg = j.error?.message || 'RPC error';
-        // Retry on "Upstream" errors
-        if (errMsg.toLowerCase().includes('upstream')) {
-          lastErr = new Error(errMsg);
-          await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * RPC_JITTER_MS));
-          continue;
-        }
-        throw new Error(errMsg);
+        // Success - remember this RPC worked
+        currentRpcIndex = (currentRpcIndex + rpcIdx) % RPC_URLS.length;
+        return j;
+      } catch (e: any) {
+        lastErr = e;
+        if (e?.name === 'AbortError') break; // Timeout - try next RPC
+        await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS + Math.random() * RPC_JITTER_MS));
       }
-      return j;
-    } catch (e: any) {
-      lastErr = e;
-      await new Promise(r => setTimeout(r, RPC_BASE_DELAY_MS * Math.pow(2, i) + Math.random() * RPC_JITTER_MS));
     }
   }
-  throw lastErr || new Error('RPC failed');
+  throw lastErr || new Error('All RPCs failed');
 }
 
 async function getLatestBlock() {
