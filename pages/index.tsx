@@ -886,6 +886,10 @@ export default function Home() {
       setUsdmUpdatedAt(j.updatedAt || null);
       setUsdmError(null);
       
+      // Check if we got a fallback response (means sync failed)
+      const isFallback = j.source?.includes('fallback');
+      const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
+      
       // Show progress info
       if (j.debug || j.syncedTo) {
         const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
@@ -897,15 +901,14 @@ export default function Home() {
         } else {
           setUsdmDebug('Up to date');
         }
+      } else if (isFallback && isRateLimit) {
+        setUsdmDebug('RPC busy, retrying in 15s...');
       }
       
-      // Auto-continue syncing until caught up
-      // Auto-retry if we need more sync OR if we're still behind
+      // Auto-continue syncing
       const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
-      if (j.needsMoreSync || behind > 100) {
-        const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
+      if (j.needsMoreSync || behind > 100 || (isFallback && isRateLimit)) {
         if (isRateLimit) {
-          setUsdmDebug(`RPC busy, retrying in 15s... (${behind} blocks left)`);
           setTimeout(() => fetchUsdmTop(true, true), 15000);
         } else {
           setTimeout(() => fetchUsdmTop(true, true), 2000);
@@ -913,6 +916,7 @@ export default function Home() {
       } else {
         // Fully synced!
         setUsdmLastSyncTime(Date.now());
+        setUsdmDebug('');
       }
     } catch (e:any) {
       const errMsg = e?.message || String(e);
@@ -1161,7 +1165,7 @@ export default function Home() {
                 {usdmLoading ? 'Syncing...' : 'Refresh'}
               </button>
               {usdmDebug && !usdmError && (
-                <div className="mb-2 text-[10px] text-gray-600">{usdmDebug}</div>
+                <div className="mb-2 text-xs text-yellow-500/80">{usdmDebug}</div>
               )}
               {usdmError && (
                 <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
