@@ -218,8 +218,66 @@ function computeCache(state: State, prevUpdatedAt?: number, logsFound?: number):
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const fresh = req.query?.fresh === '1';
   const kvOk = !!(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+
+  // Handle POST: client-side sync results
+  if (req.method === 'POST') {
+    try {
+      const { logs, toBlock } = req.body;
+      if (!logs || !Array.isArray(logs) || !toBlock) {
+        return res.status(400).json({ ok: false, error: 'Missing logs or toBlock' });
+      }
+      
+      // Load existing state
+      let state: State | null = null;
+      if (kvOk) {
+        try { state = await kv.get<State>(STATE_KEY); } catch {}
+      }
+      if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+      
+      // Only process if client has newer data
+      if (toBlock <= state.lastBlock) {
+        return res.status(200).json({ ok: true, skipped: true, message: 'Server already has newer data' });
+      }
+      
+      // Get block timestamps for the logs
+      const blockNums = [...new Set(logs.map((l: any) => parseInt(l.blockNumber, 16)))];
+      let blockTs = new Map<number, number>();
+      try {
+        blockTs = await batchGetBlocks(blockNums);
+      } catch (e) {
+        // If we can't get timestamps, use current time
+        const now = Math.floor(Date.now() / 1000);
+        for (const bn of blockNums) blockTs.set(bn, now);
+      }
+      
+      // Update state with client logs
+      updateState(state, logs, blockTs);
+      state.lastBlock = toBlock;
+      
+      // Save to KV
+      if (kvOk) {
+        try { await kv.set(STATE_KEY, state); } catch (e: any) {
+          console.error('Failed to save client sync state:', e);
+        }
+      }
+      
+      // Recompute and save cache
+      const cache = computeCache(state, undefined, logs.length);
+      memCache = cache;
+      if (kvOk) {
+        try { await kv.set(CACHE_KEY, cache); } catch (e: any) {
+          console.error('Failed to save client sync cache:', e);
+        }
+      }
+      
+      return res.status(200).json({ ok: true, saved: true, totalVolume: state.totalVolume, lastBlock: state.lastBlock });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || 'Server error' });
+    }
+  }
+
+  const fresh = req.query?.fresh === '1';
 
   // 1) Return cached data immediately for non-fresh requests
   if (!fresh) {

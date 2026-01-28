@@ -920,12 +920,32 @@ export default function Home() {
         return null;
       }
       
-      // Calculate new volume
+      // Calculate new volume for display
       let newVolume = BigInt(0);
       for (const log of relevant) {
         newVolume += BigInt(log.data);
       }
       
+      setUsdmDebug(`Saving ${relevant.length} transfers to server...`);
+      
+      // Send logs to server to persist
+      try {
+        const saveRes = await fetch('/api/usdm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logs: relevant, toBlock: latest }),
+        });
+        const saveJson = await saveRes.json();
+        if (saveJson.ok && saveJson.saved) {
+          setUsdmDebug(`Synced! +${relevant.length} transfers (saved)`);
+          // Return the server's computed total for accuracy
+          return { totalVolume: saveJson.totalVolume, logs: relevant.length, toBlock: latest, saved: true };
+        }
+      } catch (e) {
+        console.warn('Failed to save to server:', e);
+      }
+      
+      // Fallback: return local calculation
       setUsdmDebug(`Found ${relevant.length} new transfers (+$${Math.round(Number(newVolume) / 1e18)})`);
       return { newVolume: newVolume.toString(), logs: relevant.length, toBlock: latest };
     } catch (e: any) {
@@ -959,13 +979,18 @@ export default function Home() {
       if (isFallback && isRateLimit && j.lastBlock) {
         const clientResult = await clientSideSync(j.lastBlock);
         if (clientResult) {
-          // Update volume with client-side data
-          const currentVol = BigInt(j.totalVolume || '0');
-          const newTotal = currentVol + BigInt(clientResult.newVolume);
-          setUsdmTotalVolume(newTotal.toString());
+          // Use server's total if saved, otherwise calculate locally
+          if (clientResult.saved && clientResult.totalVolume) {
+            setUsdmTotalVolume(clientResult.totalVolume);
+          } else if (clientResult.newVolume) {
+            const currentVol = BigInt(j.totalVolume || '0');
+            const newTotal = currentVol + BigInt(clientResult.newVolume);
+            setUsdmTotalVolume(newTotal.toString());
+          }
           setUsdmUpdatedAt(Date.now());
-          setUsdmDebug(`Synced! +${clientResult.logs} transfers from browser`);
           setUsdmLastSyncTime(Date.now());
+          // Re-fetch to get updated rows/leaderboard
+          setTimeout(() => fetchUsdmTop(false, false), 1000);
           return;
         }
       }
