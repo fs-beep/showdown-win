@@ -859,9 +859,17 @@ export default function Home() {
     }
   };
 
-  const fetchUsdmTop = async (force = false) => {
+  const [usdmLastSyncTime, setUsdmLastSyncTime] = useState<number>(0);
+  
+  const fetchUsdmTop = async (force = false, isAutoRetry = false) => {
     if (usdmLoading) return;
     if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
+    
+    // Don't auto-retry if we synced recently (within 2 minutes)
+    if (isAutoRetry && usdmLastSyncTime && (Date.now() - usdmLastSyncTime) < 2 * 60 * 1000) {
+      return;
+    }
+    
     setUsdmLoading(true); setUsdmError(null);
     try {
       const res = await fetch(force ? '/api/usdm?fresh=1' : '/api/usdm');
@@ -872,17 +880,17 @@ export default function Home() {
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
-      setUsdmError(null); // Clear any previous errors on success
-      // Show warning only if sync actually failed
+      setUsdmLastSyncTime(Date.now());
+      setUsdmError(null);
+      
       if (j.warning) {
         setUsdmError(`Sync issue: ${j.warning}`);
       }
-      // Auto-continue syncing if not caught up
+      // Only auto-continue if we're significantly behind (needsMoreSync) and no errors
       if (j.needsMoreSync && !j.warning) {
-        setTimeout(() => fetchUsdmTop(true), 500);
+        setTimeout(() => fetchUsdmTop(true, true), 1000);
       }
     } catch (e:any) {
-      // Only show error if we don't have recent data (< 5 min old)
       const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;
       if (!isDataFresh) {
         setUsdmError(e?.message || String(e));
