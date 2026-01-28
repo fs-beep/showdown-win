@@ -872,9 +872,14 @@ export default function Home() {
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
-      if (j.warning) setUsdmError(j.warning);
+      // Show warning or sync status
+      if (j.warning) {
+        setUsdmError(`Sync failed: ${j.warning}`);
+      } else if (j.source && j.source.includes('fallback')) {
+        setUsdmError(`Using cached data (${j.source})`);
+      }
       // Auto-continue syncing if not caught up
-      if (j.needsMoreSync) {
+      if (j.needsMoreSync && !j.warning) {
         setTimeout(() => fetchUsdmTop(true), 500);
       }
     } catch (e:any) {
@@ -1086,7 +1091,18 @@ export default function Home() {
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Top Earners</div>
                   <div className="text-[10px] text-gray-600 mt-1">
-                    {usdmUpdatedAt && new Date(usdmUpdatedAt).toLocaleString()}
+                    {usdmUpdatedAt && (() => {
+                      const age = Date.now() - usdmUpdatedAt;
+                      const mins = Math.floor(age / 60000);
+                      const hours = Math.floor(mins / 60);
+                      const timeAgo = hours > 0 ? `${hours}h ${mins % 60}m ago` : mins > 0 ? `${mins}m ago` : 'just now';
+                      const isStale = mins > 30;
+                      return (
+                        <span className={isStale ? 'text-amber-500' : ''}>
+                          {new Date(usdmUpdatedAt).toLocaleString()} ({timeAgo})
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="text-right">
@@ -1102,11 +1118,8 @@ export default function Home() {
                 {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
                 {usdmLoading ? 'Syncing...' : 'Refresh'}
               </button>
-              {usdmError && usdmRows.length === 0 && (
-                <div className="mb-3 rounded-lg bg-red-900/20 border border-red-800/50 p-2.5 text-xs text-red-400">{usdmError}</div>
-              )}
-              {usdmError && usdmRows.length > 0 && (
-                <div className="mb-3 rounded-lg bg-amber-900/20 border border-amber-800/50 p-2.5 text-[10px] text-amber-400">Using cached data</div>
+              {usdmError && (
+                <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
               )}
               <div className="overflow-hidden rounded-lg border border-gray-800/50">
                 <div className="max-h-72 overflow-y-auto">

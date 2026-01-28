@@ -207,11 +207,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // 2) Fresh request or no cache - do incremental sync
   let state: State | null = null;
-  let warning: string | null = null;
+  let kvLoadError: string | null = null;
 
   // Load existing state
   if (kvOk) {
-    try { state = await kv.get<State>(STATE_KEY); } catch {}
+    try { 
+      state = await kv.get<State>(STATE_KEY); 
+    } catch (e: any) {
+      kvLoadError = e?.message || 'Failed to load state from KV';
+    }
   }
   if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
 
@@ -222,9 +226,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const targetToBlock = latest.num;
     const toBlock = Math.min(fromBlock + MAX_BLOCKS_PER_SYNC - 1, targetToBlock);
     const needsMoreSync = toBlock < targetToBlock;
+    const blocksToScan = toBlock - fromBlock + 1;
 
+    let logsFound = 0;
     if (fromBlock <= toBlock) {
       const logs = await getLogsChunked(fromBlock, toBlock);
+      logsFound = logs.length;
       if (logs.length > 0) {
         const blockNums = [...new Set(logs.map(l => parseInt(l.blockNumber, 16)))];
         const blockTs = await batchGetBlocks(blockNums);
@@ -234,19 +241,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Save state and cache to KV immediately
       if (kvOk) {
-        try { await kv.set(STATE_KEY, state); } catch {}
+        try { await kv.set(STATE_KEY, state); } catch (e: any) {
+          console.error('Failed to save USDM state:', e);
+        }
       }
     }
 
     const cache = computeCache(state);
     memCache = cache;
     if (kvOk) {
-      try { await kv.set(CACHE_KEY, cache); } catch {}
+      try { await kv.set(CACHE_KEY, cache); } catch (e: any) {
+        console.error('Failed to save USDM cache:', e);
+      }
     }
 
-    return res.status(200).json({ ok: true, ...cache, source: 'fresh', needsMoreSync, syncedTo: toBlock, latestBlock: targetToBlock });
+    return res.status(200).json({ 
+      ok: true, 
+      ...cache, 
+      source: 'fresh', 
+      needsMoreSync, 
+      syncedTo: toBlock, 
+      latestBlock: targetToBlock,
+      debug: { fromBlock, toBlock, blocksToScan, logsFound, stateLastBlock: state.lastBlock }
+    });
   } catch (e: any) {
-    warning = e?.message || String(e);
+    const warning = e?.message || String(e);
+    console.error('USDM sync error:', warning);
+    
     // Return cached data with warning if available
     if (memCache) {
       return res.status(200).json({ ok: true, ...memCache, warning, source: 'memory-fallback' });
