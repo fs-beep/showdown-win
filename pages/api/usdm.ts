@@ -3,11 +3,11 @@ import { kv } from '@vercel/kv';
 
 const PAYOUT_CONTRACT = '0x7b8df4195eda5b193304eecb5107de18b6557d24';
 const USDM_TOKEN = '0xfafddbb3fc7688494971a79cc65dca3ef82079e7';
+// MegaETH Mainnet RPCs only - carrot/other endpoints are different chains!
 const RPC_URLS = [
   process.env.GAME_RESULTS_RPC_URL,
   process.env.MAINNET_RPC_URL,
-  'https://carrot.megaeth.com/rpc',
-  'https://rpc.megaeth.com',
+  'https://mainnet.megaeth.com/rpc',
 ].filter(Boolean) as string[];
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const MAX_SPAN = 1000; // Very small span for stability
