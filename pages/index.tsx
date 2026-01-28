@@ -874,11 +874,6 @@ export default function Home() {
     if (usdmLoading) return;
     if (!force && usdmRows.length > 0 && usdmUpdatedAt) return;
     
-    // Don't auto-retry if we synced recently (within 2 minutes)
-    if (isAutoRetry && usdmLastSyncTime && (Date.now() - usdmLastSyncTime) < 2 * 60 * 1000) {
-      return;
-    }
-    
     setUsdmLoading(true); setUsdmError(null);
     try {
       const res = await fetch(force ? '/api/usdm?fresh=1' : '/api/usdm');
@@ -889,20 +884,27 @@ export default function Home() {
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
-      setUsdmLastSyncTime(Date.now());
       setUsdmError(null);
       
-      // Show debug info
+      // Show progress info
       if (j.debug) {
-        setUsdmDebug(`Scanned ${j.debug.blocksToScan} blocks, found ${j.debug.logsFound} logs`);
+        const pct = j.latestBlock ? Math.round((j.syncedTo / j.latestBlock) * 100) : 100;
+        const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
+        if (behind > 1000) {
+          setUsdmDebug(`Syncing... ${pct}% (${behind.toLocaleString()} blocks behind)`);
+        } else {
+          setUsdmDebug(`Synced! Found ${j.debug.logsFound} new transfers`);
+        }
       }
       
       if (j.warning) {
         setUsdmError(`Sync issue: ${j.warning}`);
       }
-      // Only auto-continue if we're significantly behind (needsMoreSync) and no errors
+      // Auto-continue syncing until caught up
       if (j.needsMoreSync && !j.warning) {
-        setTimeout(() => fetchUsdmTop(true, true), 1000);
+        setTimeout(() => fetchUsdmTop(true, true), 300); // Fast retry while catching up
+      } else {
+        setUsdmLastSyncTime(Date.now()); // Only set cooldown when fully synced
       }
     } catch (e:any) {
       const isDataFresh = usdmUpdatedAt && (Date.now() - usdmUpdatedAt) < 5 * 60 * 1000;

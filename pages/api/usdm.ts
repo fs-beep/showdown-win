@@ -10,11 +10,11 @@ const RPC_URLS = [
   'https://mainnet.megaeth.com/rpc',
 ].filter(Boolean) as string[];
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const MAX_SPAN = 1000; // Very small span for stability
+const MAX_SPAN = 5000; // Larger span - mainnet RPC is stable
 const CONCURRENCY = 1;
-const LOG_BATCH_DELAY_MS = 100;
+const LOG_BATCH_DELAY_MS = 50;
 const USDM_START_BLOCK = 5721028;
-const MAX_BLOCKS_PER_SYNC = 10000;
+const MAX_BLOCKS_PER_SYNC = 100000; // 100k blocks per sync - faster catchup
 const RPC_ATTEMPTS = 3;
 const RPC_BASE_DELAY_MS = 500;
 const RPC_JITTER_MS = 300;
