@@ -887,31 +887,32 @@ export default function Home() {
       setUsdmError(null);
       
       // Show progress info
-      if (j.debug) {
-        const pct = j.latestBlock ? Math.round((j.syncedTo / j.latestBlock) * 100) : 100;
+      if (j.debug || j.syncedTo) {
         const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
-        if (behind > 1000) {
-          setUsdmDebug(`Syncing... ${pct}% (${behind.toLocaleString()} blocks behind)`);
+        if (behind > 100) {
+          const pct = j.latestBlock ? Math.round((j.syncedTo / j.latestBlock) * 100) : 100;
+          setUsdmDebug(`Syncing... ${pct}% (${behind.toLocaleString()} blocks left)`);
+        } else if (j.debug?.logsFound > 0) {
+          setUsdmDebug(`Synced! +${j.debug.logsFound} transfers`);
         } else {
-          setUsdmDebug(`Synced! Found ${j.debug.logsFound} new transfers`);
+          setUsdmDebug('Up to date');
         }
       }
       
       // Auto-continue syncing until caught up
-      // Only auto-retry if we actually need more sync
-      if (j.needsMoreSync) {
+      // Auto-retry if we need more sync OR if we're still behind
+      const behind = j.latestBlock && j.syncedTo ? j.latestBlock - j.syncedTo : 0;
+      if (j.needsMoreSync || behind > 100) {
         const isRateLimit = j.warning?.includes('429') || j.warning?.toLowerCase().includes('upstream');
         if (isRateLimit) {
-          setUsdmDebug('RPC busy, retrying in 15s...');
+          setUsdmDebug(`RPC busy, retrying in 15s... (${behind} blocks left)`);
           setTimeout(() => fetchUsdmTop(true, true), 15000);
         } else {
-          setUsdmDebug('Syncing...');
           setTimeout(() => fetchUsdmTop(true, true), 2000);
         }
       } else {
         // Fully synced!
         setUsdmLastSyncTime(Date.now());
-        setUsdmDebug('');
       }
     } catch (e:any) {
       const errMsg = e?.message || String(e);
