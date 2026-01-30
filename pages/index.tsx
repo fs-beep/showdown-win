@@ -822,7 +822,10 @@ export default function Home() {
       const todayDayStart = Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth(), todayStart.getUTCDate()) / 1000;
       const endTs = toEndOfDayEpoch(endDate);
       const needsToday = endTs === undefined || endTs >= todayDayStart;
-      if (needsToday) {
+      // Also fetch fresh mainnet data if query includes dates after Jan 15
+      const MAINNET_TS = Math.floor(new Date('2026-01-15T11:49:24Z').getTime() / 1000);
+      const needsMainnetRefresh = (endTs === undefined || endTs > MAINNET_TS);
+      if (needsToday || needsMainnetRefresh) {
         void fetchLatest();
       }
     } catch (e:any) {
@@ -831,16 +834,24 @@ export default function Home() {
       setLoading(false);
     }
   };
+  // Mainnet cutover: 2026-01-15 11:49:24 UTC
+  const MAINNET_START_TS = Math.floor(new Date('2026-01-15T11:49:24Z').getTime() / 1000);
+  
   const fetchLatest = async () => {
     setError(null); setWarning(null); setLoading(true);
     try {
       const baseStart = startDate === BALANCE_PATCH_DATE ? BALANCE_PATCH_TS : toStartOfDayEpoch(startDate);
       const now = new Date();
       const todayStartTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-      const startTs = Math.max(baseStart || 0, todayStartTs);
+      const endTs = toEndOfDayEpoch(endDate);
+      // If query includes mainnet period (after Jan 15), fetch all mainnet data fresh
+      const includesMainnet = (endTs === undefined || endTs > MAINNET_START_TS) && (baseStart || 0) <= (endTs || Date.now() / 1000);
+      const startTs = includesMainnet 
+        ? Math.max(baseStart || 0, MAINNET_START_TS + 1) // Fetch all mainnet data
+        : Math.max(baseStart || 0, todayStartTs); // Just today
       const body = {
         startTs,
-        endTs: toEndOfDayEpoch(endDate),
+        endTs,
         wantAgg: true,
         live: true,
         cacheOnly: false,
