@@ -4,7 +4,8 @@ import { Interface } from 'ethers';
 import { gzipSync } from 'zlib';
 
 const RPC = process.env.RPC_URL || 'https://carrot.megaeth.com/rpc';
-const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc?vip=1&u=ShowdownV2&v=5184000&s=mafia&verify=1768480681-D2QvAT3JRTgLzi6xznmLd6ZeCHypjBf34gkTQ9HD8mM%3D';
+// Use simple mainnet RPC without expiring verification tokens
+const MAINNET_RPC = process.env.GAME_RESULTS_RPC_URL || process.env.MAINNET_RPC_URL || 'https://mainnet.megaeth.com/rpc';
 const CONTRACT = (process.env.CONTRACT_ADDRESS || '0x86b6f3856f086cd29462985f7bbff0d55d2b5d53').toLowerCase();
 const LEGACY_CONTRACT = '0xae2afe4d192127e6617cfa638a94384b53facec1'.toLowerCase();
 const MAINNET_CONTRACT = (process.env.GAME_RESULTS_CONTRACT || process.env.MAINNET_CONTRACT || '0x8aaf217a7a1534327234bd09474fc358e6e4d322').toLowerCase();
@@ -419,16 +420,25 @@ async function backfillMissingDays(missing: number[], bounds: BlockBounds) {
   for (let i = 0; i < missing.length; i += CONC) {
     const slice = missing.slice(i, i + CONC);
     await Promise.all(slice.map(async (d) => {
-      const dayStartTs = d * 86400;
-      const dayEndTs = dayStartTs + 86399;
-      if (dayEndTs <= MAINNET_START_TS) {
-        const built = await buildDay(dayStartTs, dayEndTs, bounds);
-        await kvSetDay(d, built.entry);
-        remember(d, built.entry);
-        return;
+      try {
+        const dayStartTs = d * 86400;
+        const dayEndTs = dayStartTs + 86399;
+        if (dayEndTs <= MAINNET_START_TS) {
+          const built = await buildDay(dayStartTs, dayEndTs, bounds);
+          await kvSetDay(d, built.entry);
+          remember(d, built.entry);
+          return;
+        }
+        // For days after mainnet cutover, fetch from mainnet
+        const rows = await fetchRangeRowsMainnet(dayStartTs, dayEndTs, true);
+        if (rows.length > 0) {
+          await cacheDayFromRows(d, rows);
+          console.log(`Backfilled mainnet day ${d} with ${rows.length} games`);
+        }
+      } catch (err: any) {
+        // Log error but continue with other days
+        console.error(`Failed to backfill day ${d}:`, err?.message || String(err));
       }
-      const rows = await fetchRangeRowsMainnet(dayStartTs, dayEndTs, true);
-      await cacheDayFromRows(d, rows);
     }));
   }
 }
@@ -690,14 +700,17 @@ async function fetchRangeRowsMainnet(startTs: number, endTs: number, allowRecent
   try {
     logs = await getLogsSingle(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
   } catch (err: any) {
+    console.log(`getLogsSingle failed for mainnet blocks ${fromBlock}-${toBlock}, trying chunked:`, err?.message);
     try {
       logs = await getLogsChunked(fromBlock, toBlock, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC);
     } catch (chunkErr: any) {
-      if (allowRecentFallback && (isLogsNotAvailable(err) || isLogsNotAvailable(chunkErr))) {
+      console.error(`getLogsChunked also failed for mainnet:`, chunkErr?.message);
+      if (allowRecentFallback && (isLogsNotAvailable(err) || isLogsNotAvailable(chunkErr) || isRateLimited(err) || isRateLimited(chunkErr))) {
         const recent = await fetchRecentLogsByBlock(latest, MAINNET_CONTRACT, TOPIC0, MAINNET_RPC, false);
         return recent.sort(sortByTimestamp);
       }
-      throw chunkErr;
+      // Return empty array instead of throwing to avoid breaking the entire request
+      return [];
     }
   }
   const rows = dedupeRows(decodeLogs(logs, false)).map(r => ({ ...r, network: 'megaeth-mainnet' as const }));
