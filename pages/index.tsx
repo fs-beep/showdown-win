@@ -30,6 +30,28 @@ type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]
 
 const MIN_DATE = '2025-07-25';
 const BALANCE_PATCH_DATE = '2026-01-13';
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Format date as "2026-Jan-13" for display, parse "2026-Jan-13" or "2026-01-13" to ISO
+function formatDateDisplay(isoDate: string): string {
+  if (!isoDate) return '';
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return isoDate; // Return as-is if not ISO format
+  const [, year, month, day] = match;
+  return `${year}-${MONTH_NAMES[parseInt(month, 10) - 1]}-${day}`;
+}
+function parseDateInput(input: string): string {
+  if (!input) return '';
+  // Already ISO format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  // Try parsing "2026-Jan-13" format
+  const match = input.match(/^(\d{4})-([A-Za-z]{3})-(\d{2})$/);
+  if (match) {
+    const [, year, monthName, day] = match;
+    const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+    if (monthIdx >= 0) return `${year}-${String(monthIdx + 1).padStart(2, '0')}-${day}`;
+  }
+  return input; // Return as-is
+}
 const BALANCE_PATCH_TS = 1768392000; // 2026-01-13 11:00:00 CET (10:00:00 UTC)
 const SHOWDOWN_LOGO = '/images/showdown_small.jpg';
 const SHOWDOWN_BANNER = '/images/showdown_large.jpeg';
@@ -1242,19 +1264,19 @@ export default function Home() {
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 space-y-3">
               <div>
                 <label className="block text-[11px] text-gray-400 mb-1">Start date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
-                  <input type="text" inputMode="numeric" placeholder="YYYY-MM-DD" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                  <input type="text" placeholder="2026-Jan-13" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={formatDateDisplay(startDate)} onChange={e=>setStartDate(parseDateInput(e.target.value))} />
                 </div>
               </div>
               <div>
                 <label className="block text-[11px] text-gray-400 mb-1">End date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
-                  <input type="text" inputMode="numeric" placeholder="Latest" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                  <input type="text" placeholder="Latest" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={endDate ? formatDateDisplay(endDate) : ''} onChange={e=>setEndDate(parseDateInput(e.target.value))} />
                 </div>
               </div>
             </div>
