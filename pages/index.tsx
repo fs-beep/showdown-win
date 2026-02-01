@@ -260,7 +260,36 @@ export default function Home() {
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
   }, [startDate, endDate, player, player2, matrixOnlyPlayer]);
 
-  
+  // Calculate all-time games per player (for experience filter)
+  const playerGameCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
+      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
+      if (w) counts[w] = (counts[w] || 0) + 1;
+      if (l) counts[l] = (counts[l] || 0) + 1;
+    }
+    return counts;
+  }, [rows]);
+
+  // Filter rows based on experience level
+  const experienceFilteredRows = useMemo(() => {
+    if (experienceFilter === 'all') return rows;
+    const PRO_THRESHOLD = 30;
+    return rows.filter(r => {
+      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
+      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
+      const wCount = playerGameCounts[w] || 0;
+      const lCount = playerGameCounts[l] || 0;
+      if (experienceFilter === 'pro') {
+        // Both players must have 30+ games
+        return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
+      } else {
+        // At least one player has < 30 games (newbie)
+        return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
+      }
+    });
+  }, [rows, experienceFilter, playerGameCounts]);
 
   // Count all matches for statistics (regardless of endReason), respecting experience filter
   const statRows = useMemo(() => {
@@ -311,37 +340,6 @@ export default function Home() {
     }
     return cachedThrough || 'latest cached block';
   }, [cachedThrough, endDate, lastQueryLive]);
-
-  // Calculate all-time games per player (for experience filter)
-  const playerGameCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const r of rows) {
-      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
-      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
-      if (w) counts[w] = (counts[w] || 0) + 1;
-      if (l) counts[l] = (counts[l] || 0) + 1;
-    }
-    return counts;
-  }, [rows]);
-
-  // Filter rows based on experience level
-  const experienceFilteredRows = useMemo(() => {
-    if (experienceFilter === 'all') return rows;
-    const PRO_THRESHOLD = 30;
-    return rows.filter(r => {
-      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
-      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
-      const wCount = playerGameCounts[w] || 0;
-      const lCount = playerGameCounts[l] || 0;
-      if (experienceFilter === 'pro') {
-        // Both players must have 30+ games
-        return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
-      } else {
-        // At least one player has < 30 games (newbie)
-        return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
-      }
-    });
-  }, [rows, experienceFilter, playerGameCounts]);
 
   const filtered = useMemo(() => {
     const p = player.trim().toLowerCase();
