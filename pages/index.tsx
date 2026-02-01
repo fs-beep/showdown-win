@@ -158,7 +158,7 @@ export default function Home() {
   const [warning, setWarning] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
-  const [experienceFilter, setExperienceFilter] = useState<'all' | 'pro' | 'beginner'>('all');
+  const [experienceFilter, setExperienceFilter] = useState<'all' | 'pro' | 'mixed' | 'beginnerVsBeginner'>('all');
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
   const [classVsClassSort, setClassVsClassSort] = useState<{ key: 'opponent' | 'winRate' | 'wins' | 'losses' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
@@ -281,12 +281,17 @@ export default function Home() {
       const l = r.losingPlayer?.trim?.().toLowerCase() || '';
       const wCount = playerGameCounts[w] || 0;
       const lCount = playerGameCounts[l] || 0;
+      const wIsPro = wCount >= PRO_THRESHOLD;
+      const lIsPro = lCount >= PRO_THRESHOLD;
       if (experienceFilter === 'pro') {
-        // Both players must have 20+ games
-        return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
+        // Both players must have 20+ games (pro vs pro)
+        return wIsPro && lIsPro;
+      } else if (experienceFilter === 'mixed') {
+        // One pro and one beginner (mixed skill matchup)
+        return (wIsPro && !lIsPro) || (!wIsPro && lIsPro);
       } else {
-        // At least one player has < 20 games (beginner)
-        return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
+        // Both players have < 20 games (beginner vs beginner)
+        return !wIsPro && !lIsPro;
       }
     });
   }, [rows, experienceFilter, playerGameCounts]);
@@ -1279,42 +1284,53 @@ export default function Home() {
             {/* Experience Filter */}
             <div className="mt-4">
               <div className="text-[11px] text-gray-400 mb-2">Player Experience</div>
-              <div className="flex gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setExperienceFilter('all')}
-                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
+                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
                     experienceFilter === 'all'
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                      ? 'bg-gray-700 text-white border-gray-600'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white border-transparent'
                   }`}
                 >
-                  All
+                  All Games
                 </button>
                 <button
                   onClick={() => setExperienceFilter('pro')}
-                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
+                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
                     experienceFilter === 'pro'
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                      ? 'bg-blue-900/60 text-blue-300 border-blue-700/50'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-blue-900/30 hover:text-blue-300 border-transparent'
                   }`}
                 >
-                  Pro (20+)
+                  Pro vs Pro
                 </button>
                 <button
-                  onClick={() => setExperienceFilter('beginner')}
-                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
-                    experienceFilter === 'beginner'
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                  onClick={() => setExperienceFilter('mixed')}
+                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                    experienceFilter === 'mixed'
+                      ? 'bg-purple-900/60 text-purple-300 border-purple-700/50'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-purple-900/30 hover:text-purple-300 border-transparent'
                   }`}
                 >
-                  Beginner (&lt;20)
+                  Pro vs Beginner
+                </button>
+                <button
+                  onClick={() => setExperienceFilter('beginnerVsBeginner')}
+                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                    experienceFilter === 'beginnerVsBeginner'
+                      ? 'bg-green-900/60 text-green-300 border-green-700/50'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-green-900/30 hover:text-green-300 border-transparent'
+                  }`}
+                >
+                  Beginner vs Beginner
                 </button>
               </div>
-              <div className="mt-1 text-[10px] text-gray-500">
-                {experienceFilter === 'all' && 'Showing all games'}
-                {experienceFilter === 'pro' && 'Only games where both players have 20+ total games'}
-                {experienceFilter === 'beginner' && 'Games with at least one player under 20 total games'}
+              <div className="mt-2 text-[10px] text-gray-500 text-center">
+                {experienceFilter === 'all' && 'Showing all games regardless of experience'}
+                {experienceFilter === 'pro' && 'Both players have 20+ total games'}
+                {experienceFilter === 'mixed' && 'One experienced + one newer player'}
+                {experienceFilter === 'beginnerVsBeginner' && 'Both players have <20 total games'}
               </div>
             </div>
           </div>
@@ -1478,8 +1494,12 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Class Performance — <span className="text-red-500">{player || '—'}</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1534,8 +1554,12 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Class vs Class — Win Rates
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1677,8 +1701,12 @@ export default function Home() {
               Matches — <span className="text-red-500">{player || '—'}</span>
               <span className="ml-2 text-xs text-gray-500">({filtered.length})</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1794,8 +1822,12 @@ export default function Home() {
               Class Performance — All Matches
               <span className="ml-2 text-xs text-gray-500">({rangeLabel})</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1852,8 +1884,12 @@ export default function Home() {
               Top Players
               <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1911,8 +1947,12 @@ export default function Home() {
               Best Player by Class
               <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
@@ -1979,8 +2019,12 @@ export default function Home() {
               All Games
               <span className="ml-2 text-xs text-gray-500">({experienceFilter === 'all' ? rows.length : experienceFilteredRows.length})</span>
               {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
-                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
+                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
+                    'bg-green-900/50 text-green-400'
+                  }`}>
+                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
               )}
             </div>
