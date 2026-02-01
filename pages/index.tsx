@@ -1284,48 +1284,75 @@ export default function Home() {
             {/* Experience Filter */}
             <div className="mt-4">
               <div className="text-[11px] text-gray-400 mb-2">Player Experience</div>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => setExperienceFilter('all')}
-                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
-                    experienceFilter === 'all'
-                      ? 'bg-gray-700 text-white border-gray-600'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white border-transparent'
-                  }`}
-                >
-                  All Games
-                </button>
-                <button
-                  onClick={() => setExperienceFilter('pro')}
-                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
-                    experienceFilter === 'pro'
-                      ? 'bg-blue-900/60 text-blue-300 border-blue-700/50'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-blue-900/30 hover:text-blue-300 border-transparent'
-                  }`}
-                >
-                  Pro vs Pro
-                </button>
-                <button
-                  onClick={() => setExperienceFilter('mixed')}
-                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
-                    experienceFilter === 'mixed'
-                      ? 'bg-purple-900/60 text-purple-300 border-purple-700/50'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-purple-900/30 hover:text-purple-300 border-transparent'
-                  }`}
-                >
-                  Pro vs Beginner
-                </button>
-                <button
-                  onClick={() => setExperienceFilter('beginnerVsBeginner')}
-                  className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
-                    experienceFilter === 'beginnerVsBeginner'
-                      ? 'bg-green-900/60 text-green-300 border-green-700/50'
-                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-green-900/30 hover:text-green-300 border-transparent'
-                  }`}
-                >
-                  Beginner vs Beginner
-                </button>
-              </div>
+              {(() => {
+                // Pre-compute counts for each filter
+                const PRO_THRESHOLD = 20;
+                const counts = { all: rows.length, pro: 0, mixed: 0, beginnerVsBeginner: 0 };
+                for (const r of rows) {
+                  const w = r.winningPlayer?.trim?.().toLowerCase() || '';
+                  const l = r.losingPlayer?.trim?.().toLowerCase() || '';
+                  const wCount = playerGameCounts[w] || 0;
+                  const lCount = playerGameCounts[l] || 0;
+                  const wIsPro = wCount >= PRO_THRESHOLD;
+                  const lIsPro = lCount >= PRO_THRESHOLD;
+                  if (wIsPro && lIsPro) counts.pro++;
+                  else if ((wIsPro && !lIsPro) || (!wIsPro && lIsPro)) counts.mixed++;
+                  else counts.beginnerVsBeginner++;
+                }
+                return (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => setExperienceFilter('all')}
+                      className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                        experienceFilter === 'all'
+                          ? 'bg-gray-700 text-white border-gray-600'
+                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white border-transparent'
+                      }`}
+                    >
+                      All Games <span className="opacity-60">({counts.all})</span>
+                    </button>
+                    <button
+                      onClick={() => setExperienceFilter('pro')}
+                      disabled={counts.pro === 0}
+                      className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                        experienceFilter === 'pro'
+                          ? 'bg-blue-900/60 text-blue-300 border-blue-700/50'
+                          : counts.pro === 0
+                          ? 'bg-[#1c1c1c] text-gray-600 border-transparent cursor-not-allowed'
+                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-blue-900/30 hover:text-blue-300 border-transparent'
+                      }`}
+                    >
+                      Pro vs Pro <span className="opacity-60">({counts.pro})</span>
+                    </button>
+                    <button
+                      onClick={() => setExperienceFilter('mixed')}
+                      disabled={counts.mixed === 0}
+                      className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                        experienceFilter === 'mixed'
+                          ? 'bg-purple-900/60 text-purple-300 border-purple-700/50'
+                          : counts.mixed === 0
+                          ? 'bg-[#1c1c1c] text-gray-600 border-transparent cursor-not-allowed'
+                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-purple-900/30 hover:text-purple-300 border-transparent'
+                      }`}
+                    >
+                      Pro vs Beginner <span className="opacity-60">({counts.mixed})</span>
+                    </button>
+                    <button
+                      onClick={() => setExperienceFilter('beginnerVsBeginner')}
+                      disabled={counts.beginnerVsBeginner === 0}
+                      className={`rounded-lg px-2.5 py-2 text-[11px] transition-colors border ${
+                        experienceFilter === 'beginnerVsBeginner'
+                          ? 'bg-green-900/60 text-green-300 border-green-700/50'
+                          : counts.beginnerVsBeginner === 0
+                          ? 'bg-[#1c1c1c] text-gray-600 border-transparent cursor-not-allowed'
+                          : 'bg-[#1c1c1c] text-gray-400 hover:bg-green-900/30 hover:text-green-300 border-transparent'
+                      }`}
+                    >
+                      Beginner vs Beginner <span className="opacity-60">({counts.beginnerVsBeginner})</span>
+                    </button>
+                  </div>
+                );
+              })()}
               <div className="mt-2 text-[10px] text-gray-500 text-center">
                 {experienceFilter === 'all' && 'Showing all games regardless of experience'}
                 {experienceFilter === 'pro' && 'Both players have 20+ total games'}
