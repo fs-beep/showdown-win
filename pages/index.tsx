@@ -149,7 +149,7 @@ function shortAddr(addr?: string) {
 
 // Tournament winnings data (manual until smart contract is deployed)
 const TOURNAMENT_WINNERS = [
-  { address: '0x9B9595555B77c5aDd018B2E52F5eD7e9e34a28FA', prize: 3300, display: '1 ETH (~$3,300)', rank: 1 },
+  { address: '0x9B9595555B77c5aDd018B2E52F5eD7e9e34a28FA', prize: 2400, display: '1 ETH (~$2,400)', rank: 1 },
   { address: '0xEf71Cf2F7E246783E8c660ab70E59629E952b5be', prize: 300, display: '$300', rank: 2 },
   { address: '0x40c1EAA23DDD6973330889B30bcE05Fa21E9B87D', prize: 200, display: '$200', rank: 3 },
   { address: '0x64A6cE1145E23c9CaF9b5dA2BE3a13C9d8945B8f', prize: 100, display: '$100', rank: 4 },
