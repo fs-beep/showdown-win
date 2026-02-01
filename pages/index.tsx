@@ -158,7 +158,7 @@ export default function Home() {
   const [warning, setWarning] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
-  const [experienceFilter, setExperienceFilter] = useState<'all' | 'pro' | 'newbie'>('all');
+  const [experienceFilter, setExperienceFilter] = useState<'all' | 'pro' | 'beginner'>('all');
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
   const [classVsClassSort, setClassVsClassSort] = useState<{ key: 'opponent' | 'winRate' | 'wins' | 'losses' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
@@ -285,7 +285,7 @@ export default function Home() {
         // Both players must have 20+ games
         return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
       } else {
-        // At least one player has < 20 games (newbie)
+        // At least one player has < 20 games (beginner)
         return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
       }
     });
@@ -1301,20 +1301,20 @@ export default function Home() {
                   Pro (20+)
                 </button>
                 <button
-                  onClick={() => setExperienceFilter('newbie')}
+                  onClick={() => setExperienceFilter('beginner')}
                   className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
-                    experienceFilter === 'newbie'
+                    experienceFilter === 'beginner'
                       ? 'bg-gray-700 text-white'
                       : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
                   }`}
                 >
-                  Newbie (&lt;20)
+                  Beginner (&lt;20)
                 </button>
               </div>
               <div className="mt-1 text-[10px] text-gray-500">
                 {experienceFilter === 'all' && 'Showing all games'}
                 {experienceFilter === 'pro' && 'Only games where both players have 20+ total games'}
-                {experienceFilter === 'newbie' && 'Games with at least one player under 20 total games'}
+                {experienceFilter === 'beginner' && 'Games with at least one player under 20 total games'}
               </div>
             </div>
           </div>
@@ -1477,6 +1477,11 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Class Performance — <span className="text-red-500">{player || '—'}</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {classStats.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1528,6 +1533,11 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-sm font-semibold text-gray-200">
               Class vs Class — Win Rates
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-400">
               <input type="checkbox" className="h-4 w-4 rounded" checked={matrixOnlyPlayer} onChange={e=>setMatrixOnlyPlayer(e.target.checked)} />
@@ -1666,6 +1676,11 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Matches — <span className="text-red-500">{player || '—'}</span>
               <span className="ml-2 text-xs text-gray-500">({filtered.length})</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {filtered.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1778,6 +1793,11 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Class Performance — All Matches
               <span className="ml-2 text-xs text-gray-500">({rangeLabel})</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {overallClassStats.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1831,6 +1851,11 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Top Players
               <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1885,6 +1910,11 @@ export default function Home() {
             <div className="text-sm font-semibold text-gray-200">
               Best Player by Class
               <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {topPlayersByClass.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1947,7 +1977,12 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               All Games
-              <span className="ml-2 text-xs text-gray-500">({rows.length})</span>
+              <span className="ml-2 text-xs text-gray-500">({experienceFilter === 'all' ? rows.length : experienceFilteredRows.length})</span>
+              {experienceFilter !== 'all' && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' : 'bg-green-900/50 text-green-400'}`}>
+                  {experienceFilter === 'pro' ? 'Pro 20+' : 'Beginner <20'}
+                </span>
+              )}
             </div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
