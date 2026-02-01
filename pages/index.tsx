@@ -158,6 +158,7 @@ export default function Home() {
   const [warning, setWarning] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [matrixOnlyPlayer, setMatrixOnlyPlayer] = useState<boolean>(false);
+  const [experienceFilter, setExperienceFilter] = useState<'all' | 'pro' | 'newbie'>('all');
   const [selectedBaseClasses, setSelectedBaseClasses] = useState<string[]>([]);
   const [classVsClassSort, setClassVsClassSort] = useState<{ key: 'opponent' | 'winRate' | 'wins' | 'losses' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
@@ -261,10 +262,10 @@ export default function Home() {
 
   
 
-  // Count all matches for statistics (regardless of endReason)
+  // Count all matches for statistics (regardless of endReason), respecting experience filter
   const statRows = useMemo(() => {
-    return rows;
-  }, [rows]);
+    return experienceFilteredRows;
+  }, [experienceFilteredRows]);
 
   const stats = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -311,9 +312,40 @@ export default function Home() {
     return cachedThrough || 'latest cached block';
   }, [cachedThrough, endDate, lastQueryLive]);
 
+  // Calculate all-time games per player (for experience filter)
+  const playerGameCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
+      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
+      if (w) counts[w] = (counts[w] || 0) + 1;
+      if (l) counts[l] = (counts[l] || 0) + 1;
+    }
+    return counts;
+  }, [rows]);
+
+  // Filter rows based on experience level
+  const experienceFilteredRows = useMemo(() => {
+    if (experienceFilter === 'all') return rows;
+    const PRO_THRESHOLD = 30;
+    return rows.filter(r => {
+      const w = r.winningPlayer?.trim?.().toLowerCase() || '';
+      const l = r.losingPlayer?.trim?.().toLowerCase() || '';
+      const wCount = playerGameCounts[w] || 0;
+      const lCount = playerGameCounts[l] || 0;
+      if (experienceFilter === 'pro') {
+        // Both players must have 30+ games
+        return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
+      } else {
+        // At least one player has < 30 games (newbie)
+        return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
+      }
+    });
+  }, [rows, experienceFilter, playerGameCounts]);
+
   const filtered = useMemo(() => {
     const p = player.trim().toLowerCase();
-    return rows
+    return experienceFilteredRows
       .filter(r => r.winningPlayer?.trim?.().toLowerCase() === p || r.losingPlayer?.trim?.().toLowerCase() === p)
       .map(r => ({
         ...r,
@@ -328,7 +360,7 @@ export default function Home() {
         opponentClasses: r.winningPlayer?.trim?.().toLowerCase() === p ? r.losingClasses : r.winningClasses,
       }))
       .sort((a, b) => b.blockNumber - a.blockNumber); // newest first
-  }, [rows, player]);
+  }, [experienceFilteredRows, player]);
 
   // Quick compare stats for optional second player and head-to-head
   const stats2 = useMemo(() => {
@@ -1245,6 +1277,48 @@ export default function Home() {
             {warning && !error && (
               <div className="rounded-lg bg-amber-900/20 border border-amber-800/50 p-3 text-xs text-amber-400">{warning}</div>
             )}
+
+            {/* Experience Filter */}
+            <div className="mt-4">
+              <div className="text-[11px] text-gray-400 mb-2">Player Experience</div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setExperienceFilter('all')}
+                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
+                    experienceFilter === 'all'
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setExperienceFilter('pro')}
+                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
+                    experienceFilter === 'pro'
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                  }`}
+                >
+                  Pro (30+)
+                </button>
+                <button
+                  onClick={() => setExperienceFilter('newbie')}
+                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors ${
+                    experienceFilter === 'newbie'
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
+                  }`}
+                >
+                  Newbie (&lt;30)
+                </button>
+              </div>
+              <div className="mt-1 text-[10px] text-gray-500">
+                {experienceFilter === 'all' && 'Showing all games'}
+                {experienceFilter === 'pro' && 'Only games where both players have 30+ total games'}
+                {experienceFilter === 'newbie' && 'Games with at least one player under 30 total games'}
+              </div>
+            </div>
           </div>
 
           {/* Top Earners */}
