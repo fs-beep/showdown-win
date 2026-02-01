@@ -1205,7 +1205,7 @@ export default function Home() {
         </div>
         {/* subtitle removed per request */}
 
-        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="rounded-lg bg-[#141414] p-5 lg:sticky lg:top-4 z-20 border border-gray-800/60">
             <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">
               Filters
@@ -1375,11 +1375,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Money Tables Row */}
+          {/* Top Earners */}
           {showMoneyTables && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Top Earners */}
-              <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
+              <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-4 border border-gray-800/60">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Top Earners</div>
@@ -1455,15 +1453,17 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
-                <a className="mt-3 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
+                <a className="mt-2 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
               </div>
+          )}
 
-              {/* Tournament Winners */}
-              <div id="tournament-winners" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
-                <div className="flex items-start justify-between mb-4">
+          {/* Tournament Winners */}
+          {showMoneyTables && (
+              <div id="tournament-winners" className="rounded-lg bg-[#141414] p-4 border border-gray-800/60">
+                <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">🏆 Tournament Winners</div>
-                    <div className="text-[10px] text-gray-500 mt-1">Freeroll Tournament #1</div>
+                    <div className="text-[10px] text-gray-500 mt-1">Freeroll prizes</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Prizes</div>
@@ -1498,9 +1498,8 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 text-[10px] text-gray-500">Manual payouts until tournament smart contract launches</div>
+                <div className="mt-2 text-[10px] text-gray-500">Manual payouts until smart contract</div>
               </div>
-            </div>
           )}
         </div>
 
