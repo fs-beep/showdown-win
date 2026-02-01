@@ -147,6 +147,19 @@ function shortAddr(addr?: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
+// Tournament winnings data (manual until smart contract is deployed)
+const TOURNAMENT_WINNERS = [
+  { address: '0x9B9595555B77c5aDd018B2E52F5eD7e9e34a28FA', prize: 3300, display: '1 ETH (~$3,300)', rank: 1 },
+  { address: '0xEf71Cf2F7E246783E8c660ab70E59629E952b5be', prize: 300, display: '$300', rank: 2 },
+  { address: '0x40c1EAA23DDD6973330889B30bcE05Fa21E9B87D', prize: 200, display: '$200', rank: 3 },
+  { address: '0x64A6cE1145E23c9CaF9b5dA2BE3a13C9d8945B8f', prize: 100, display: '$100', rank: 4 },
+  { address: '0x11B72e0C989bE9130cEFb10832fEFB4F49CdcDd8', prize: 50, display: '$50', rank: 5 },
+  { address: '0x910D0EFd8E2D831af89FB9eC60D22B60E6f34508', prize: 50, display: '$50', rank: 6 },
+  { address: '0x2DdF9F00CD543F54421CEf64eB29C408b49D679F', prize: 50, display: '$50', rank: 7 },
+  { address: '0x3Dc0ebb9bACe78124e2168F3339d04B18AF1cd88', prize: 50, display: '$50', rank: 8 },
+];
+const TOURNAMENT_TOTAL = TOURNAMENT_WINNERS.reduce((sum, w) => sum + w.prize, 0);
+
 export default function Home() {
   const router = useRouter();
   const [startDate, setStartDate] = useState<string>(BALANCE_PATCH_DATE);
@@ -1443,6 +1456,51 @@ export default function Home() {
                 </div>
               </div>
               <a className="mt-3 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
+            </div>
+          )}
+
+          {/* Tournament Winners */}
+          {showMoneyTables && (
+            <div id="tournament-winners" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60 mt-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">🏆 Tournament Winners</div>
+                  <div className="text-[10px] text-gray-500 mt-1">Freeroll Tournament #1</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Prizes</div>
+                  <div className="text-2xl font-bold text-amber-400 mt-0.5">${TOURNAMENT_TOTAL.toLocaleString()}</div>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-gray-800/50">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-[#1c1c1c]">
+                    <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
+                      <th className="px-3 py-2.5 w-10 text-center">#</th>
+                      <th className="px-3 py-2.5">Player</th>
+                      <th className="px-3 py-2.5 text-amber-400">Prize</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/50">
+                    {TOURNAMENT_WINNERS.map((w) => {
+                      const prizeClass = w.rank === 1 ? 'text-amber-300 font-bold' 
+                        : w.rank <= 3 ? 'text-amber-400 font-semibold' 
+                        : 'text-amber-400/80';
+                      const rankDisplay = w.rank === 1 ? '🥇' : w.rank === 2 ? '🥈' : w.rank === 3 ? '🥉' : w.rank;
+                      return (
+                        <tr key={w.address} className="hover:bg-[#1c1c1c] transition-colors">
+                          <td className="px-3 py-2.5 text-center text-gray-500">{rankDisplay}</td>
+                          <td className="px-3 py-2.5 font-mono text-[11px]">
+                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${w.address}`} target="_blank" rel="noreferrer">{shortAddr(w.address)}</a>
+                          </td>
+                          <td className={`px-3 py-2.5 tabular-nums ${prizeClass}`}>{w.display}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 text-[10px] text-gray-500">Manual payouts until tournament smart contract launches</div>
             </div>
           )}
         </div>
