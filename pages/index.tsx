@@ -275,17 +275,17 @@ export default function Home() {
   // Filter rows based on experience level
   const experienceFilteredRows = useMemo(() => {
     if (experienceFilter === 'all') return rows;
-    const PRO_THRESHOLD = 30;
+    const PRO_THRESHOLD = 20;
     return rows.filter(r => {
       const w = r.winningPlayer?.trim?.().toLowerCase() || '';
       const l = r.losingPlayer?.trim?.().toLowerCase() || '';
       const wCount = playerGameCounts[w] || 0;
       const lCount = playerGameCounts[l] || 0;
       if (experienceFilter === 'pro') {
-        // Both players must have 30+ games
+        // Both players must have 20+ games
         return wCount >= PRO_THRESHOLD && lCount >= PRO_THRESHOLD;
       } else {
-        // At least one player has < 30 games (newbie)
+        // At least one player has < 20 games (newbie)
         return wCount < PRO_THRESHOLD || lCount < PRO_THRESHOLD;
       }
     });
@@ -728,7 +728,7 @@ export default function Home() {
     }
     return Array.from(byPlayer.entries())
       .map(([playerKey, s]) => ({ player: playerKey, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }))
-      .filter(p => p.total >= 30)
+      .filter(p => p.total >= 20)
       .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
       .slice(0, 10);
   }, [statRows]);
@@ -1298,7 +1298,7 @@ export default function Home() {
                       : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
                   }`}
                 >
-                  Pro (30+)
+                  Pro (20+)
                 </button>
                 <button
                   onClick={() => setExperienceFilter('newbie')}
@@ -1308,13 +1308,13 @@ export default function Home() {
                       : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#282828] hover:text-white'
                   }`}
                 >
-                  Newbie (&lt;30)
+                  Newbie (&lt;20)
                 </button>
               </div>
               <div className="mt-1 text-[10px] text-gray-500">
                 {experienceFilter === 'all' && 'Showing all games'}
-                {experienceFilter === 'pro' && 'Only games where both players have 30+ total games'}
-                {experienceFilter === 'newbie' && 'Games with at least one player under 30 total games'}
+                {experienceFilter === 'pro' && 'Only games where both players have 20+ total games'}
+                {experienceFilter === 'newbie' && 'Games with at least one player under 20 total games'}
               </div>
             </div>
           </div>
@@ -1830,7 +1830,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Top Players
-              <span className="ml-2 text-xs text-gray-500">(min 30 games)</span>
+              <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
             </div>
             {topPlayers.length > 0 && (
               <div className="flex items-center gap-2">
@@ -1871,7 +1871,7 @@ export default function Home() {
                 )}
                 {!loading && topPlayers.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 30‑game threshold yet.</td>
+                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 20‑game threshold yet.</td>
                   </tr>
                 )}
               </tbody>
