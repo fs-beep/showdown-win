@@ -1375,50 +1375,51 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Top Earners */}
+          {/* Money Tables Row */}
           {showMoneyTables && (
-            <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Top Earners</div>
-                  <div className="text-[10px] text-gray-500 mt-1">
-                    {usdmUpdatedAt && (() => {
-                      const age = Date.now() - usdmUpdatedAt;
-                      const mins = Math.floor(age / 60000);
-                      const hours = Math.floor(mins / 60);
-                      const timeAgo = hours > 0 ? `${hours}h ${mins % 60}m ago` : mins > 0 ? `${mins}m ago` : 'just now';
-                      const isStale = mins > 30;
-                      return (
-                        <span className={isStale ? 'text-amber-500' : ''}>
-                          {new Date(usdmUpdatedAt).toLocaleString()} ({timeAgo})
-                        </span>
-                      );
-                    })()}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Top Earners */}
+              <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Top Earners</div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {usdmUpdatedAt && (() => {
+                        const age = Date.now() - usdmUpdatedAt;
+                        const mins = Math.floor(age / 60000);
+                        const hours = Math.floor(mins / 60);
+                        const timeAgo = hours > 0 ? `${hours}h ${mins % 60}m ago` : mins > 0 ? `${mins}m ago` : 'just now';
+                        const isStale = mins > 30;
+                        return (
+                          <span className={isStale ? 'text-amber-500' : ''}>
+                            {new Date(usdmUpdatedAt).toLocaleString()} ({timeAgo})
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Wagered</div>
+                    <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Wagered</div>
-                  <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => fetchUsdmTop(true)}
-                disabled={usdmLoading}
-                className="w-full mb-2 inline-flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-600 rounded-lg px-3 py-2 text-xs text-white font-medium transition-colors disabled:opacity-40"
-              >
-                {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
-                {usdmLoading ? 'Syncing...' : 'Refresh'}
-              </button>
-              {usdmDebug && !usdmError && (
-                <div className="mb-2 text-xs text-yellow-500/80">{usdmDebug}</div>
-              )}
-              {usdmError && (
-                <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
-              )}
-              <div className="overflow-hidden rounded-lg border border-gray-800/50">
-                <div>
+                <button
+                  onClick={() => fetchUsdmTop(true)}
+                  disabled={usdmLoading}
+                  className="w-full mb-2 inline-flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-600 rounded-lg px-3 py-2 text-xs text-white font-medium transition-colors disabled:opacity-40"
+                >
+                  {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
+                  {usdmLoading ? 'Syncing...' : 'Refresh'}
+                </button>
+                {usdmDebug && !usdmError && (
+                  <div className="mb-2 text-xs text-yellow-500/80">{usdmDebug}</div>
+                )}
+                {usdmError && (
+                  <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
+                )}
+                <div className="overflow-hidden rounded-lg border border-gray-800/50">
                   <table className="min-w-full text-left text-xs">
-                    <thead className="sticky top-0 bg-[#1c1c1c]">
+                    <thead className="bg-[#1c1c1c]">
                       <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
                         <th className="px-3 py-2.5">Player</th>
@@ -1445,8 +1446,8 @@ export default function Home() {
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
                             <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
                           </tr>
-                      );
-                    })}
+                        );
+                      })}
                       {usdmLoading && usdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
                       {!usdmLoading && usdmRows.length === 0 && !usdmError && (
                         <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>No data yet</td></tr>
@@ -1454,53 +1455,51 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
+                <a className="mt-3 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
               </div>
-              <a className="mt-3 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
-            </div>
-          )}
 
-          {/* Tournament Winners */}
-          {showMoneyTables && (
-            <div id="tournament-winners" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60 mt-4">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">🏆 Tournament Winners</div>
-                  <div className="text-[10px] text-gray-500 mt-1">Freeroll Tournament #1</div>
+              {/* Tournament Winners */}
+              <div id="tournament-winners" className="rounded-lg bg-[#141414] p-5 border border-gray-800/60">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">🏆 Tournament Winners</div>
+                    <div className="text-[10px] text-gray-500 mt-1">Freeroll Tournament #1</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Prizes</div>
+                    <div className="text-2xl font-bold text-amber-400 mt-0.5">${TOURNAMENT_TOTAL.toLocaleString()}</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Prizes</div>
-                  <div className="text-2xl font-bold text-amber-400 mt-0.5">${TOURNAMENT_TOTAL.toLocaleString()}</div>
+                <div className="overflow-hidden rounded-lg border border-gray-800/50">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="bg-[#1c1c1c]">
+                      <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
+                        <th className="px-3 py-2.5 w-10 text-center">#</th>
+                        <th className="px-3 py-2.5">Player</th>
+                        <th className="px-3 py-2.5 text-amber-400">Prize</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/50">
+                      {TOURNAMENT_WINNERS.map((w) => {
+                        const prizeClass = w.rank === 1 ? 'text-amber-300 font-bold' 
+                          : w.rank <= 3 ? 'text-amber-400 font-semibold' 
+                          : 'text-amber-400/80';
+                        const rankDisplay = w.rank === 1 ? '🥇' : w.rank === 2 ? '🥈' : w.rank === 3 ? '🥉' : w.rank;
+                        return (
+                          <tr key={w.address} className="hover:bg-[#1c1c1c] transition-colors">
+                            <td className="px-3 py-2.5 text-center text-gray-500">{rankDisplay}</td>
+                            <td className="px-3 py-2.5 font-mono text-[11px]">
+                              <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${w.address}`} target="_blank" rel="noreferrer">{shortAddr(w.address)}</a>
+                            </td>
+                            <td className={`px-3 py-2.5 tabular-nums ${prizeClass}`}>{w.display}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+                <div className="mt-3 text-[10px] text-gray-500">Manual payouts until tournament smart contract launches</div>
               </div>
-              <div className="overflow-hidden rounded-lg border border-gray-800/50">
-                <table className="min-w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-[#1c1c1c]">
-                    <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
-                      <th className="px-3 py-2.5 w-10 text-center">#</th>
-                      <th className="px-3 py-2.5">Player</th>
-                      <th className="px-3 py-2.5 text-amber-400">Prize</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800/50">
-                    {TOURNAMENT_WINNERS.map((w) => {
-                      const prizeClass = w.rank === 1 ? 'text-amber-300 font-bold' 
-                        : w.rank <= 3 ? 'text-amber-400 font-semibold' 
-                        : 'text-amber-400/80';
-                      const rankDisplay = w.rank === 1 ? '🥇' : w.rank === 2 ? '🥈' : w.rank === 3 ? '🥉' : w.rank;
-                      return (
-                        <tr key={w.address} className="hover:bg-[#1c1c1c] transition-colors">
-                          <td className="px-3 py-2.5 text-center text-gray-500">{rankDisplay}</td>
-                          <td className="px-3 py-2.5 font-mono text-[11px]">
-                            <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${w.address}`} target="_blank" rel="noreferrer">{shortAddr(w.address)}</a>
-                          </td>
-                          <td className={`px-3 py-2.5 tabular-nums ${prizeClass}`}>{w.display}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-3 text-[10px] text-gray-500">Manual payouts until tournament smart contract launches</div>
             </div>
           )}
         </div>
