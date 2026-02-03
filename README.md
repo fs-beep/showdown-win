@@ -56,3 +56,4 @@ You can also run it manually:
 ```bash
 curl -X POST https://<your-deployment>/api/discord_cleanup
 ```
+
