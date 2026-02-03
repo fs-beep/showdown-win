@@ -151,8 +151,9 @@ async function batchGetBlocks(blockNums: number[]) {
   if (blockNums.length === 0) return new Map<number, number>();
   const reqs = blockNums.map((n, i) => ({ jsonrpc: '2.0', id: i + 1, method: 'eth_getBlockByNumber', params: [toHex(n), false] }));
   const chunks: any[] = [];
-  for (let i = 0; i < reqs.length; i += 400) {
-    const slice = reqs.slice(i, i + 400);
+  // RPC batch limit is 100
+  for (let i = 0; i < reqs.length; i += 50) {
+    const slice = reqs.slice(i, i + 50);
     const res = await rpc(slice);
     chunks.push(...res);
     if (BATCH_DELAY_MS) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
