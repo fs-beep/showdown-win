@@ -285,18 +285,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const fresh = req.query?.fresh === '1';
 
   // 1) Return cached data immediately for non-fresh requests
+  // But also check if more sync is needed so frontend knows to continue
   if (!fresh) {
-    if (memCache) {
-      return res.status(200).json({ ok: true, ...memCache, source: 'memory' });
-    }
-    if (kvOk) {
+    let cachedData: CachedData | null = memCache;
+    let source = 'memory';
+    if (!cachedData && kvOk) {
       try {
-        const kvCache = await kv.get<CachedData>(CACHE_KEY);
-        if (kvCache) {
-          memCache = kvCache;
-          return res.status(200).json({ ok: true, ...kvCache, source: 'kv' });
+        cachedData = await kv.get<CachedData>(CACHE_KEY);
+        if (cachedData) {
+          memCache = cachedData;
+          source = 'kv';
         }
       } catch {}
+    }
+    if (cachedData) {
+      // Quick check if more sync needed (without doing actual sync)
+      try {
+        const latest = await getLatestBlock();
+        const needsMoreSync = cachedData.lastBlock < latest.num - 100; // >100 blocks behind
+        return res.status(200).json({ 
+          ok: true, 
+          ...cachedData, 
+          source,
+          needsMoreSync,
+          syncedTo: cachedData.lastBlock,
+          latestBlock: latest.num
+        });
+      } catch {
+        // If we can't check latest, just return cache as-is
+        return res.status(200).json({ ok: true, ...cachedData, source });
+      }
     }
   }
 
