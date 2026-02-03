@@ -40,8 +40,8 @@ type CachedData = {
 };
 
 // v7: Force resync after fixing RPC to use mainnet only
-const STATE_KEY = 'usdm:state:v7';
-const CACHE_KEY = 'usdm:cache:v7';
+const STATE_KEY = 'usdm:state:v8';  // v8: Fixed volume to only count deposits (wagers), not payouts
+const CACHE_KEY = 'usdm:cache:v8';
 
 let memCache: CachedData | null = null;
 
@@ -171,12 +171,16 @@ function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
     const value = BigInt(log.data || '0x0');
     if (value === 0n) continue;
     const ts = blockTs.get(parseInt(log.blockNumber, 16)) || 0;
-    if (ts > 0) {
+    
+    // Only count deposits (transfers TO payout contract) for total wagered volume
+    // This way a $3 game between 2 players = $6 total wagered
+    if (to === PAYOUT_CONTRACT && ts > 0) {
       const d = new Date(ts * 1000);
       const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
       state.volumeByDay[day] = (BigInt(state.volumeByDay[day] || '0') + value).toString();
       state.totalVolume = (BigInt(state.totalVolume || '0') + value).toString();
     }
+    
     if (from === PAYOUT_CONTRACT) {
       const s = state.totals[to] || { won: '0', lost: '0', txs: 0 };
       s.won = (BigInt(s.won) + value).toString();
