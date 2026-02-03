@@ -39,9 +39,9 @@ type CachedData = {
   updatedAt: number;
 };
 
-// v10: Volume = total money flow (deposits + payouts) through contract
-const STATE_KEY = 'usdm:state:v10';
-const CACHE_KEY = 'usdm:cache:v10';
+// v11: Volume = deposits only (one-way count)
+const STATE_KEY = 'usdm:state:v11';
+const CACHE_KEY = 'usdm:cache:v11';
 
 let memCache: CachedData | null = null;
 let memCacheVersion = 'v9'; // Must match STATE_KEY version
@@ -174,9 +174,8 @@ function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
     if (value === 0n) continue;
     const ts = blockTs.get(parseInt(log.blockNumber, 16)) || 0;
     
-    // Count all transfers (deposits + payouts) for total volume
-    // This represents total money flow through the contract
-    if (ts > 0) {
+    // Only count deposits (transfers TO payout contract) for total volume
+    if (to === PAYOUT_CONTRACT && ts > 0) {
       const d = new Date(ts * 1000);
       const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
       state.volumeByDay[day] = (BigInt(state.volumeByDay[day] || '0') + value).toString();
