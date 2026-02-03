@@ -125,8 +125,9 @@ function formatUsdm(weiStr?: string, showSign = false) {
   const sign = bi < 0n ? '-' : (showSign && bi > 0n ? '+' : '');
   const abs = bi < 0n ? -bi : bi;
   const base = 1000000000000000000n;
-  const rounded = (abs + 500000000000000000n) / base;
-  const num = Number(rounded);
+  // Floor instead of round - total wagered should always be even (2 players × whole dollars)
+  const floored = abs / base;
+  const num = Number(floored);
   const formatted = num.toLocaleString('en-US');
   return `${sign}$${formatted}`;
 }
