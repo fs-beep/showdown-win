@@ -39,11 +39,12 @@ type CachedData = {
   updatedAt: number;
 };
 
-// v7: Force resync after fixing RPC to use mainnet only
-const STATE_KEY = 'usdm:state:v8';  // v8: Fixed volume to only count deposits (wagers), not payouts
-const CACHE_KEY = 'usdm:cache:v8';
+// v9: Force complete resync - volume only counts deposits (wagers), not payouts
+const STATE_KEY = 'usdm:state:v9';
+const CACHE_KEY = 'usdm:cache:v9';
 
 let memCache: CachedData | null = null;
+let memCacheVersion = 'v9'; // Must match STATE_KEY version
 
 function nowMs() { return Date.now(); }
 function toHex(n: number) { return '0x' + n.toString(16); }
