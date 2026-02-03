@@ -1420,7 +1420,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Wagered</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Volume</div>
                     <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
                   </div>
                 </div>
