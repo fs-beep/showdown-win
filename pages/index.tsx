@@ -2258,43 +2258,46 @@ export default function Home() {
         </div>
 
         {/* Daily Active Users Chart */}
-        {dailyActiveUsers.length > 0 && (
-          <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-            <div className="text-sm font-semibold text-gray-200 mb-4">
-              Daily Active Users
-              <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
-            </div>
-            <div className="overflow-x-auto">
-              <div className="flex items-end gap-1 min-w-max h-40">
-                {dailyActiveUsers.map((d, i) => {
-                  const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
-                  const heightPct = (d.count / maxCount) * 100;
-                  const isToday = d.day === new Date().toISOString().slice(0, 10);
-                  return (
-                    <div key={d.day} className="flex flex-col items-center group" style={{ minWidth: dailyActiveUsers.length > 30 ? '12px' : '24px' }}>
-                      <div className="text-[9px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                        {d.count}
+        {dailyActiveUsers.length > 0 && (() => {
+          const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
+          const chartHeight = 160; // pixels
+          return (
+            <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
+              <div className="text-sm font-semibold text-gray-200 mb-4">
+                Daily Active Users
+                <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
+              </div>
+              <div className="overflow-x-auto pb-6">
+                <div className="flex items-end gap-1" style={{ height: chartHeight + 30 }}>
+                  {dailyActiveUsers.map((d, i) => {
+                    const barHeight = Math.max((d.count / maxCount) * chartHeight, 4);
+                    const isToday = d.day === new Date().toISOString().slice(0, 10);
+                    return (
+                      <div key={d.day} className="flex flex-col items-center group" style={{ width: Math.max(600 / dailyActiveUsers.length, 20) }}>
+                        <div className="text-[10px] text-gray-300 mb-1 font-medium">
+                          {d.count}
+                        </div>
+                        <div
+                          className={`w-4/5 rounded-t transition-all cursor-pointer ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
+                          style={{ height: barHeight }}
+                          title={`${d.day}: ${d.count} players`}
+                        />
+                        <div className="text-[10px] mt-2 text-gray-400 whitespace-nowrap">
+                          {d.day.slice(5)}
+                        </div>
                       </div>
-                      <div
-                        className={`w-full rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-blue-500/70 hover:bg-blue-500'}`}
-                        style={{ height: `${Math.max(heightPct, 2)}%` }}
-                        title={`${d.day}: ${d.count} players`}
-                      />
-                      <div className={`text-[8px] mt-1 ${dailyActiveUsers.length > 20 && i % 2 !== 0 ? 'opacity-0' : ''} ${dailyActiveUsers.length > 40 && i % 3 !== 0 ? 'opacity-0' : ''} text-gray-500 -rotate-45 origin-top-left whitespace-nowrap`}>
-                        {d.day.slice(5)}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-800 pt-3">
+                <div>Total days: {dailyActiveUsers.length}</div>
+                <div>Avg: {(dailyActiveUsers.reduce((s, d) => s + d.count, 0) / dailyActiveUsers.length).toFixed(1)} players/day</div>
+                <div>Peak: {maxCount} players</div>
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-              <div>Total days: {dailyActiveUsers.length}</div>
-              <div>Avg: {(dailyActiveUsers.reduce((s, d) => s + d.count, 0) / dailyActiveUsers.length).toFixed(1)} players/day</div>
-              <div>Peak: {Math.max(...dailyActiveUsers.map(d => d.count))} players</div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
       {/* copy toast */}
       {copiedTx && (
