@@ -2267,28 +2267,41 @@ export default function Home() {
                 Daily Active Users
                 <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
               </div>
-              <div className="overflow-x-auto pb-6">
-                <div className="flex items-end gap-1" style={{ height: chartHeight + 50 }}>
-                  {dailyActiveUsers.map((d, i) => {
-                    const barHeight = Math.max((d.count / maxCount) * chartHeight, 4);
-                    const isToday = d.day === new Date().toISOString().slice(0, 10);
-                    return (
-                      <div key={d.day} className="flex flex-col items-center justify-end group" style={{ width: Math.max(600 / dailyActiveUsers.length, 20), height: '100%' }}>
-                        <div className="text-[10px] text-gray-300 mb-1 font-medium">
-                          {d.count}
-                        </div>
-                        <div
-                          className={`w-4/5 rounded-t transition-all cursor-pointer ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
-                          style={{ height: barHeight, flexShrink: 0 }}
-                          title={`${d.day}: ${d.count} players`}
-                        />
-                        <div className="text-[10px] mt-2 text-gray-400 whitespace-nowrap" style={{ flexShrink: 0 }}>
-                          {d.day.slice(5)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="overflow-x-auto pb-2">
+                {(() => {
+                  const numDays = dailyActiveUsers.length;
+                  // Calculate optimal bar width and label frequency
+                  const barWidth = numDays <= 10 ? 48 : numDays <= 20 ? 36 : numDays <= 40 ? 28 : 22;
+                  const labelEvery = numDays <= 15 ? 1 : numDays <= 30 ? 2 : numDays <= 60 ? 3 : 5;
+                  
+                  return (
+                    <div className="flex items-end gap-[3px]" style={{ height: chartHeight + 50, minWidth: numDays * (barWidth + 3) }}>
+                      {dailyActiveUsers.map((d, i) => {
+                        const barHeight = Math.max((d.count / maxCount) * chartHeight, 4);
+                        const isToday = d.day === new Date().toISOString().slice(0, 10);
+                        const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                        return (
+                          <div key={d.day} className="flex flex-col items-center justify-end group" style={{ width: barWidth, height: '100%' }}>
+                            <div className="text-[10px] text-gray-300 mb-1 font-medium">
+                              {d.count}
+                            </div>
+                            <div
+                              className={`rounded-t transition-all cursor-pointer ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
+                              style={{ height: barHeight, width: '80%', flexShrink: 0 }}
+                              title={`${d.day}: ${d.count} players`}
+                            />
+                            <div 
+                              className={`text-[10px] mt-2 text-gray-400 whitespace-nowrap ${showLabel ? '' : 'invisible'}`} 
+                              style={{ flexShrink: 0 }}
+                            >
+                              {d.day.slice(5)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-800 pt-3">
                 <div>Total days: {dailyActiveUsers.length}</div>
