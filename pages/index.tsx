@@ -189,6 +189,7 @@ export default function Home() {
   const [endDate, setEndDate] = useState<string>('');
   const [player, setPlayer] = useState<string>('barry');
   const hydrated = useRef(false);
+  const dauChartRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -518,6 +519,13 @@ export default function Home() {
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Auto-scroll DAU chart to show latest (rightmost) data
+  useEffect(() => {
+    if (dauChartRef.current && rows.length > 0) {
+      dauChartRef.current.scrollLeft = dauChartRef.current.scrollWidth;
+    }
+  }, [rows]);
 
   const copyTx = async (hash: string) => {
     try {
@@ -2267,7 +2275,7 @@ export default function Home() {
                 Daily Active Users
                 <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
               </div>
-              <div className="overflow-x-auto pb-2">
+              <div ref={dauChartRef} className="overflow-x-auto pb-2">
                 {(() => {
                   const numDays = dailyActiveUsers.length;
                   // Calculate optimal bar width and label frequency
