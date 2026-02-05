@@ -2268,21 +2268,21 @@ export default function Home() {
                 <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
               </div>
               <div className="overflow-x-auto pb-6">
-                <div className="flex items-end gap-1" style={{ height: chartHeight + 30 }}>
+                <div className="flex items-end gap-1" style={{ height: chartHeight + 50 }}>
                   {dailyActiveUsers.map((d, i) => {
                     const barHeight = Math.max((d.count / maxCount) * chartHeight, 4);
                     const isToday = d.day === new Date().toISOString().slice(0, 10);
                     return (
-                      <div key={d.day} className="flex flex-col items-center group" style={{ width: Math.max(600 / dailyActiveUsers.length, 20) }}>
+                      <div key={d.day} className="flex flex-col items-center justify-end group" style={{ width: Math.max(600 / dailyActiveUsers.length, 20), height: '100%' }}>
                         <div className="text-[10px] text-gray-300 mb-1 font-medium">
                           {d.count}
                         </div>
                         <div
                           className={`w-4/5 rounded-t transition-all cursor-pointer ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
-                          style={{ height: barHeight }}
+                          style={{ height: barHeight, flexShrink: 0 }}
                           title={`${d.day}: ${d.count} players`}
                         />
-                        <div className="text-[10px] mt-2 text-gray-400 whitespace-nowrap">
+                        <div className="text-[10px] mt-2 text-gray-400 whitespace-nowrap" style={{ flexShrink: 0 }}>
                           {d.day.slice(5)}
                         </div>
                       </div>
