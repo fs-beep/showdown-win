@@ -688,6 +688,33 @@ export default function Home() {
     return `${start} → ${end}`;
   }, [startDate, endDate]);
 
+  // Daily Active Users (unique addresses that played at least one game per day)
+  const dailyActiveUsers = useMemo(() => {
+    const dauMap: Record<string, Set<string>> = {};
+    for (const r of rows) {
+      // Parse date from startedAt (format: "1/15/2026, 2:08:00 PM" or ISO)
+      let day = '';
+      try {
+        const d = new Date(r.startedAt);
+        if (!isNaN(d.getTime())) {
+          day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+      } catch {}
+      if (!day) continue;
+      
+      if (!dauMap[day]) dauMap[day] = new Set();
+      const w = r.winningPlayer?.trim?.().toLowerCase();
+      const l = r.losingPlayer?.trim?.().toLowerCase();
+      if (w) dauMap[day].add(w);
+      if (l) dauMap[day].add(l);
+    }
+    
+    // Convert to sorted array
+    return Object.entries(dauMap)
+      .map(([day, users]) => ({ day, count: users.size }))
+      .sort((a, b) => a.day.localeCompare(b.day));
+  }, [rows]);
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -2229,6 +2256,45 @@ export default function Home() {
         <div className="mt-4 text-xs text-gray-500">
           Daily cache on the server makes historical queries instant; today is fetched incrementally.
         </div>
+
+        {/* Daily Active Users Chart */}
+        {dailyActiveUsers.length > 0 && (
+          <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
+            <div className="text-sm font-semibold text-gray-200 mb-4">
+              Daily Active Users
+              <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="flex items-end gap-1 min-w-max h-40">
+                {dailyActiveUsers.map((d, i) => {
+                  const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
+                  const heightPct = (d.count / maxCount) * 100;
+                  const isToday = d.day === new Date().toISOString().slice(0, 10);
+                  return (
+                    <div key={d.day} className="flex flex-col items-center group" style={{ minWidth: dailyActiveUsers.length > 30 ? '12px' : '24px' }}>
+                      <div className="text-[9px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                        {d.count}
+                      </div>
+                      <div
+                        className={`w-full rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-blue-500/70 hover:bg-blue-500'}`}
+                        style={{ height: `${Math.max(heightPct, 2)}%` }}
+                        title={`${d.day}: ${d.count} players`}
+                      />
+                      <div className={`text-[8px] mt-1 ${dailyActiveUsers.length > 20 && i % 2 !== 0 ? 'opacity-0' : ''} ${dailyActiveUsers.length > 40 && i % 3 !== 0 ? 'opacity-0' : ''} text-gray-500 -rotate-45 origin-top-left whitespace-nowrap`}>
+                        {d.day.slice(5)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+              <div>Total days: {dailyActiveUsers.length}</div>
+              <div>Avg: {(dailyActiveUsers.reduce((s, d) => s + d.count, 0) / dailyActiveUsers.length).toFixed(1)} players/day</div>
+              <div>Peak: {Math.max(...dailyActiveUsers.map(d => d.count))} players</div>
+            </div>
+          </div>
+        )}
       </div>
       {/* copy toast */}
       {copiedTx && (
