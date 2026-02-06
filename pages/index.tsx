@@ -1566,7 +1566,7 @@ export default function Home() {
                     <thead className="bg-[#1c1c1c]">
                       <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
-                        <th className="px-3 py-2.5">Classes</th>
+                        <th className="px-3 py-2.5">Player</th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
                         <th className="px-3 py-2.5 text-right">Games</th>
                       </tr>
@@ -1585,10 +1585,11 @@ export default function Home() {
                         return (
                           <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                             <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
-                            <td className="px-3 py-2.5 text-[11px]">
-                              <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
-                                {dominantClasses || shortAddr(r.player)}
-                              </a>
+                            <td className="px-3 py-2.5">
+                              <a className="text-gray-300 hover:text-white font-mono text-[11px]" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
+                              {dominantClasses && (
+                                <div className="text-[10px] text-gray-500 mt-0.5">{dominantClasses}</div>
+                              )}
                             </td>
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
                             <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
