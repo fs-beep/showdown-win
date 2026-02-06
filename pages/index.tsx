@@ -76,6 +76,7 @@ const WALLET_TO_NICK: Record<string, string> = {
   '0x64a6ce1145e23c9caf9b5da2be3a13c9d8945b8f': 'DarthDuck',
   '0x853db182b8783fa8250d96e0d38f95e457e5f3d6': 'StanCifka',
   '0x5e535ac83516c729624874be88c275b86a0878c4': 'gdgr',
+  '0x4e8c39b5aad3ddb277ac56b9463fe279c596b40d': 'tango',
 };
 type UsdmVolumePoint = { day: string; volume: string };
 type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
