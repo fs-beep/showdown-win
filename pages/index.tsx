@@ -791,22 +791,27 @@ export default function Home() {
     if (rows.length === 0) return {};
     // Merge hardcoded + dynamic mapping (dynamic overwrites if conflict)
     const mergedWalletToNick = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
-    // Build nickname → wallet reverse map
-    const nickToWallet: Record<string, string> = {};
+    // Build nickname → wallets reverse map (multi-map for duplicate nicknames)
+    const nickToWallets: Record<string, string[]> = {};
     for (const [addr, nick] of Object.entries(mergedWalletToNick)) {
-      nickToWallet[nick.toLowerCase()] = addr.toLowerCase();
+      const key = nick.toLowerCase();
+      if (!nickToWallets[key]) nickToWallets[key] = [];
+      nickToWallets[key].push(addr.toLowerCase());
     }
     // Count winning classes per wallet address
     const classCounts: Record<string, Record<string, number>> = {};
     for (const r of rows) {
       const nick = r.winningPlayer?.trim();
       if (!nick) continue;
-      const wallet = nickToWallet[nick.toLowerCase()];
-      if (!wallet) continue;
+      const wallets = nickToWallets[nick.toLowerCase()];
+      if (!wallets || wallets.length === 0) continue;
       const classes = (r.winningClasses ?? '').trim();
       if (!classes) continue;
-      if (!classCounts[wallet]) classCounts[wallet] = {};
-      classCounts[wallet][classes] = (classCounts[wallet][classes] ?? 0) + 1;
+      // Attribute wins to ALL wallets sharing this nickname
+      for (const wallet of wallets) {
+        if (!classCounts[wallet]) classCounts[wallet] = {};
+        classCounts[wallet][classes] = (classCounts[wallet][classes] ?? 0) + 1;
+      }
     }
     // For each wallet, pick top 1-2 classes
     const result: Record<string, string> = {};
