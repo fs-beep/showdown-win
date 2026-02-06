@@ -266,6 +266,7 @@ export default function Home() {
   const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
+  const [cachedDominantClasses, setCachedDominantClasses] = useState<Record<string, string>>({});
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [lastQueryLive, setLastQueryLive] = useState<boolean>(false);
@@ -279,6 +280,9 @@ export default function Home() {
       if (typeof document !== 'undefined') document.documentElement.classList.add('dark');
       const rp = typeof window !== 'undefined' ? localStorage.getItem('recentPlayers') : null;
       if (rp) setRecentPlayers(JSON.parse(rp));
+      // Load cached dominant classes
+      const dc = typeof window !== 'undefined' ? localStorage.getItem('dominantClasses') : null;
+      if (dc) setCachedDominantClasses(JSON.parse(dc));
     } catch {}
   }, []);
 
@@ -776,7 +780,8 @@ export default function Home() {
   }, [rows]);
 
   // Dominant winning classes per wallet address (for USDM Top Earners table)
-  const walletDominantClasses = useMemo(() => {
+  const computedDominantClasses = useMemo(() => {
+    if (rows.length === 0) return {};
     // Build nickname → wallet reverse map
     const nickToWallet: Record<string, string> = {};
     for (const [addr, nick] of Object.entries(WALLET_TO_NICK)) {
@@ -800,7 +805,6 @@ export default function Home() {
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const total = sorted.reduce((s, [, c]) => s + c, 0);
       if (sorted.length === 0) continue;
-      // Show top class, or top 2 if second is at least 20% of total
       const top = sorted[0];
       if (sorted.length > 1 && sorted[1][1] >= total * 0.2) {
         result[wallet] = `${top[0]}, ${sorted[1][0]}`;
@@ -810,6 +814,21 @@ export default function Home() {
     }
     return result;
   }, [rows]);
+
+  // Persist dominant classes to localStorage & merge with cache
+  useEffect(() => {
+    if (Object.keys(computedDominantClasses).length > 0) {
+      const merged = { ...cachedDominantClasses, ...computedDominantClasses };
+      setCachedDominantClasses(merged);
+      try { localStorage.setItem('dominantClasses', JSON.stringify(merged)); } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [computedDominantClasses]);
+
+  // Merged lookup: fresh computed data takes priority, falls back to cache
+  const walletDominantClasses = useMemo(() => {
+    return { ...cachedDominantClasses, ...computedDominantClasses };
+  }, [cachedDominantClasses, computedDominantClasses]);
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
@@ -1566,7 +1585,7 @@ export default function Home() {
                     <thead className="bg-[#1c1c1c]">
                       <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
-                        <th className="px-3 py-2.5">Player</th>
+                        <th className="px-3 py-2.5">Player <span className="normal-case text-gray-600 font-normal">(top class)</span></th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
                         <th className="px-3 py-2.5 text-right">Games</th>
                       </tr>
@@ -1588,7 +1607,7 @@ export default function Home() {
                             <td className="px-3 py-2.5">
                               <a className="text-gray-300 hover:text-white font-mono text-[11px]" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
                               {dominantClasses && (
-                                <div className="text-[10px] text-gray-500 mt-0.5">{dominantClasses}</div>
+                                <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
                               )}
                             </td>
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
