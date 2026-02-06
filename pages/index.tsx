@@ -268,6 +268,7 @@ export default function Home() {
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
   const [cachedDominantClasses, setCachedDominantClasses] = useState<Record<string, string>>({});
+  const [dynamicWalletToNick, setDynamicWalletToNick] = useState<Record<string, string>>({});
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [lastQueryLive, setLastQueryLive] = useState<boolean>(false);
@@ -285,6 +286,10 @@ export default function Home() {
       const dc = typeof window !== 'undefined' ? localStorage.getItem('dominantClasses') : null;
       if (dc) setCachedDominantClasses(JSON.parse(dc));
     } catch {}
+    // Fetch dynamic wallet→nickname mapping (cached 24h server-side)
+    fetch('/api/wallets').then(r => r.json()).then(d => {
+      if (d.ok && d.mapping) setDynamicWalletToNick(d.mapping);
+    }).catch(() => {});
   }, []);
 
   // Load cached USDM data on page load
@@ -781,11 +786,14 @@ export default function Home() {
   }, [rows]);
 
   // Dominant winning classes per wallet address (for USDM Top Earners table)
+  // Merges hardcoded WALLET_TO_NICK with dynamically fetched mapping (refreshed daily)
   const computedDominantClasses = useMemo(() => {
     if (rows.length === 0) return {};
+    // Merge hardcoded + dynamic mapping (dynamic overwrites if conflict)
+    const mergedWalletToNick = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
     // Build nickname → wallet reverse map
     const nickToWallet: Record<string, string> = {};
-    for (const [addr, nick] of Object.entries(WALLET_TO_NICK)) {
+    for (const [addr, nick] of Object.entries(mergedWalletToNick)) {
       nickToWallet[nick.toLowerCase()] = addr.toLowerCase();
     }
     // Count winning classes per wallet address
@@ -814,7 +822,7 @@ export default function Home() {
       }
     }
     return result;
-  }, [rows]);
+  }, [rows, dynamicWalletToNick]);
 
   // Persist dominant classes to localStorage & merge with cache
   useEffect(() => {
