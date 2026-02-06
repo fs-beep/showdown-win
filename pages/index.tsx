@@ -25,6 +25,58 @@ type Row = {
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
 type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
 type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
+
+// Wallet → in-game nickname mapping (from https://wallet.showdown.game/activity)
+const WALLET_TO_NICK: Record<string, string> = {
+  '0x40c1eaa23ddd6973330889b30bce05fa21e9b87d': 'been1575',
+  '0x2ddf9f00cd543f54421cef64eb29c408b49d679f': 'Alex',
+  '0xf645058ed581662df6b8d07239ecf8a5433d19ec': 'Nav',
+  '0xef71cf2f7e246783e8c660ab70e59629e952b5be': 'Asso',
+  '0x4221b5252200b45db09bf635599f0498ec702d09': 'homeprotector',
+  '0x13cf9980a0238d6f32c3e70172695eca57216fec': 'Flash',
+  '0x7b149bd829021c7da62bd8c6af1e041367938acf': 'megaflop',
+  '0xc0a89392f019e81b35ce3bfa82d2309e621ccb7a': 'krysaaa',
+  '0x1befab8bf83742fa13162d65c528a029b9786076': 'barry',
+  '0x34079266660196371cfd4cbd3afcbe937909e2c2': 'ASR',
+  '0xb8680980b03776fb12948442325171ae4fea4b11': 'Hoangthao',
+  '0xa61933b3074db32c4acca235e9f6991a8dce685b': 'fajridrop',
+  '0x3dc0ebb9bace78124e2168f3339d04b18af1cd88': 'McDuck',
+  '0x04e49b062680bc585ccaa8e81c28000ea8664eb3': 'GPpoker',
+  '0x1be706aacfdc2244611b54ffed0502dc45a45bd1': 'SE1',
+  '0x8b0219552a3bd3a843c083b9d6ca1e99dafd44d7': 'Kaito',
+  '0x229a171a3c486762e080b22d1b687ceb9fc74fa3': 'metaalex',
+  '0x8689ad878545177403f5be5e6e31cfef94025a81': 'Lilin',
+  '0x48efd1928d62c38bdcdd2b6d71ac60c4f333e1f': 'm777',
+  '0x910d0efd8e2d831af89fb9ec60d22b60e6f34508': 'saintlee',
+  '0x90edb8322ebf7695dfdc22324c844af273828af3': 'CrypLykos',
+  '0x6e9aabcbfa8a45e715729b4df3643e8bec3a1f4c': 'nguyenhai',
+  '0x9b9595555b77c5add018b2e52f5ed7e9e34a28fa': 'Lecrawl',
+  '0xda3f1157b1c66ed91fa835eade9a9026a8495c35': 'mrL',
+  '0xd3f804e7a8e5d9a3a84ab9f6b18c7e33bbc6baab': 'eduzzo',
+  '0xdf9cb973634af0b5cb8c953c77213cb2f8489951': 'bangsand',
+  '0x2550fdf63d761d3e912282d041a527aef493aff7': 'Corleone',
+  '0x09a920a30c406db57b6d1a56f24eb0af43468f71': 'Ariefw219',
+  '0x3c39ce87ed582a91db288aa0556d5b954da4acdc': 'ninja3',
+  '0x958e31a0a9410b9f6204fe0a6a52de644f5f3f8b': 'LYLN',
+  '0x5e14da20d61969d445a07ad3a576a7c1c2710952': 'ComfyJoe',
+  '0x12ad0d86952bfa551a5166aee20ce0d47c12d3e6': 'NorrisNguyenNP',
+  '0xade6976f6d4930cb1868d48d1cdf99c6db3dea38': 'KINGTA',
+  '0x7fdf6ced2953d53a30ca2774f918cdff293f04ed': 'Ajeto',
+  '0xe000441b32d0aba1bd2fb5b7fd1e7f82cb612052': 'MegaManRivs',
+  '0x8bea9b54e8e145b0b1f69b47b54d5a577b00ea4a': 'jam',
+  '0x647f44d213a1c76f51621943d0b1ee28877ce4fc': 'Kangliu',
+  '0x0c3e1eee5723ff6d670f9f2cc2e9541fd30c5ef2': 'Scorpion',
+  '0x790c4a63f30f098efdd16c64b54939877eca43d1': 'miguelusin',
+  '0x7e77b7b7f379fa67bb82505080a952eda83806b3': 'Yan',
+  '0xb10ee603248bdd1d5f004d48e87f52a96bd1e149': 'police911',
+  '0x11b72e0c989be9130cefb10832fefb4f49cdcdd8': 'chiboozor',
+  '0xf05dabb6fcdb8f51dd39aa42ea811285efee57cf': 'mouse',
+  '0x49015274d2c9e71938d3e471072c2b749f786a91': 'Snep',
+  '0x4db3c5a9b9742295950d13e25c8cdaf9bb203e1c': 'RQLTR',
+  '0x64a6ce1145e23c9caf9b5da2be3a13c9d8945b8f': 'DarthDuck',
+  '0x853db182b8783fa8250d96e0d38f95e457e5f3d6': 'StanCifka',
+  '0x5e535ac83516c729624874be88c275b86a0878c4': 'gdgr',
+};
 type UsdmVolumePoint = { day: string; volume: string };
 type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]; aggByClass?: Record<string, { wins: number; losses: number; total: number }>; aggLastUpdate?: number };
 
@@ -721,6 +773,42 @@ export default function Home() {
     return Object.entries(dauMap)
       .map(([day, users]) => ({ day, count: users.size }))
       .sort((a, b) => a.day.localeCompare(b.day));
+  }, [rows]);
+
+  // Dominant winning classes per wallet address (for USDM Top Earners table)
+  const walletDominantClasses = useMemo(() => {
+    // Build nickname → wallet reverse map
+    const nickToWallet: Record<string, string> = {};
+    for (const [addr, nick] of Object.entries(WALLET_TO_NICK)) {
+      nickToWallet[nick.toLowerCase()] = addr.toLowerCase();
+    }
+    // Count winning classes per wallet address
+    const classCounts: Record<string, Record<string, number>> = {};
+    for (const r of rows) {
+      const nick = r.winningPlayer?.trim();
+      if (!nick) continue;
+      const wallet = nickToWallet[nick.toLowerCase()];
+      if (!wallet) continue;
+      const classes = (r.winningClasses ?? '').trim();
+      if (!classes) continue;
+      if (!classCounts[wallet]) classCounts[wallet] = {};
+      classCounts[wallet][classes] = (classCounts[wallet][classes] ?? 0) + 1;
+    }
+    // For each wallet, pick top 1-2 classes
+    const result: Record<string, string> = {};
+    for (const [wallet, counts] of Object.entries(classCounts)) {
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      const total = sorted.reduce((s, [, c]) => s + c, 0);
+      if (sorted.length === 0) continue;
+      // Show top class, or top 2 if second is at least 20% of total
+      const top = sorted[0];
+      if (sorted.length > 1 && sorted[1][1] >= total * 0.2) {
+        result[wallet] = `${top[0]}, ${sorted[1][0]}`;
+      } else {
+        result[wallet] = top[0];
+      }
+    }
+    return result;
   }, [rows]);
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
@@ -1478,7 +1566,7 @@ export default function Home() {
                     <thead className="bg-[#1c1c1c]">
                       <tr className="text-gray-400 text-[10px] uppercase tracking-wide">
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
-                        <th className="px-3 py-2.5">Player</th>
+                        <th className="px-3 py-2.5">Classes</th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
                         <th className="px-3 py-2.5 text-right">Games</th>
                       </tr>
@@ -1493,11 +1581,14 @@ export default function Home() {
                           : netAbs >= 10 ? 'text-green-400 font-semibold'
                           : 'text-green-400'
                           : netBi < 0n ? 'text-red-400/70' : 'text-gray-400';
+                        const dominantClasses = walletDominantClasses[r.player.toLowerCase()];
                         return (
                           <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                             <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
-                            <td className="px-3 py-2.5 font-mono text-[11px]">
-                              <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
+                            <td className="px-3 py-2.5 text-[11px]">
+                              <a className="text-gray-300 hover:text-white" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer" title={r.player}>
+                                {dominantClasses || shortAddr(r.player)}
+                              </a>
                             </td>
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
                             <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
@@ -2268,38 +2359,40 @@ export default function Home() {
         {/* Daily Active Users Chart */}
         {dailyActiveUsers.length > 0 && (() => {
           const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
-          const chartHeight = 160; // pixels
+          const chartHeight = 160;
           return (
-            <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-              <div className="text-sm font-semibold text-gray-200 mb-4">
+            <div className="mt-6 rounded-lg bg-[#141414] p-3 sm:p-4 border border-gray-800/60">
+              <div className="text-sm font-semibold text-gray-200 mb-3 sm:mb-4">
                 Daily Active Users
                 <span className="ml-2 text-xs text-gray-500">(unique players per day)</span>
               </div>
-              <div ref={dauChartRef} className="overflow-x-auto pb-2">
+              <div ref={dauChartRef} className="overflow-x-auto pb-2 -mx-1">
                 {(() => {
                   const numDays = dailyActiveUsers.length;
-                  // Calculate optimal bar width and label frequency
-                  const barWidth = numDays <= 10 ? 48 : numDays <= 20 ? 36 : numDays <= 40 ? 28 : 22;
-                  const labelEvery = numDays <= 15 ? 1 : numDays <= 30 ? 2 : numDays <= 60 ? 3 : 5;
+                  // Tighter bars on mobile: min 14px when lots of days
+                  const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 32 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
+                  const gap = barWidth <= 18 ? 1 : 3;
+                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
+                  const totalWidth = numDays * (barWidth + gap);
                   
                   return (
-                    <div className="flex items-end gap-[3px]" style={{ height: chartHeight + 50, minWidth: numDays * (barWidth + 3) }}>
+                    <div className="flex items-end" style={{ height: chartHeight + 40, minWidth: Math.max(totalWidth, 280), gap }}>
                       {dailyActiveUsers.map((d, i) => {
-                        const barHeight = Math.max((d.count / maxCount) * chartHeight, 4);
+                        const barHeight = Math.max((d.count / maxCount) * chartHeight, 3);
                         const isToday = d.day === new Date().toISOString().slice(0, 10);
                         const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
                         return (
-                          <div key={d.day} className="flex flex-col items-center justify-end group" style={{ width: barWidth, height: '100%' }}>
-                            <div className="text-[10px] text-gray-300 mb-1 font-medium">
+                          <div key={d.day} className="flex flex-col items-center justify-end" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                            <div className="text-[9px] sm:text-[10px] text-gray-300 mb-0.5 font-medium leading-none" style={{ flexShrink: 0 }}>
                               {d.count}
                             </div>
                             <div
-                              className={`rounded-t transition-all cursor-pointer ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
-                              style={{ height: barHeight, width: '80%', flexShrink: 0 }}
+                              className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-400'}`}
+                              style={{ height: barHeight, width: '80%', flexShrink: 0, minHeight: 3 }}
                               title={`${d.day}: ${d.count} players`}
                             />
                             <div 
-                              className={`text-[10px] mt-2 text-gray-400 whitespace-nowrap ${showLabel ? '' : 'invisible'}`} 
+                              className={`text-[8px] sm:text-[10px] mt-1 text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`} 
                               style={{ flexShrink: 0 }}
                             >
                               {d.day.slice(5)}
@@ -2311,10 +2404,10 @@ export default function Home() {
                   );
                 })()}
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-800 pt-3">
-                <div>Total days: {dailyActiveUsers.length}</div>
-                <div>Avg: {(dailyActiveUsers.reduce((s, d) => s + d.count, 0) / dailyActiveUsers.length).toFixed(1)} players/day</div>
-                <div>Peak: {maxCount} players</div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2 sm:pt-3">
+                <div>Total: {dailyActiveUsers.length}d</div>
+                <div>Avg: {(dailyActiveUsers.reduce((s, d) => s + d.count, 0) / dailyActiveUsers.length).toFixed(1)}/day</div>
+                <div>Peak: {maxCount}</div>
               </div>
             </div>
           );
