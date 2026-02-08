@@ -30,18 +30,22 @@ type State = {
   totals: Record<string, { won: string; lost: string; txs: number }>;
   volumeByDay: Record<string, string>;
   totalVolume: string;
+  // Per-player per-day data for weekly/monthly leaderboards
+  playerDays?: Record<string, Record<string, { won: string; lost: string; txs: number }>>;
 };
 type CachedData = {
   rows: ProfitRow[];
+  rowsWeekly?: ProfitRow[];
+  rowsMonthly?: ProfitRow[];
   volumeSeries: VolumePoint[];
   totalVolume: string;
   lastBlock: number;
   updatedAt: number;
 };
 
-// v11: Volume = deposits only (one-way count)
-const STATE_KEY = 'usdm:state:v11';
-const CACHE_KEY = 'usdm:cache:v11';
+// v12: Added playerDays for weekly/monthly leaderboards
+const STATE_KEY = 'usdm:state:v12';
+const CACHE_KEY = 'usdm:cache:v12';
 
 let memCache: CachedData | null = null;
 let memCacheVersion = 'v9'; // Must match STATE_KEY version
@@ -166,6 +170,7 @@ async function batchGetBlocks(blockNums: number[]) {
 }
 
 function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
+  if (!state.playerDays) state.playerDays = {};
   for (const log of logs) {
     const from = parseAddr(log.topics?.[1]);
     const to = parseAddr(log.topics?.[2]);
@@ -173,27 +178,68 @@ function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
     const value = BigInt(log.data || '0x0');
     if (value === 0n) continue;
     const ts = blockTs.get(parseInt(log.blockNumber, 16)) || 0;
+    const d = ts > 0 ? new Date(ts * 1000) : new Date();
+    const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
     
     // Only count deposits (transfers TO payout contract) for total volume
     if (to === PAYOUT_CONTRACT && ts > 0) {
-      const d = new Date(ts * 1000);
-      const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
       state.volumeByDay[day] = (BigInt(state.volumeByDay[day] || '0') + value).toString();
       state.totalVolume = (BigInt(state.totalVolume || '0') + value).toString();
     }
     
     if (from === PAYOUT_CONTRACT) {
+      // Payout to player (won)
       const s = state.totals[to] || { won: '0', lost: '0', txs: 0 };
       s.won = (BigInt(s.won) + value).toString();
       s.txs += 1;
       state.totals[to] = s;
+      // Track daily
+      if (!state.playerDays[to]) state.playerDays[to] = {};
+      const pd = state.playerDays[to][day] || { won: '0', lost: '0', txs: 0 };
+      pd.won = (BigInt(pd.won) + value).toString();
+      pd.txs += 1;
+      state.playerDays[to][day] = pd;
     } else {
+      // Player deposit (lost)
       const s = state.totals[from] || { won: '0', lost: '0', txs: 0 };
       s.lost = (BigInt(s.lost) + value).toString();
       s.txs += 1;
       state.totals[from] = s;
+      // Track daily
+      if (!state.playerDays[from]) state.playerDays[from] = {};
+      const pd = state.playerDays[from][day] || { won: '0', lost: '0', txs: 0 };
+      pd.lost = (BigInt(pd.lost) + value).toString();
+      pd.txs += 1;
+      state.playerDays[from][day] = pd;
     }
   }
+}
+
+function computeLeaderboard(playerDays: Record<string, Record<string, { won: string; lost: string; txs: number }>>, sinceDay?: string): ProfitRow[] {
+  const agg: Record<string, { won: bigint; lost: bigint; txs: number }> = {};
+  for (const [player, days] of Object.entries(playerDays)) {
+    for (const [day, d] of Object.entries(days)) {
+      if (sinceDay && day < sinceDay) continue;
+      if (!agg[player]) agg[player] = { won: 0n, lost: 0n, txs: 0 };
+      agg[player].won += BigInt(d.won);
+      agg[player].lost += BigInt(d.lost);
+      agg[player].txs += d.txs;
+    }
+  }
+  const rows: ProfitRow[] = Object.entries(agg).map(([player, s]) => ({
+    player, won: s.won.toString(), lost: s.lost.toString(), net: (s.won - s.lost).toString(), txs: s.txs,
+  }));
+  rows.sort((a, b) => {
+    const na = BigInt(a.net), nb = BigInt(b.net);
+    return na === nb ? b.txs - a.txs : (na > nb ? -1 : 1);
+  });
+  return rows.slice(0, 10);
+}
+
+function dayNAgo(n: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 function computeCache(state: State, prevUpdatedAt?: number, logsFound?: number): CachedData {
@@ -213,8 +259,14 @@ function computeCache(state: State, prevUpdatedAt?: number, logsFound?: number):
     .map(([day, volume]) => ({ day, volume }));
   // Only update timestamp if we actually found new logs
   const newUpdatedAt = (logsFound && logsFound > 0) ? nowMs() : (prevUpdatedAt || nowMs());
+  // Compute weekly & monthly leaderboards from daily data
+  const pd = state.playerDays || {};
+  const rowsWeekly = computeLeaderboard(pd, dayNAgo(7));
+  const rowsMonthly = computeLeaderboard(pd, dayNAgo(30));
   return {
     rows: rows.slice(0, 10),
+    rowsWeekly,
+    rowsMonthly,
     volumeSeries,
     totalVolume: state.totalVolume || '0',
     lastBlock: state.lastBlock,
@@ -238,7 +290,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (kvOk) {
         try { state = await kv.get<State>(STATE_KEY); } catch {}
       }
-      if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+      if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0', playerDays: {} };
       
       // Only process if client has newer data
       if (toBlock <= state.lastBlock) {
@@ -330,14 +382,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       kvLoadError = e?.message || 'Failed to load state from KV';
     }
   }
-  if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+  if (!state) state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0', playerDays: {} };
 
   try {
     const latest = await getLatestBlock();
     // Safety: if stored lastBlock is ahead of chain (e.g., synced on wrong chain), reset
     if (state.lastBlock > latest.num) {
       console.warn(`USDM state lastBlock ${state.lastBlock} > latest ${latest.num}, resetting`);
-      state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0' };
+      state = { lastBlock: 0, totals: {}, volumeByDay: {}, totalVolume: '0', playerDays: {} };
     }
     let fromBlock = state.lastBlock > 0 ? state.lastBlock + 1 : USDM_START_BLOCK;
     // Limit how many blocks we scan per request

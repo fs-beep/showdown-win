@@ -23,7 +23,6 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
-type PlayerRow = { player: string; wins: number; losses: number; total: number; winrate: number };
 type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
 
 // Wallet → in-game nickname mapping (from https://wallet.showdown.game/activity)
@@ -267,6 +266,9 @@ export default function Home() {
   const [usdmUpdatedAt, setUsdmUpdatedAt] = useState<number | null>(null);
   const [usdmVolumeSeries, setUsdmVolumeSeries] = useState<UsdmVolumePoint[]>([]);
   const [usdmTotalVolume, setUsdmTotalVolume] = useState<string>('0');
+  const [usdmRowsWeekly, setUsdmRowsWeekly] = useState<UsdmProfitRow[]>([]);
+  const [usdmRowsMonthly, setUsdmRowsMonthly] = useState<UsdmProfitRow[]>([]);
+  const [usdmPeriod, setUsdmPeriod] = useState<'all' | 'monthly' | 'weekly'>('all');
   const [cachedDominantClasses, setCachedDominantClasses] = useState<Record<string, string>>({});
   const [dynamicWalletToNick, setDynamicWalletToNick] = useState<Record<string, string>>({});
   const [shareStatus, setShareStatus] = useState<string | null>(null);
@@ -275,6 +277,7 @@ export default function Home() {
   const [dataPhase, setDataPhase] = useState<'idle' | 'cached' | 'live'>('idle');
 
   const showMoneyTables = true;
+  const activeUsdmRows = usdmPeriod === 'weekly' ? usdmRowsWeekly : usdmPeriod === 'monthly' ? usdmRowsMonthly : usdmRows;
 
   useEffect(() => {
     try {
@@ -374,7 +377,7 @@ export default function Home() {
   // Filter rows based on experience level
   const experienceFilteredRows = useMemo(() => {
     if (experienceFilter === 'all') return rows;
-    const PRO_THRESHOLD = 20;
+    const PRO_THRESHOLD = 25;
     return rows.filter(r => {
       const w = r.winningPlayer?.trim?.().toLowerCase() || '';
       const l = r.losingPlayer?.trim?.().toLowerCase() || '';
@@ -383,13 +386,13 @@ export default function Home() {
       const wIsPro = wCount >= PRO_THRESHOLD;
       const lIsPro = lCount >= PRO_THRESHOLD;
       if (experienceFilter === 'pro') {
-        // Both players must have 20+ games (pro vs pro)
+        // Both players must have 25+ games (pro vs pro)
         return wIsPro && lIsPro;
       } else if (experienceFilter === 'mixed') {
         // One pro and one beginner (mixed skill matchup)
         return (wIsPro && !lIsPro) || (!wIsPro && lIsPro);
       } else {
-        // Both players have < 20 games (beginner vs beginner)
+        // Both players have < 25 games (beginner vs beginner)
         return !wIsPro && !lIsPro;
       }
     });
@@ -906,30 +909,6 @@ export default function Home() {
     });
   };
 
-  // Top players by win rate across all rows (min 15 games)
-  const topPlayers: PlayerRow[] = useMemo(() => {
-    const byPlayer = new Map<string, { wins: number; losses: number; total: number }>();
-    for (const r of statRows) {
-      const w = (r.winningPlayer ?? '').trim();
-      const l = (r.losingPlayer ?? '').trim();
-      if (w) {
-        const key = w.toLowerCase();
-        const s = byPlayer.get(key) || { wins: 0, losses: 0, total: 0 };
-        s.wins += 1; s.total += 1; byPlayer.set(key, s);
-      }
-      if (l) {
-        const key = l.toLowerCase();
-        const s = byPlayer.get(key) || { wins: 0, losses: 0, total: 0 };
-        s.losses += 1; s.total += 1; byPlayer.set(key, s);
-      }
-    }
-    return Array.from(byPlayer.entries())
-      .map(([playerKey, s]) => ({ player: playerKey, wins: s.wins, losses: s.losses, total: s.total, winrate: s.total ? s.wins / s.total : 0 }))
-      .filter(p => p.total >= 20)
-      .sort((a, b) => (b.winrate - a.winrate) || (b.total - a.total) || (b.wins - a.wins) || a.player.localeCompare(b.player))
-      .slice(0, 10);
-  }, [statRows]);
-
   // Top player by class (dual-classes only, min 5 games)
   const topPlayersByClass = useMemo(() => {
     // Map: class -> player -> { wins, losses, total }
@@ -963,7 +942,7 @@ export default function Home() {
     for (const [klass, playerMap] of byClassPlayer.entries()) {
       let best: { player: string; wins: number; losses: number; total: number; winrate: number } | null = null;
       for (const [playerName, stats] of playerMap.entries()) {
-        if (stats.total < 20) continue;
+        if (stats.total < 25) continue;
         const wr = stats.wins / stats.total;
         if (!best || wr > best.winrate || (wr === best.winrate && stats.total > best.total)) {
           best = { player: playerName, wins: stats.wins, losses: stats.losses, total: stats.total, winrate: wr };
@@ -1204,6 +1183,8 @@ export default function Home() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || 'Unknown error');
       setUsdmRows(j.rows || []);
+      setUsdmRowsWeekly(j.rowsWeekly || []);
+      setUsdmRowsMonthly(j.rowsMonthly || []);
       setUsdmVolumeSeries(j.volumeSeries || []);
       setUsdmTotalVolume(j.totalVolume || '0');
       setUsdmUpdatedAt(j.updatedAt || null);
@@ -1478,7 +1459,7 @@ export default function Home() {
               <div className="text-[11px] text-gray-400 mb-2">Player Experience</div>
               {(() => {
                 // Pre-compute counts for each filter
-                const PRO_THRESHOLD = 20;
+                const PRO_THRESHOLD = 25;
                 const counts = { all: rows.length, pro: 0, mixed: 0, beginnerVsBeginner: 0 };
                 for (const r of rows) {
                   const w = r.winningPlayer?.trim?.().toLowerCase() || '';
@@ -1547,9 +1528,9 @@ export default function Home() {
               })()}
               <div className="mt-2 text-[10px] text-gray-500 text-center">
                 {experienceFilter === 'all' && 'Showing all games regardless of experience'}
-                {experienceFilter === 'pro' && 'Both players have 20+ total games'}
+                {experienceFilter === 'pro' && 'Both players have 25+ total games'}
                 {experienceFilter === 'mixed' && 'One experienced + one newer player'}
-                {experienceFilter === 'beginnerVsBeginner' && 'Both players have <20 total games'}
+                {experienceFilter === 'beginnerVsBeginner' && 'Both players have <25 total games'}
               </div>
             </div>
           </div>
@@ -1588,11 +1569,24 @@ export default function Home() {
                   {usdmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <ArrowUp className="h-3.5 w-3.5"/>}
                   {usdmLoading ? 'Syncing...' : 'Refresh'}
                 </button>
+                <div className="flex gap-1 mb-2">
+                  {(['weekly', 'monthly', 'all'] as const).map(p => (
+                    <button key={p} onClick={() => setUsdmPeriod(p)}
+                      className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium uppercase tracking-wide transition-colors ${
+                        usdmPeriod === p
+                          ? 'bg-red-600/30 text-red-400 border border-red-700/60'
+                          : 'bg-[#1c1c1c] text-gray-500 border border-gray-800/50 hover:text-gray-300'
+                      }`}
+                    >
+                      {p === 'weekly' ? '7 days' : p === 'monthly' ? '30 days' : 'All time'}
+                    </button>
+                  ))}
+                </div>
                 {usdmDebug && !usdmError && (
                   <div className="mb-2 text-xs text-yellow-500/80">{usdmDebug}</div>
                 )}
                 {usdmError && (
-                  <div className={`mb-3 rounded-lg p-2.5 text-xs ${usdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
+                  <div className={`mb-3 rounded-lg p-2.5 text-xs ${activeUsdmRows.length === 0 ? 'bg-red-900/20 border border-red-800/50 text-red-400' : 'bg-amber-900/20 border border-amber-800/50 text-amber-400'}`}>{usdmError}</div>
                 )}
                 <div className="overflow-hidden rounded-lg border border-gray-800/50">
                   <table className="min-w-full text-left text-xs">
@@ -1605,7 +1599,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800/50">
-                      {usdmRows.map((r, i) => {
+                      {activeUsdmRows.map((r, i) => {
                         const netBi = BigInt(r.net || '0');
                         const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
                         const isProfitable = netBi > 0n;
@@ -1629,9 +1623,9 @@ export default function Home() {
                           </tr>
                         );
                       })}
-                      {usdmLoading && usdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
-                      {!usdmLoading && usdmRows.length === 0 && !usdmError && (
-                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>No data yet</td></tr>
+                      {usdmLoading && activeUsdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
+                      {!usdmLoading && activeUsdmRows.length === 0 && !usdmError && (
+                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>{usdmPeriod === 'all' ? 'No data yet' : `No data for this period`}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1737,7 +1731,6 @@ export default function Home() {
             <a href="#class-vs-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Class vs Class</a>
             <a href="#player-matches" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Matches</a>
             <a href="#global-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Global stats</a>
-            <a href="#top-players" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Top players</a>
             <a href="#top-by-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Best by class</a>
             <a href="#all-decoded" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">All games</a>
             {showMoneyTables && (
@@ -2143,75 +2136,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Top Players by Win Rate (min 15 games) */}
-        <div id="top-players" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-200">
-              Top Players
-              <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
-              {experienceFilter !== 'all' && (
-                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
-                    experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
-                    experienceFilter === 'mixed' ? 'bg-purple-900/50 text-purple-400' :
-                    'bg-green-900/50 text-green-400'
-                  }`}>
-                  {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
-                </span>
-              )}
-            </div>
-            {topPlayers.length > 0 && (
-              <div className="flex items-center gap-2">
-                <button onClick={() => dl("showdown_top_players.json", topPlayers)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
-                  <Download className="h-4 w-4"/> JSON
-                </button>
-                <button onClick={() => dlCsv("showdown_top_players.csv", topPlayers)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
-                  <Download className="h-4 w-4"/> CSV
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
-              <thead>
-                <tr className="border-b border-gray-700 bg-[#1c1c1c]">
-                  <th className="p-2 w-10">#</th>
-                  <th className="p-2">Player</th>
-                  <th className="p-2">Wins</th>
-                  <th className="p-2">Losses</th>
-                  <th className="p-2">Games</th>
-                  <th className="p-2">Win Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topPlayers.map((p, i) => (
-                  <tr key={p.player + i} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
-                    <td className="p-2 tabular-nums">{i+1}</td>
-                    <td className="p-2">{p.player}</td>
-                    <td className="p-2 tabular-nums">{p.wins}</td>
-                    <td className="p-2 tabular-nums">{p.losses}</td>
-                    <td className="p-2 tabular-nums">{p.total}</td>
-                    <td className="p-2 tabular-nums">{(p.winrate*100).toFixed(1)}%</td>
-                  </tr>
-                ))}
-                {loading && topPlayers.length === 0 && (
-                  <SkeletonTableRows rows={5} cols={6} />
-                )}
-                {!loading && topPlayers.length === 0 && (
-                  <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={6}>No players meet the 20‑game threshold yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* Top Player by Class */}
         <div id="top-by-class" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Best Player by Class
-              <span className="ml-2 text-xs text-gray-500">(min 20 games)</span>
+              <span className="ml-2 text-xs text-gray-500">(min 25 games)</span>
               {experienceFilter !== 'all' && (
                 <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
                     experienceFilter === 'pro' ? 'bg-blue-900/50 text-blue-400' :
