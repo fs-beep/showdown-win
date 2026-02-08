@@ -1331,7 +1331,7 @@ export default function Home() {
   return (
     <div className={`min-h-screen bg-[#0a0a0a] text-gray-100`}>
       <Head><title>Showdown Meta Tracker</title></Head>
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-7xl px-4 py-10">
         <div className="mb-4 rounded-lg bg-[#1a1a1a] text-gray-500 px-4 py-2 text-xs border border-gray-800">
           vibecoded by{' '}
           <a className="text-gray-400 hover:text-gray-300" href="https://x.com/fisiroky" target="_blank" rel="noreferrer">@fisiroky</a>
@@ -1365,7 +1365,7 @@ export default function Home() {
         </div>
         {/* subtitle removed per request */}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr_1fr]">
           <div className="rounded-lg bg-[#141414] p-5 lg:sticky lg:top-4 z-20 border border-gray-800/60">
             <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">
               Filters
@@ -1595,7 +1595,7 @@ export default function Home() {
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
                         <th className="px-3 py-2.5">Player <span className="normal-case text-gray-600 font-normal">(top class)</span></th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
-                        <th className="px-3 py-2.5 text-right">Games</th>
+                        <th className="px-3 py-2.5 text-right whitespace-nowrap">Games</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800/50">
