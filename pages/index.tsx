@@ -1900,7 +1900,7 @@ export default function Home() {
                           <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                             <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
                             <td className="px-3 py-2.5">
-                              <a className="text-gray-300 hover:text-white font-mono text-[11px]" href={`https://megaeth.blockscout.com/address/${r.player}`} target="_blank" rel="noreferrer">{shortAddr(r.player)}</a>
+                              <button className="text-gray-300 hover:text-white font-mono text-[11px] hover:underline" onClick={() => { setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{shortAddr(r.player)}</button>
                               {dominantClasses && (
                                 <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
                               )}
