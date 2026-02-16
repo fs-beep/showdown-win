@@ -1484,6 +1484,7 @@ export default function Home() {
             >
               Play Now
             </a>
+            <div className="text-[10px] text-gray-500 mt-1">Referral code <span className="text-gray-400 font-medium">#405</span> for bonus showpoints</div>
           </div>
         </div>
         {/* subtitle removed per request */}
