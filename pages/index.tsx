@@ -239,7 +239,7 @@ export default function Home() {
   const router = useRouter();
   const [startDate, setStartDate] = useState<string>(BALANCE_PATCH_DATE);
   const [endDate, setEndDate] = useState<string>('');
-  const [player, setPlayer] = useState<string>('barry');
+  const [player, setPlayer] = useState<string>('');
   const hydrated = useRef(false);
   const dauChartRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
