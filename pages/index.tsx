@@ -943,8 +943,12 @@ export default function Home() {
     setWalletPnlLoading(true);
     setWalletPnlError(null);
     setWalletPnl(null);
-    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
-    setWalletPnlNick(merged[w] || null);
+    if (showPlayerExplorer) {
+      const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+      setWalletPnlNick(merged[w] || null);
+    } else {
+      setWalletPnlNick(null);
+    }
     try {
       const res = await fetch(`/api/usdm?player=${w}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1541,7 +1545,7 @@ export default function Home() {
               </div>
               {walletPnl && !walletPnlError && (
                 <div className="mt-1.5 text-[10px] text-emerald-500">
-                  {walletPnlNick && <span className="font-medium">{walletPnlNick} · </span>}
+                  {showPlayerExplorer && walletPnlNick && <span className="font-medium">{walletPnlNick} · </span>}
                   Net: {formatUsdm(walletPnl.totals.net, true)} · {walletPnl.totals.txs} games
                 </div>
               )}
@@ -1877,7 +1881,7 @@ export default function Home() {
                 <div className="text-sm font-semibold text-gray-200">
                   Money Match P&L
                 </div>
-                {walletPnlNick && (
+                {showPlayerExplorer && walletPnlNick && (
                   <span className="text-xs text-emerald-400 font-medium">{walletPnlNick}</span>
                 )}
               </div>
