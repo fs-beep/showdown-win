@@ -335,6 +335,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const fresh = req.query?.fresh === '1';
+  const playerQuery = typeof req.query?.player === 'string' ? req.query.player.toLowerCase().trim() : '';
+
+  // 0) Per-player daily P&L lookup (reads from state, no sync)
+  if (playerQuery && /^0x[a-f0-9]{40}$/.test(playerQuery)) {
+    let state: State | null = null;
+    if (memCache) {
+      // We need state, not cache — try KV
+    }
+    if (kvOk) {
+      try { state = await kv.get<State>(STATE_KEY); } catch {}
+    }
+    if (!state) {
+      return res.status(200).json({ ok: true, playerData: null, reason: 'No state available yet' });
+    }
+    const totals = state.totals[playerQuery];
+    const days = state.playerDays?.[playerQuery];
+    if (!totals && !days) {
+      return res.status(200).json({ ok: true, playerData: null, reason: 'Player not found' });
+    }
+    const dayEntries = days
+      ? Object.entries(days)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([day, d]) => ({
+            day,
+            won: d.won,
+            lost: d.lost,
+            net: (BigInt(d.won) - BigInt(d.lost)).toString(),
+            txs: d.txs,
+          }))
+      : [];
+    const t = totals || { won: '0', lost: '0', txs: 0 };
+    return res.status(200).json({
+      ok: true,
+      playerData: {
+        address: playerQuery,
+        days: dayEntries,
+        totals: {
+          won: t.won,
+          lost: t.lost,
+          net: (BigInt(t.won) - BigInt(t.lost)).toString(),
+          txs: t.txs,
+        },
+      },
+    });
+  }
 
   // 1) Return cached data immediately for non-fresh requests
   // But also check if more sync is needed so frontend knows to continue

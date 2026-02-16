@@ -275,6 +275,14 @@ export default function Home() {
   const [shareLoading, setShareLoading] = useState(false);
   const [lastQueryLive, setLastQueryLive] = useState<boolean>(false);
   const [dataPhase, setDataPhase] = useState<'idle' | 'cached' | 'live'>('idle');
+  const [showPlayerExplorer, setShowPlayerExplorer] = useState(false);
+  const [explorerSearch, setExplorerSearch] = useState('');
+  const [explorerWallet, setExplorerWallet] = useState<string | null>(null);
+  const [explorerNick, setExplorerNick] = useState<string | null>(null);
+  const [explorerData, setExplorerData] = useState<{ days: { day: string; won: string; lost: string; net: string; txs: number }[]; totals: { won: string; lost: string; net: string; txs: number } } | null>(null);
+  const [explorerLoading, setExplorerLoading] = useState(false);
+  const [explorerError, setExplorerError] = useState<string | null>(null);
+  const explorerChartRef = useRef<HTMLDivElement>(null);
 
   const showMoneyTables = true;
   const activeUsdmRows = usdmPeriod === 'weekly' ? usdmRowsWeekly : usdmPeriod === 'monthly' ? usdmRowsMonthly : usdmRows;
@@ -315,11 +323,13 @@ export default function Home() {
     const t = typeof q.theme === 'string' ? q.theme : undefined;
     
     const cmp = typeof q.compare === 'string' ? q.compare : undefined;
+    const money = typeof q.money === 'string' ? q.money : undefined;
     if (s) setStartDate(s);
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (cmp) setPlayer2(cmp);
+    if (money === '1') setShowPlayerExplorer(true);
     const share = typeof q.share === 'string' ? q.share : undefined;
     if (share) {
       setShareLoading(true);
@@ -846,6 +856,60 @@ export default function Home() {
   const walletDominantClasses = useMemo(() => {
     return { ...cachedDominantClasses, ...computedDominantClasses };
   }, [cachedDominantClasses, computedDominantClasses]);
+
+  // Reverse mapping: nickname → wallet address (for player explorer search)
+  const nickToWalletMap = useMemo(() => {
+    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+    const map: Record<string, string> = {};
+    for (const [addr, nick] of Object.entries(merged)) {
+      map[nick.toLowerCase()] = addr.toLowerCase();
+    }
+    return map;
+  }, [dynamicWalletToNick]);
+
+  // All searchable players for explorer: [{ nick, wallet }]
+  const explorerPlayerList = useMemo(() => {
+    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+    return Object.entries(merged)
+      .map(([addr, nick]) => ({ nick, wallet: addr.toLowerCase() }))
+      .sort((a, b) => a.nick.localeCompare(b.nick));
+  }, [dynamicWalletToNick]);
+
+  // Filtered search results for explorer
+  const explorerSearchResults = useMemo(() => {
+    const q = explorerSearch.trim().toLowerCase();
+    if (!q) return explorerPlayerList.slice(0, 20);
+    return explorerPlayerList.filter(p =>
+      p.nick.toLowerCase().includes(q) || p.wallet.includes(q)
+    ).slice(0, 20);
+  }, [explorerSearch, explorerPlayerList]);
+
+  // Fetch player P&L data
+  const fetchPlayerPnl = async (wallet: string, nick: string) => {
+    setExplorerWallet(wallet);
+    setExplorerNick(nick);
+    setExplorerLoading(true);
+    setExplorerError(null);
+    setExplorerData(null);
+    try {
+      const res = await fetch(`/api/usdm?player=${wallet}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Unknown error');
+      if (!j.playerData) {
+        setExplorerError('Player not found in money match data');
+        return;
+      }
+      setExplorerData(j.playerData);
+      setTimeout(() => {
+        explorerChartRef.current?.scrollTo({ left: explorerChartRef.current.scrollWidth, behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      setExplorerError(err?.message || 'Failed to fetch');
+    } finally {
+      setExplorerLoading(false);
+    }
+  };
 
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
@@ -2376,6 +2440,233 @@ export default function Home() {
             </div>
           );
         })()}
+
+        {/* Daily Volume Chart */}
+        {usdmVolumeSeries.length > 0 && (() => {
+          const volData = usdmVolumeSeries.map(v => ({
+            day: v.day,
+            amount: Number(BigInt(v.volume) / 1000000000000000000n),
+          }));
+          const maxVol = Math.max(...volData.map(v => v.amount), 1);
+          const chartHeight = 160;
+          return (
+            <div className="mt-6 rounded-lg bg-[#141414] p-3 sm:p-4 border border-gray-800/60">
+              <div className="text-sm font-semibold text-gray-200 mb-3 sm:mb-4">
+                Daily Volume
+                <span className="ml-2 text-xs text-gray-500">(USDM wagered per day)</span>
+              </div>
+              <div className="overflow-x-auto pb-2 -mx-1" ref={(el) => { if (el) setTimeout(() => el.scrollTo({ left: el.scrollWidth, behavior: 'auto' }), 50); }}>
+                {(() => {
+                  const numDays = volData.length;
+                  const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 32 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
+                  const gap = barWidth <= 18 ? 1 : 3;
+                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
+                  const totalWidth = numDays * (barWidth + gap);
+                  return (
+                    <div className="flex items-end" style={{ height: chartHeight + 40, minWidth: Math.max(totalWidth, 280), gap }}>
+                      {volData.map((d, i) => {
+                        const barHeight = Math.max((d.amount / maxVol) * chartHeight, 3);
+                        const isToday = d.day === new Date().toISOString().slice(0, 10);
+                        const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                        return (
+                          <div key={d.day} className="flex flex-col items-center justify-end" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                            <div className="text-[9px] sm:text-[10px] text-gray-300 mb-0.5 font-medium leading-none" style={{ flexShrink: 0 }}>
+                              ${d.amount}
+                            </div>
+                            <div
+                              className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+                              style={{ height: barHeight, width: '80%', flexShrink: 0, minHeight: 3 }}
+                              title={`${d.day}: $${d.amount}`}
+                            />
+                            <div
+                              className={`text-[8px] sm:text-[10px] mt-1 text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}
+                              style={{ flexShrink: 0 }}
+                            >
+                              {d.day.slice(5)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2 sm:pt-3">
+                <div>Total: {formatUsdm(usdmTotalVolume)}</div>
+                <div>Avg: ${volData.length > 0 ? Math.round(volData.reduce((s, d) => s + d.amount, 0) / volData.length) : 0}/day</div>
+                <div>Peak: ${maxVol}</div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Player P&L Explorer (secret: ?money=1) */}
+        {showPlayerExplorer && (
+          <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
+            <div className="text-sm font-semibold text-gray-200 mb-4">
+              Player P&L Explorer
+              <span className="ml-2 text-xs text-gray-500">(search any player)</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={explorerSearch}
+                  onChange={e => setExplorerSearch(e.target.value)}
+                  placeholder="Search by nickname or wallet..."
+                  className="w-full rounded bg-[#1c1c1c] border border-gray-700 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-red-600 focus:outline-none"
+                />
+                {explorerSearch.trim() && (
+                  <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded bg-[#1e1e1e] border border-gray-700 max-h-60 overflow-y-auto shadow-lg">
+                    {explorerSearchResults.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-500">No players found</div>
+                    )}
+                    {explorerSearchResults.map(p => (
+                      <button
+                        key={p.wallet}
+                        onClick={() => { setExplorerSearch(''); fetchPlayerPnl(p.wallet, p.nick); }}
+                        className="w-full text-left px-3 py-2 hover:bg-[#282828] transition-colors flex items-center gap-2"
+                      >
+                        <span className="text-sm text-gray-200">{p.nick}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">{shortAddr(p.wallet)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {explorerLoading && (
+              <div className="text-sm text-gray-400 py-8 text-center">Loading player data...</div>
+            )}
+            {explorerError && (
+              <div className="text-sm text-red-400 py-4 text-center">{explorerError}</div>
+            )}
+
+            {explorerData && explorerWallet && (
+              <div>
+                <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-gray-800">
+                  <div className="text-base font-semibold text-gray-200">
+                    {explorerNick || shortAddr(explorerWallet)}
+                  </div>
+                  <a className="text-[10px] text-gray-500 font-mono hover:text-gray-300" href={`https://megaeth.blockscout.com/address/${explorerWallet}`} target="_blank" rel="noreferrer">
+                    {shortAddr(explorerWallet)}
+                  </a>
+                  {walletDominantClasses[explorerWallet] && (
+                    <span className="text-[10px] text-blue-400/70 bg-blue-900/20 px-2 py-0.5 rounded">{walletDominantClasses[explorerWallet]}</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="rounded bg-[#1c1c1c] p-3 border border-gray-800/50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wide">Won</div>
+                    <div className="text-lg font-bold text-green-400">{formatUsdm(explorerData.totals.won)}</div>
+                  </div>
+                  <div className="rounded bg-[#1c1c1c] p-3 border border-gray-800/50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wide">Lost</div>
+                    <div className="text-lg font-bold text-red-400">{formatUsdm(explorerData.totals.lost)}</div>
+                  </div>
+                  <div className="rounded bg-[#1c1c1c] p-3 border border-gray-800/50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wide">Net P&L</div>
+                    <div className={`text-lg font-bold ${BigInt(explorerData.totals.net) >= 0n ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatUsdm(explorerData.totals.net, true)}
+                    </div>
+                  </div>
+                  <div className="rounded bg-[#1c1c1c] p-3 border border-gray-800/50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wide">Games</div>
+                    <div className="text-lg font-bold text-gray-200">{explorerData.totals.txs}</div>
+                  </div>
+                </div>
+
+                {explorerData.days.length > 0 && (() => {
+                  const maxAbs = Math.max(...explorerData.days.map(d => Math.abs(Number(BigInt(d.net) / 1000000000000000000n))), 1);
+                  const chartHeight = 140;
+                  const numDays = explorerData.days.length;
+                  const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 32 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
+                  const gap = barWidth <= 18 ? 1 : 3;
+                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
+                  const totalWidth = numDays * (barWidth + gap);
+                  const halfChart = chartHeight / 2;
+                  return (
+                    <div>
+                      <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
+                      <div ref={explorerChartRef} className="overflow-x-auto pb-2 -mx-1">
+                        <div className="relative" style={{ height: chartHeight + 30, minWidth: Math.max(totalWidth, 280) }}>
+                          <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
+                          <div className="flex items-center" style={{ height: chartHeight, minWidth: Math.max(totalWidth, 280), gap }}>
+                            {explorerData.days.map((d, i) => {
+                              const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
+                              const isPositive = netDollars >= 0;
+                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
+                              const isToday = d.day === new Date().toISOString().slice(0, 10);
+                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                              return (
+                                <div key={d.day} className="flex flex-col items-center" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                                  {isPositive ? (
+                                    <>
+                                      <div className="flex-1 flex flex-col items-center justify-end">
+                                        <div className="text-[8px] sm:text-[9px] text-green-400 mb-0.5 leading-none" style={{ flexShrink: 0 }}>
+                                          {netDollars > 0 ? `+$${netDollars}` : ''}
+                                        </div>
+                                        <div
+                                          className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-green-500'}`}
+                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
+                                          title={`${d.day}: ${netDollars >= 0 ? '+' : ''}$${netDollars} (${d.txs} games)`}
+                                        />
+                                      </div>
+                                      <div style={{ height: halfChart }} />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div style={{ height: halfChart }} />
+                                      <div className="flex-1 flex flex-col items-center justify-start">
+                                        <div
+                                          className={`rounded-b transition-all ${isToday ? 'bg-red-500' : 'bg-red-500/80'}`}
+                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
+                                          title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`}
+                                        />
+                                        <div className="text-[8px] sm:text-[9px] text-red-400 mt-0.5 leading-none" style={{ flexShrink: 0 }}>
+                                          {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex" style={{ minWidth: Math.max(totalWidth, 280), gap }}>
+                            {explorerData.days.map((d, i) => {
+                              const isToday = d.day === new Date().toISOString().slice(0, 10);
+                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                              return (
+                                <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
+                                  <div className={`text-[8px] sm:text-[10px] text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}>
+                                    {d.day.slice(5)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2">
+                        <div>{numDays} days active</div>
+                        <div>Avg: {formatUsdm((BigInt(explorerData.totals.net) / BigInt(Math.max(numDays, 1))).toString(), true)}/day</div>
+                        <div>{explorerData.totals.txs} total games</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {!explorerLoading && !explorerData && !explorerError && (
+              <div className="text-sm text-gray-500 py-8 text-center">
+                Search for a player above to see their money match P&L breakdown
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {/* copy toast */}
       {copiedTx && (
