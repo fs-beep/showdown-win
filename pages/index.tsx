@@ -324,12 +324,18 @@ export default function Home() {
     
     const cmp = typeof q.compare === 'string' ? q.compare : undefined;
     const money = typeof q.money === 'string' ? q.money : undefined;
+    const walletParam = typeof q.wallet === 'string' ? q.wallet.trim().toLowerCase() : undefined;
     if (s) setStartDate(s);
     if (e) setEndDate(e);
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (cmp) setPlayer2(cmp);
-    if (money === '1') setShowPlayerExplorer(true);
+    if (money === '1') {
+      setShowPlayerExplorer(true);
+      if (walletParam && /^0x[a-f0-9]{40}$/.test(walletParam)) {
+        setExplorerWallet(walletParam);
+      }
+    }
     const share = typeof q.share === 'string' ? q.share : undefined;
     if (share) {
       setShareLoading(true);
@@ -357,6 +363,20 @@ export default function Home() {
     hydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
+
+  // Auto-load player P&L when ?money=1&wallet=0x... is in URL
+  const explorerAutoLoaded = useRef(false);
+  useEffect(() => {
+    if (explorerAutoLoaded.current) return;
+    if (!showPlayerExplorer || !explorerWallet) return;
+    if (explorerData || explorerLoading) return;
+    explorerAutoLoaded.current = true;
+    // Resolve nickname from mapping (may be empty string if not found)
+    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+    const nick = merged[explorerWallet] || '';
+    fetchPlayerPnl(explorerWallet, nick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPlayerExplorer, explorerWallet, dynamicWalletToNick]);
 
   // Removed auto-fetch - let users enter name and dates first, then click Compute
 
