@@ -391,8 +391,9 @@ export default function Home() {
     if (player) nextQuery.player = player;
     if (matrixOnlyPlayer) nextQuery.only = '1';
     if (player2.trim()) nextQuery.compare = player2.trim();
+    if (walletInput && /^0x[a-f0-9]{40}$/i.test(walletInput)) nextQuery.wallet = walletInput;
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
-  }, [startDate, endDate, player, player2, matrixOnlyPlayer]);
+  }, [startDate, endDate, player, player2, matrixOnlyPlayer, walletInput]);
 
   // Calculate all-time games per player (for experience filter)
   const playerGameCounts = useMemo(() => {
