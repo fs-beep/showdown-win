@@ -283,6 +283,13 @@ export default function Home() {
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerError, setExplorerError] = useState<string | null>(null);
   const explorerChartRef = useRef<HTMLDivElement>(null);
+  type PnlData = { days: { day: string; won: string; lost: string; net: string; txs: number }[]; totals: { won: string; lost: string; net: string; txs: number } };
+  const [walletInput, setWalletInput] = useState('');
+  const [walletPnl, setWalletPnl] = useState<PnlData | null>(null);
+  const [walletPnlLoading, setWalletPnlLoading] = useState(false);
+  const [walletPnlError, setWalletPnlError] = useState<string | null>(null);
+  const [walletPnlNick, setWalletPnlNick] = useState<string | null>(null);
+  const walletPnlChartRef = useRef<HTMLDivElement>(null);
 
   const showMoneyTables = true;
   const activeUsdmRows = usdmPeriod === 'weekly' ? usdmRowsWeekly : usdmPeriod === 'monthly' ? usdmRowsMonthly : usdmRows;
@@ -330,11 +337,9 @@ export default function Home() {
     if (p) setPlayer(p);
     if (only === '1') setMatrixOnlyPlayer(true);
     if (cmp) setPlayer2(cmp);
-    if (money === '1') {
-      setShowPlayerExplorer(true);
-      if (walletParam && /^0x[a-f0-9]{40}$/.test(walletParam)) {
-        setExplorerWallet(walletParam);
-      }
+    if (money === '1') setShowPlayerExplorer(true);
+    if (walletParam && /^0x[a-f0-9]{40}$/.test(walletParam)) {
+      setWalletInput(walletParam);
     }
     const share = typeof q.share === 'string' ? q.share : undefined;
     if (share) {
@@ -364,19 +369,16 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
 
-  // Auto-load player P&L when ?money=1&wallet=0x... is in URL
-  const explorerAutoLoaded = useRef(false);
+  // Auto-load wallet P&L when ?wallet=0x... is in URL (public)
+  const walletAutoLoaded = useRef(false);
   useEffect(() => {
-    if (explorerAutoLoaded.current) return;
-    if (!showPlayerExplorer || !explorerWallet) return;
-    if (explorerData || explorerLoading) return;
-    explorerAutoLoaded.current = true;
-    // Resolve nickname from mapping (may be empty string if not found)
-    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
-    const nick = merged[explorerWallet] || '';
-    fetchPlayerPnl(explorerWallet, nick);
+    if (walletAutoLoaded.current) return;
+    if (!walletInput || walletPnl || walletPnlLoading) return;
+    if (!/^0x[a-f0-9]{40}$/i.test(walletInput)) return;
+    walletAutoLoaded.current = true;
+    fetchWalletPnl(walletInput);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPlayerExplorer, explorerWallet, dynamicWalletToNick]);
+  }, [walletInput]);
 
   // Removed auto-fetch - let users enter name and dates first, then click Compute
 
@@ -931,6 +933,38 @@ export default function Home() {
     }
   };
 
+  // Fetch public wallet P&L (for the filter wallet input)
+  const fetchWalletPnl = async (addr: string) => {
+    const w = addr.trim().toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(w)) {
+      setWalletPnlError('Invalid wallet address');
+      return;
+    }
+    setWalletPnlLoading(true);
+    setWalletPnlError(null);
+    setWalletPnl(null);
+    const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+    setWalletPnlNick(merged[w] || null);
+    try {
+      const res = await fetch(`/api/usdm?player=${w}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Unknown error');
+      if (!j.playerData) {
+        setWalletPnlError('No money match data found for this wallet');
+        return;
+      }
+      setWalletPnl(j.playerData);
+      setTimeout(() => {
+        walletPnlChartRef.current?.scrollTo({ left: walletPnlChartRef.current.scrollWidth, behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      setWalletPnlError(err?.message || 'Failed to fetch');
+    } finally {
+      setWalletPnlLoading(false);
+    }
+  };
+
   // Class vs Class matrix (dual-classes only). Toggle: all games vs only games including the selected player.
   const classVsClass = useMemo(() => {
     const p = player.trim().toLowerCase();
@@ -1454,7 +1488,7 @@ export default function Home() {
             <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">
               Filters
             </div>
-            <label className="block text-[11px] text-gray-400 mb-1">Player Name</label>
+            <label className="block text-[11px] text-gray-400 mb-1">Player Name <span className="text-gray-600">(game stats)</span></label>
             <div className="relative">
             <input
               className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none"
@@ -1483,6 +1517,36 @@ export default function Home() {
                     <div className="px-3 py-2 text-sm text-gray-500">No matching players</div>
                   )}
                 </div>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-[11px] text-gray-400 mb-1">Wallet Address <span className="text-emerald-600">(shows P&L)</span></label>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  className="flex-1 min-w-0 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-emerald-700 focus:outline-none font-mono"
+                  value={walletInput}
+                  onChange={e => setWalletInput(e.target.value.trim())}
+                  onKeyDown={e => { if (e.key === 'Enter' && walletInput) fetchWalletPnl(walletInput); }}
+                  placeholder="0x..."
+                />
+                <button
+                  onClick={() => fetchWalletPnl(walletInput)}
+                  disabled={!walletInput || walletPnlLoading}
+                  className="rounded-lg bg-emerald-700/60 hover:bg-emerald-700 px-3 py-2 text-xs text-emerald-200 font-medium transition-colors disabled:opacity-40 whitespace-nowrap"
+                >
+                  {walletPnlLoading ? '...' : 'P&L'}
+                </button>
+              </div>
+              {walletPnl && !walletPnlError && (
+                <div className="mt-1.5 text-[10px] text-emerald-500">
+                  {walletPnlNick && <span className="font-medium">{walletPnlNick} · </span>}
+                  Net: {formatUsdm(walletPnl.totals.net, true)} · {walletPnl.totals.txs} games
+                </div>
+              )}
+              {walletPnlError && (
+                <div className="mt-1.5 text-[10px] text-red-400">{walletPnlError}</div>
               )}
             </div>
 
@@ -1804,6 +1868,139 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Wallet P&L Panel (public — shown when wallet address is filled) */}
+        {(walletPnl || walletPnlLoading || walletPnlError) && (
+          <div className="mt-4 rounded-lg bg-[#141414] p-5 border border-emerald-900/40">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-gray-200">
+                  Money Match P&L
+                </div>
+                {walletPnlNick && (
+                  <span className="text-xs text-emerald-400 font-medium">{walletPnlNick}</span>
+                )}
+              </div>
+              {walletInput && (
+                <a className="text-[10px] text-gray-500 font-mono hover:text-gray-300" href={`https://megaeth.blockscout.com/address/${walletInput}`} target="_blank" rel="noreferrer">
+                  {shortAddr(walletInput)}
+                </a>
+              )}
+            </div>
+
+            {walletPnlLoading && (
+              <div className="text-sm text-gray-400 py-6 text-center">Loading P&L data...</div>
+            )}
+            {walletPnlError && !walletPnlLoading && (
+              <div className="text-sm text-red-400 py-4 text-center">{walletPnlError}</div>
+            )}
+
+            {walletPnl && !walletPnlLoading && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-400">Won</div>
+                    <div className="mt-1 text-xl font-bold text-green-400">{formatUsdm(walletPnl.totals.won)}</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-400">Lost</div>
+                    <div className="mt-1 text-xl font-bold text-red-400">{formatUsdm(walletPnl.totals.lost)}</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-400">Net P&L</div>
+                    <div className={`mt-1 text-xl font-bold ${BigInt(walletPnl.totals.net) >= 0n ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatUsdm(walletPnl.totals.net, true)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-400">Games</div>
+                    <div className="mt-1 text-xl font-bold text-gray-200">{walletPnl.totals.txs}</div>
+                  </div>
+                </div>
+
+                {walletPnl.days.length > 0 && (() => {
+                  const maxAbs = Math.max(...walletPnl.days.map(d => Math.abs(Number(BigInt(d.net) / 1000000000000000000n))), 1);
+                  const chartHeight = 120;
+                  const numDays = walletPnl.days.length;
+                  const barWidth = numDays <= 7 ? 36 : numDays <= 15 ? 28 : numDays <= 30 ? 22 : numDays <= 60 ? 16 : 14;
+                  const gap = barWidth <= 18 ? 1 : 2;
+                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
+                  const totalWidth = numDays * (barWidth + gap);
+                  const halfChart = chartHeight / 2;
+                  return (
+                    <div>
+                      <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
+                      <div ref={walletPnlChartRef} className="overflow-x-auto pb-2 -mx-1">
+                        <div className="relative" style={{ height: chartHeight + 30, minWidth: Math.max(totalWidth, 280) }}>
+                          <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
+                          <div className="flex items-center" style={{ height: chartHeight, minWidth: Math.max(totalWidth, 280), gap }}>
+                            {walletPnl.days.map((d, i) => {
+                              const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
+                              const isPositive = netDollars >= 0;
+                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
+                              const isToday = d.day === new Date().toISOString().slice(0, 10);
+                              return (
+                                <div key={d.day} className="flex flex-col items-center" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                                  {isPositive ? (
+                                    <>
+                                      <div className="flex-1 flex flex-col items-center justify-end">
+                                        <div className="text-[8px] text-green-400 mb-0.5 leading-none" style={{ flexShrink: 0 }}>
+                                          {netDollars > 0 ? `+$${netDollars}` : ''}
+                                        </div>
+                                        <div
+                                          className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-green-500'}`}
+                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
+                                          title={`${d.day}: +$${netDollars} (${d.txs} games)`}
+                                        />
+                                      </div>
+                                      <div style={{ height: halfChart }} />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div style={{ height: halfChart }} />
+                                      <div className="flex-1 flex flex-col items-center justify-start">
+                                        <div
+                                          className={`rounded-b transition-all ${isToday ? 'bg-red-500' : 'bg-red-500/80'}`}
+                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
+                                          title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`}
+                                        />
+                                        <div className="text-[8px] text-red-400 mt-0.5 leading-none" style={{ flexShrink: 0 }}>
+                                          {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex" style={{ minWidth: Math.max(totalWidth, 280), gap }}>
+                            {walletPnl.days.map((d, i) => {
+                              const isToday = d.day === new Date().toISOString().slice(0, 10);
+                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                              return (
+                                <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
+                                  <div className={`text-[8px] text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}>
+                                    {d.day.slice(5)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500 border-t border-gray-800 pt-2">
+                        <div>{numDays} days active</div>
+                        <div>Avg: {formatUsdm((BigInt(walletPnl.totals.net) / BigInt(Math.max(numDays, 1))).toString(), true)}/day</div>
+                        <div>{walletPnl.totals.txs} total games</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tables navigation */}
         <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
