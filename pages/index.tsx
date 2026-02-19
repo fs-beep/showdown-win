@@ -834,9 +834,11 @@ export default function Home() {
       if (!nickToWallets[key]) nickToWallets[key] = [];
       nickToWallets[key].push(addr.toLowerCase());
     }
-    // Count winning classes per wallet address
+    // Count winning classes per wallet address (only from Feb 3 2026 onwards)
+    const CLASS_CUTOFF = new Date('2026-02-03T00:00:00Z').getTime();
     const classCounts: Record<string, Record<string, number>> = {};
     for (const r of rows) {
+      try { if (new Date(r.startedAt).getTime() < CLASS_CUTOFF) continue; } catch { continue; }
       const nick = r.winningPlayer?.trim();
       if (!nick) continue;
       const wallets = nickToWallets[nick.toLowerCase()];
@@ -1468,7 +1470,7 @@ export default function Home() {
               </motion.h1>
               <div className="text-xs text-gray-400 uppercase tracking-widest">
                 Meta Tracker
-              </div>
+          </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1502,7 +1504,7 @@ export default function Home() {
                   {shortAddr(walletInput)}
                 </a>
               )}
-            </div>
+        </div>
 
             {walletPnlLoading && (
               <div className="text-sm text-gray-400 py-6 text-center">Loading P&L data...</div>
@@ -1647,7 +1649,7 @@ export default function Home() {
                       >
                         {p}
                       </button>
-                    ))}
+              ))}
                   {recentPlayers.filter(p => p.toLowerCase().includes(player.toLowerCase())).length === 0 && (
                     <div className="px-3 py-2 text-sm text-gray-500">No matching players</div>
                   )}
@@ -1658,7 +1660,7 @@ export default function Home() {
             <div className="mt-3">
               <label className="block text-[11px] text-gray-400 mb-1">Wallet Address <span className="text-emerald-600">(shows P&L)</span></label>
               <div className="flex gap-1.5">
-                <input
+            <input
                   type="text"
                   className="flex-1 min-w-0 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-emerald-700 focus:outline-none font-mono"
                   value={walletInput}
@@ -1822,7 +1824,7 @@ export default function Home() {
           {showMoneyTables && (
               <div id="top-usdm-profits" className="rounded-lg bg-[#141414] p-4 border border-gray-800/60">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
+                <div>
                     <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Top Earners</div>
                     <div className="text-[10px] text-gray-500 mt-1">
                       {usdmUpdatedAt && (() => {
@@ -1837,8 +1839,8 @@ export default function Home() {
                           </span>
                         );
                       })()}
-                    </div>
-                  </div>
+                </div>
+              </div>
                   <div className="text-right">
                     <div className="text-[10px] uppercase tracking-widest text-gray-400">Total Volume</div>
                     <div className="text-2xl font-bold text-red-500 mt-0.5">{formatUsdm(usdmTotalVolume)}</div>
@@ -1912,9 +1914,9 @@ export default function Home() {
                       )}
                     </tbody>
                   </table>
-                </div>
+          </div>
                 <a className="mt-2 inline-block text-[10px] text-gray-500 hover:text-gray-300 transition-colors" href="https://megaeth.blockscout.com/address/0x7B8DF4195eda5b193304eeCB5107DE18b6557D24?tab=txs" target="_blank" rel="noreferrer">View contract →</a>
-              </div>
+        </div>
           )}
 
           {/* Tournament Winners */}
@@ -1973,7 +1975,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold text-green-400">{stats.wins}</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
               <div className="text-[10px] uppercase tracking-wider text-gray-400">Losses</div>
               {loading && stats.losses === 0 ? (
@@ -1981,7 +1983,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold text-red-400">{stats.losses}</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
               <div className="text-[10px] uppercase tracking-wider text-gray-400">Win Rate</div>
               {loading && stats.wins === 0 && stats.losses === 0 ? (
@@ -1989,7 +1991,7 @@ export default function Home() {
               ) : (
                 <div className="mt-1 text-2xl font-bold text-gray-100">{(stats.winrate*100).toFixed(1)}%</div>
               )}
-            </div>
+          </div>
             <div className="text-center p-3 rounded-lg bg-[#1c1c1c]">
               <div className="text-[10px] uppercase tracking-wider text-gray-400">Top Class</div>
               {loading && !stats.dominantClass ? (
@@ -2008,7 +2010,7 @@ export default function Home() {
         <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
             Jump to
-          </div>
+              </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <a href="#player-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Player stats</a>
             <a href="#class-vs-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Class vs Class</a>
@@ -2238,7 +2240,7 @@ export default function Home() {
 
         {/* Player-specific matches */}
         <div id="player-matches" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
               Matches — <span className="text-red-500">{player || '—'}</span>
               <span className="ml-2 text-xs text-gray-500">({filtered.length})</span>
@@ -2253,18 +2255,18 @@ export default function Home() {
               )}
             </div>
             {filtered.length > 0 && (
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_matches_for_" + (player||'player') + ".json", filtered)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
-                  <Download className="h-4 w-4"/> JSON
-                </button>
+                    <Download className="h-4 w-4"/> JSON
+                  </button>
                 <button onClick={() => dlCsv("showdown_matches_for_" + (player||'player') + ".csv", filtered)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
-                  <Download className="h-4 w-4"/> CSV
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-xs md:text-sm">
+                    <Download className="h-4 w-4"/> CSV
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs md:text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-700 bg-[#1c1c1c]">
                   <th className="p-2 w-24 cursor-pointer" aria-sort={filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'gameNumber' as any, dir: s.key==='gameNumber' && s.dir==='asc' ? 'desc' : 'asc' }))}>Game # {filteredSort.key==='gameNumber' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
@@ -2275,9 +2277,9 @@ export default function Home() {
                   <th className="p-2 w-24">Duration</th>
                   <th className="p-2 w-40 whitespace-nowrap cursor-pointer" aria-sort={filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'ascending':'descending') : 'none'} onClick={()=>setFilteredSort(s=>({ key:'startedAt' as any, dir: s.key==='startedAt' && s.dir==='asc' ? 'desc' : 'asc' }))}>Started {filteredSort.key==='startedAt' ? (filteredSort.dir==='asc'?'↑':'↓') : ''}</th>
                   <th className="p-2 w-16">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </tr>
+                </thead>
+                <tbody>
                 {paginatedFiltered.map((r, i) => {
                   const metadataPretty = prettyMetadata(r.metadata);
                   return (
@@ -2404,22 +2406,22 @@ export default function Home() {
                     <td className="p-2 tabular-nums">{r.losses}</td>
                     <td className="p-2 tabular-nums">{r.total}</td>
                     <td className="p-2 tabular-nums flex items-center gap-2">{(r.winrate*100).toFixed(1)}% <span className="text-gray-400"><Spark data={overallTrends.get(r.klass) || []} /></span></td>
-                  </tr>
-                ))}
+                    </tr>
+                  ))}
                 {loading && overallClassStats.length === 0 && (
                   <SkeletonTableRows rows={6} cols={5} />
                 )}
                 {overallClassStats.length === 0 && (
-                  <tr>
+                    <tr>
                     <td className="p-6 text-center text-gray-500" colSpan={5}>No data yet — run a query above.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
           </div>
         </div>
 
-        {/* Top Player by Class */}
+          {/* Top Player by Class */}
         <div id="top-by-class" className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-200">
@@ -2435,55 +2437,55 @@ export default function Home() {
                 </span>
               )}
             </div>
-            {topPlayersByClass.length > 0 && (
-              <div className="flex items-center gap-2">
+              {topPlayersByClass.length > 0 && (
+                <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_top_by_class.json", topPlayersByClass)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
-                  <Download className="h-4 w-4"/> JSON
-                </button>
-              </div>
-            )}
+                    <Download className="h-4 w-4"/> JSON
+                  </button>
           </div>
+              )}
+            </div>
           <div className="mt-3 overflow-x-auto">
             <table className="min-w-full text-left text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-gray-700 bg-[#1c1c1c]">
-                  <th className="p-2">Class</th>
-                  <th className="p-2">Best Player</th>
-                  <th className="p-2 text-center">W/L</th>
-                  <th className="p-2 text-center">Games</th>
-                  <th className="p-2 text-center">Win Rate</th>
+                    <th className="p-2">Class</th>
+                    <th className="p-2">Best Player</th>
+                    <th className="p-2 text-center">W/L</th>
+                    <th className="p-2 text-center">Games</th>
+                    <th className="p-2 text-center">Win Rate</th>
                 </tr>
               </thead>
               <tbody>
-                {topPlayersByClass.map((row) => {
-                  const hue = Math.round(row.winrate * 120);
-                  return (
+                  {topPlayersByClass.map((row) => {
+                    const hue = Math.round(row.winrate * 120);
+                      return (
                     <tr key={row.klass} className="border-b border-gray-800 hover:bg-[#1c1c1c] transition-colors">
-                      <td className="p-2 font-medium">{row.klass}</td>
-                      <td className="p-2">{row.player}</td>
-                      <td className="p-2 text-center tabular-nums">
+                        <td className="p-2 font-medium">{row.klass}</td>
+                        <td className="p-2">{row.player}</td>
+                        <td className="p-2 text-center tabular-nums">
                         <span className="text-green-400">{row.wins}</span>
-                        <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-gray-400 mx-1">/</span>
                         <span className="text-red-400">{row.losses}</span>
-                      </td>
-                      <td className="p-2 text-center tabular-nums">{row.total}</td>
-                      <td className="p-2 text-center">
-                        <span
-                          className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
-                          style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                        </td>
+                        <td className="p-2 text-center tabular-nums">{row.total}</td>
+                        <td className="p-2 text-center">
+                          <span
+                            className="inline-block rounded-full px-2 py-0.5 text-xs text-white font-medium"
+                            style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
                         >
-                          {(row.winrate * 100).toFixed(0)}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {loading && topPlayersByClass.length === 0 && (
-                  <SkeletonTableRows rows={5} cols={5} />
+                            {(row.winrate * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  {loading && topPlayersByClass.length === 0 && (
+                    <SkeletonTableRows rows={5} cols={5} />
                 )}
-                {!loading && topPlayersByClass.length === 0 && (
+                  {!loading && topPlayersByClass.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
+                      <td className="p-6 text-center text-gray-500" colSpan={5}>No class data available yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -2505,8 +2507,8 @@ export default function Home() {
                   }`}>
                   {experienceFilter === 'pro' ? 'Pro vs Pro' : experienceFilter === 'mixed' ? 'Pro vs Beginner' : 'Beginner vs Beginner'}
                 </span>
-              )}
-            </div>
+            )}
+          </div>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
                 <button onClick={() => dl("showdown_winrate_results.json", rows)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#282828] transition-colors">
