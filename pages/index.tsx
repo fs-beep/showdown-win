@@ -856,11 +856,7 @@ export default function Home() {
       const total = sorted.reduce((s, [, c]) => s + c, 0);
       if (sorted.length === 0) continue;
       const top = sorted[0];
-      if (sorted.length > 1 && sorted[1][1] >= total * 0.2) {
-        result[wallet] = `${top[0]}, ${sorted[1][0]}`;
-      } else {
-        result[wallet] = top[0];
-      }
+      result[wallet] = top[0];
     }
     return result;
   }, [rows, dynamicWalletToNick]);
