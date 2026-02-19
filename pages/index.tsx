@@ -1880,6 +1880,7 @@ export default function Home() {
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
                         <th className="px-3 py-2.5">Player <span className="normal-case text-gray-600 font-normal">(top class)</span></th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
+                        <th className="px-3 py-2.5 text-right whitespace-nowrap text-gray-500">Volume</th>
                         <th className="px-3 py-2.5 text-right whitespace-nowrap">Games</th>
                       </tr>
                     </thead>
@@ -1904,13 +1905,14 @@ export default function Home() {
                               )}
                             </td>
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{formatUsdm((BigInt(r.won) + BigInt(r.lost)).toString())}</td>
                             <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
                           </tr>
                         );
                       })}
-                      {usdmLoading && activeUsdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
+                      {usdmLoading && activeUsdmRows.length === 0 && <SkeletonTableRows rows={5} cols={5} />}
                       {!usdmLoading && activeUsdmRows.length === 0 && !usdmError && (
-                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>{usdmPeriod === 'all' ? 'No data yet' : `No data for this period`}</td></tr>
+                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={5}>{usdmPeriod === 'all' ? 'No data yet' : `No data for this period`}</td></tr>
                       )}
                     </tbody>
                   </table>
