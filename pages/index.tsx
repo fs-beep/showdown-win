@@ -1905,7 +1905,7 @@ export default function Home() {
                               )}
                             </td>
                             <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{formatUsdm((BigInt(r.won) + BigInt(r.lost)).toString())}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{formatUsdm(((BigInt(r.won) + BigInt(r.lost)) / 2n).toString())}</td>
                             <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
                           </tr>
                         );
