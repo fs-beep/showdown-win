@@ -878,6 +878,18 @@ export default function Home() {
     return { ...cachedDominantClasses, ...computedDominantClasses };
   }, [cachedDominantClasses, computedDominantClasses]);
 
+  // Auto-select player's dominant class in Class vs Class when player or classes update
+  useEffect(() => {
+    if (!player.trim()) return;
+    const wallet = nickToWalletMap[player.trim().toLowerCase()];
+    if (!wallet) return;
+    const dominant = walletDominantClasses[wallet];
+    if (!dominant) return;
+    const parts = dominant.split('/').map(s => s.trim()).filter(s => ['Bureaucrat','Cheater','Gambler','Inventor','Protector','Rebel'].includes(s));
+    if (parts.length === 2) setSelectedBaseClasses(parts);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, walletDominantClasses]);
+
   // Reverse mapping: nickname → wallet address (for player explorer search)
   const nickToWalletMap = useMemo(() => {
     const merged = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
