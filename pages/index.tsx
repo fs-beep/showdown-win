@@ -1559,42 +1559,30 @@ export default function Home() {
                     <div>
                       <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
                       <div ref={walletPnlChartRef} className="overflow-x-auto pb-2 -mx-1">
-                        <div className="relative" style={{ height: chartHeight + 30, minWidth: Math.max(totalWidth, 280) }}>
-                          <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
-                          <div className="flex items-center" style={{ height: chartHeight, minWidth: Math.max(totalWidth, 280), gap }}>
+                        <div style={{ minWidth: Math.max(totalWidth, 280) }}>
+                          <div className="relative" style={{ height: chartHeight }}>
+                            <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
                             {walletPnl.days.map((d, i) => {
                               const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
                               const isPositive = netDollars >= 0;
                               const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
                               const isToday = d.day === new Date().toISOString().slice(0, 10);
+                              const left = i * (barWidth + gap);
+                              const barColor = isPositive ? (isToday ? '#22c55e' : '#16a34a') : (isToday ? '#ef4444' : 'rgba(239,68,68,0.7)');
                               return (
-                                <div key={d.day} className="flex flex-col items-center" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                                <div key={d.day} style={{ position: 'absolute', left, width: barWidth, top: 0, height: chartHeight }}>
                                   {isPositive ? (
                                     <>
-                                      <div className="flex-1 flex flex-col items-center justify-end">
-                                        <div className="text-[8px] text-green-400 mb-0.5 leading-none" style={{ flexShrink: 0 }}>
-                                          {netDollars > 0 ? `+$${netDollars}` : ''}
-                                        </div>
-                                        <div
-                                          className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-green-500'}`}
-                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
-                                          title={`${d.day}: +$${netDollars} (${d.txs} games)`}
-                                        />
+                                      <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
+                                        {netDollars > 0 ? `+$${netDollars}` : ''}
                                       </div>
-                                      <div style={{ height: halfChart }} />
+                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.txs} games)`} />
                                     </>
                                   ) : (
                                     <>
-                                      <div style={{ height: halfChart }} />
-                                      <div className="flex-1 flex flex-col items-center justify-start">
-                                        <div
-                                          className={`rounded-b transition-all ${isToday ? 'bg-red-500' : 'bg-red-500/80'}`}
-                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
-                                          title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`}
-                                        />
-                                        <div className="text-[8px] text-red-400 mt-0.5 leading-none" style={{ flexShrink: 0 }}>
-                                          {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
-                                        </div>
+                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`} />
+                                      <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
+                                        {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
                                       </div>
                                     </>
                                   )}
@@ -1602,13 +1590,13 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          <div className="flex" style={{ minWidth: Math.max(totalWidth, 280), gap }}>
+                          <div className="flex" style={{ gap }}>
                             {walletPnl.days.map((d, i) => {
                               const isToday = d.day === new Date().toISOString().slice(0, 10);
                               const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
                               return (
                                 <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
-                                  <div className={`text-[8px] text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}>
+                                  <div className={`text-[8px] text-gray-400 whitespace-nowrap leading-none mt-1 ${showLabel ? '' : 'invisible'}`}>
                                     {d.day.slice(5)}
                                   </div>
                                 </div>
@@ -1911,7 +1899,7 @@ export default function Home() {
                             <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                               <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
                               <td className="px-3 py-2.5">
-                                {nick && <button className="text-[11px] text-gray-200 font-semibold hover:text-white hover:underline mb-0.5 block text-left" onClick={() => { run(nick); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{nick}</button>}
+                                {nick && <button className="text-[11px] text-gray-200 font-semibold hover:text-white hover:underline mb-0.5 block text-left" onClick={() => { run(nick); setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{nick}</button>}
                                 <button className="text-gray-500 hover:text-gray-300 font-mono text-[10px] hover:underline" onClick={() => { setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{shortAddr(r.player)}</button>
                                 {dominantClasses && (
                                   <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
@@ -2809,43 +2797,30 @@ export default function Home() {
                     <div>
                       <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
                       <div ref={explorerChartRef} className="overflow-x-auto pb-2 -mx-1">
-                        <div className="relative" style={{ height: chartHeight + 30, minWidth: Math.max(totalWidth, 280) }}>
-                          <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
-                          <div className="flex items-center" style={{ height: chartHeight, minWidth: Math.max(totalWidth, 280), gap }}>
+                        <div style={{ minWidth: Math.max(totalWidth, 280) }}>
+                          <div className="relative" style={{ height: chartHeight }}>
+                            <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
                             {explorerData.days.map((d, i) => {
                               const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
                               const isPositive = netDollars >= 0;
                               const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
                               const isToday = d.day === new Date().toISOString().slice(0, 10);
-                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
+                              const left = i * (barWidth + gap);
+                              const barColor = isPositive ? (isToday ? '#22c55e' : '#16a34a') : (isToday ? '#ef4444' : 'rgba(239,68,68,0.7)');
                               return (
-                                <div key={d.day} className="flex flex-col items-center" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
+                                <div key={d.day} style={{ position: 'absolute', left, width: barWidth, top: 0, height: chartHeight }}>
                                   {isPositive ? (
                                     <>
-                                      <div className="flex-1 flex flex-col items-center justify-end">
-                                        <div className="text-[8px] sm:text-[9px] text-green-400 mb-0.5 leading-none" style={{ flexShrink: 0 }}>
-                                          {netDollars > 0 ? `+$${netDollars}` : ''}
-                                        </div>
-                                        <div
-                                          className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-green-500'}`}
-                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
-                                          title={`${d.day}: ${netDollars >= 0 ? '+' : ''}$${netDollars} (${d.txs} games)`}
-                                        />
+                                      <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
+                                        {netDollars > 0 ? `+$${netDollars}` : ''}
                                       </div>
-                                      <div style={{ height: halfChart }} />
+                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.txs} games)`} />
                                     </>
                                   ) : (
                                     <>
-                                      <div style={{ height: halfChart }} />
-                                      <div className="flex-1 flex flex-col items-center justify-start">
-                                        <div
-                                          className={`rounded-b transition-all ${isToday ? 'bg-red-500' : 'bg-red-500/80'}`}
-                                          style={{ height: barH, width: '75%', flexShrink: 0, minHeight: 2 }}
-                                          title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`}
-                                        />
-                                        <div className="text-[8px] sm:text-[9px] text-red-400 mt-0.5 leading-none" style={{ flexShrink: 0 }}>
-                                          {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
-                                        </div>
+                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`} />
+                                      <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
+                                        {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
                                       </div>
                                     </>
                                   )}
@@ -2853,13 +2828,13 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          <div className="flex" style={{ minWidth: Math.max(totalWidth, 280), gap }}>
+                          <div className="flex" style={{ gap }}>
                             {explorerData.days.map((d, i) => {
                               const isToday = d.day === new Date().toISOString().slice(0, 10);
                               const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
                               return (
                                 <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
-                                  <div className={`text-[8px] sm:text-[10px] text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}>
+                                  <div className={`text-[8px] sm:text-[10px] text-gray-400 whitespace-nowrap leading-none mt-1 ${showLabel ? '' : 'invisible'}`}>
                                     {d.day.slice(5)}
                                   </div>
                                 </div>
