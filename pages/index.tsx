@@ -1880,39 +1880,42 @@ export default function Home() {
                         <th className="px-3 py-2.5 w-10 text-center">#</th>
                         <th className="px-3 py-2.5">Player <span className="normal-case text-gray-600 font-normal">(top class)</span></th>
                         <th className="px-3 py-2.5 text-green-500">Profit</th>
-                        <th className="px-3 py-2.5 text-right whitespace-nowrap text-gray-500">Volume</th>
                         <th className="px-3 py-2.5 text-right whitespace-nowrap">Games</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800/50">
-                      {activeUsdmRows.map((r, i) => {
-                        const netBi = BigInt(r.net || '0');
-                        const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
-                        const isProfitable = netBi > 0n;
-                        const netClass = isProfitable
-                          ? netAbs >= 100 ? 'text-green-400 font-bold'
-                          : netAbs >= 10 ? 'text-green-400 font-semibold'
-                          : 'text-green-400'
-                          : netBi < 0n ? 'text-red-400/70' : 'text-gray-400';
-                        const dominantClasses = walletDominantClasses[r.player.toLowerCase()];
-                        return (
-                          <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
-                            <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
-                            <td className="px-3 py-2.5">
-                              <button className="text-gray-300 hover:text-white font-mono text-[11px] hover:underline" onClick={() => { setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{shortAddr(r.player)}</button>
-                              {dominantClasses && (
-                                <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
-                              )}
-                            </td>
-                            <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{formatUsdm(((BigInt(r.won) + BigInt(r.lost)) / 2n).toString())}</td>
-                            <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
-                          </tr>
-                        );
-                      })}
-                      {usdmLoading && activeUsdmRows.length === 0 && <SkeletonTableRows rows={5} cols={5} />}
+                      {(() => {
+                        const mergedNickMap = { ...WALLET_TO_NICK, ...dynamicWalletToNick };
+                        return activeUsdmRows.map((r, i) => {
+                          const netBi = BigInt(r.net || '0');
+                          const netAbs = Number((netBi < 0n ? -netBi : netBi) / 1000000000000000000n);
+                          const isProfitable = netBi > 0n;
+                          const netClass = isProfitable
+                            ? netAbs >= 100 ? 'text-green-400 font-bold'
+                            : netAbs >= 10 ? 'text-green-400 font-semibold'
+                            : 'text-green-400'
+                            : netBi < 0n ? 'text-red-400/70' : 'text-gray-400';
+                          const dominantClasses = walletDominantClasses[r.player.toLowerCase()];
+                          const nick = mergedNickMap[r.player.toLowerCase()];
+                          return (
+                            <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
+                              <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
+                              <td className="px-3 py-2.5">
+                                {nick && <div className="text-[11px] text-gray-200 font-medium mb-0.5">{nick}</div>}
+                                <button className="text-gray-500 hover:text-gray-300 font-mono text-[10px] hover:underline" onClick={() => { setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{shortAddr(r.player)}</button>
+                                {dominantClasses && (
+                                  <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
+                                )}
+                              </td>
+                              <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
+                              <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                      {usdmLoading && activeUsdmRows.length === 0 && <SkeletonTableRows rows={5} cols={4} />}
                       {!usdmLoading && activeUsdmRows.length === 0 && !usdmError && (
-                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={5}>{usdmPeriod === 'all' ? 'No data yet' : `No data for this period`}</td></tr>
+                        <tr><td className="px-3 py-6 text-center text-gray-500" colSpan={4}>{usdmPeriod === 'all' ? 'No data yet' : `No data for this period`}</td></tr>
                       )}
                     </tbody>
                   </table>
