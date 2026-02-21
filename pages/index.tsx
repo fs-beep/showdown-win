@@ -1109,7 +1109,8 @@ export default function Home() {
     }
   };
 
-  const run = async () => {
+  const run = async (overridePlayer?: string) => {
+    if (overridePlayer !== undefined) setPlayer(overridePlayer);
     setError(null); setWarning(null); setRows([]); setLoading(true); setDataPhase('idle');
     try {
       // Use exact balance patch timestamp if start date matches
@@ -1898,7 +1899,7 @@ export default function Home() {
                             <tr key={r.player + i} className="hover:bg-[#1c1c1c] transition-colors">
                               <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
                               <td className="px-3 py-2.5">
-                                {nick && <div className="text-[11px] text-gray-200 font-medium mb-0.5">{nick}</div>}
+                                {nick && <button className="text-[11px] text-gray-200 font-semibold hover:text-white hover:underline mb-0.5 block text-left" onClick={() => { run(nick); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{nick}</button>}
                                 <button className="text-gray-500 hover:text-gray-300 font-mono text-[10px] hover:underline" onClick={() => { setWalletInput(r.player.toLowerCase()); fetchWalletPnl(r.player.toLowerCase()); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{shortAddr(r.player)}</button>
                                 {dominantClasses && (
                                   <div className="text-[10px] text-blue-400/70 mt-0.5" title="Most winning class combo">{dominantClasses}</div>
