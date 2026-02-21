@@ -23,15 +23,15 @@ const BATCH_DELAY_MS = 200;
 
 let currentRpcIndex = 0;
 
-type ProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
+type ProfitRow = { player: string; won: string; lost: string; net: string; txs: number; games: number };
 type VolumePoint = { day: string; volume: string };
 type State = {
   lastBlock: number;
-  totals: Record<string, { won: string; lost: string; txs: number }>;
+  totals: Record<string, { won: string; lost: string; txs: number; games: number }>;
   volumeByDay: Record<string, string>;
   totalVolume: string;
   // Per-player per-day data for weekly/monthly leaderboards
-  playerDays?: Record<string, Record<string, { won: string; lost: string; txs: number }>>;
+  playerDays?: Record<string, Record<string, { won: string; lost: string; txs: number; games: number }>>;
 };
 type CachedData = {
   rows: ProfitRow[];
@@ -43,9 +43,9 @@ type CachedData = {
   updatedAt: number;
 };
 
-// v12: Added playerDays for weekly/monthly leaderboards
-const STATE_KEY = 'usdm:state:v12';
-const CACHE_KEY = 'usdm:cache:v12';
+// v13: Added games counter (deposits only, accurate game count)
+const STATE_KEY = 'usdm:state:v13';
+const CACHE_KEY = 'usdm:cache:v13';
 
 let memCache: CachedData | null = null;
 let memCacheVersion = 'v9'; // Must match STATE_KEY version
@@ -189,49 +189,52 @@ function updateState(state: State, logs: any[], blockTs: Map<number, number>) {
     
     if (from === PAYOUT_CONTRACT) {
       // Payout to player (won)
-      const s = state.totals[to] || { won: '0', lost: '0', txs: 0 };
+      const s = state.totals[to] || { won: '0', lost: '0', txs: 0, games: 0 };
       s.won = (BigInt(s.won) + value).toString();
       s.txs += 1;
       state.totals[to] = s;
       // Track daily
       if (!state.playerDays[to]) state.playerDays[to] = {};
-      const pd = state.playerDays[to][day] || { won: '0', lost: '0', txs: 0 };
+      const pd = state.playerDays[to][day] || { won: '0', lost: '0', txs: 0, games: 0 };
       pd.won = (BigInt(pd.won) + value).toString();
       pd.txs += 1;
       state.playerDays[to][day] = pd;
     } else {
-      // Player deposit (lost)
-      const s = state.totals[from] || { won: '0', lost: '0', txs: 0 };
+      // Player deposit = one game played
+      const s = state.totals[from] || { won: '0', lost: '0', txs: 0, games: 0 };
       s.lost = (BigInt(s.lost) + value).toString();
       s.txs += 1;
+      s.games = (s.games || 0) + 1;
       state.totals[from] = s;
       // Track daily
       if (!state.playerDays[from]) state.playerDays[from] = {};
-      const pd = state.playerDays[from][day] || { won: '0', lost: '0', txs: 0 };
+      const pd = state.playerDays[from][day] || { won: '0', lost: '0', txs: 0, games: 0 };
       pd.lost = (BigInt(pd.lost) + value).toString();
       pd.txs += 1;
+      pd.games = (pd.games || 0) + 1;
       state.playerDays[from][day] = pd;
     }
   }
 }
 
-function computeLeaderboard(playerDays: Record<string, Record<string, { won: string; lost: string; txs: number }>>, sinceDay?: string): ProfitRow[] {
-  const agg: Record<string, { won: bigint; lost: bigint; txs: number }> = {};
+function computeLeaderboard(playerDays: Record<string, Record<string, { won: string; lost: string; txs: number; games?: number }>>, sinceDay?: string): ProfitRow[] {
+  const agg: Record<string, { won: bigint; lost: bigint; txs: number; games: number }> = {};
   for (const [player, days] of Object.entries(playerDays)) {
     for (const [day, d] of Object.entries(days)) {
       if (sinceDay && day < sinceDay) continue;
-      if (!agg[player]) agg[player] = { won: 0n, lost: 0n, txs: 0 };
+      if (!agg[player]) agg[player] = { won: 0n, lost: 0n, txs: 0, games: 0 };
       agg[player].won += BigInt(d.won);
       agg[player].lost += BigInt(d.lost);
       agg[player].txs += d.txs;
+      agg[player].games += d.games || 0;
     }
   }
   const rows: ProfitRow[] = Object.entries(agg).map(([player, s]) => ({
-    player, won: s.won.toString(), lost: s.lost.toString(), net: (s.won - s.lost).toString(), txs: s.txs,
+    player, won: s.won.toString(), lost: s.lost.toString(), net: (s.won - s.lost).toString(), txs: s.txs, games: s.games,
   }));
   rows.sort((a, b) => {
     const na = BigInt(a.net), nb = BigInt(b.net);
-    return na === nb ? b.txs - a.txs : (na > nb ? -1 : 1);
+    return na === nb ? b.games - a.games : (na > nb ? -1 : 1);
   });
   return rows.slice(0, 10);
 }
@@ -249,10 +252,11 @@ function computeCache(state: State, prevUpdatedAt?: number, logsFound?: number):
     lost: s.lost,
     net: (BigInt(s.won) - BigInt(s.lost)).toString(),
     txs: s.txs,
+    games: s.games || 0,
   }));
   rows.sort((a, b) => {
     const na = BigInt(a.net), nb = BigInt(b.net);
-    return na === nb ? b.txs - a.txs : (na > nb ? -1 : 1);
+    return na === nb ? b.games - a.games : (na > nb ? -1 : 1);
   });
   const volumeSeries = Object.entries(state.volumeByDay)
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -363,9 +367,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             lost: d.lost,
             net: (BigInt(d.won) - BigInt(d.lost)).toString(),
             txs: d.txs,
+            games: d.games || 0,
           }))
       : [];
-    const t = totals || { won: '0', lost: '0', txs: 0 };
+    const t = totals || { won: '0', lost: '0', txs: 0, games: 0 };
     return res.status(200).json({
       ok: true,
       playerData: {
@@ -376,6 +381,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           lost: t.lost,
           net: (BigInt(t.won) - BigInt(t.lost)).toString(),
           txs: t.txs,
+          games: t.games || 0,
         },
       },
     });

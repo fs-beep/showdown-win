@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Calendar, Download, Loader2, Play, Server, ShieldAlert, Clipboard, Check, ArrowUp } from 'lucide-react';
+import { Download, Loader2, Play, Server, ShieldAlert, Clipboard, Check, ArrowUp } from 'lucide-react';
 
 type Row = {
   blockNumber: number;
@@ -23,7 +23,7 @@ type Row = {
 };
 
 type ClassRow = { klass: string; wins: number; losses: number; total: number; winrate: number };
-type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number };
+type UsdmProfitRow = { player: string; won: string; lost: string; net: string; txs: number; games?: number };
 
 // Wallet → in-game nickname mapping (from https://wallet.showdown.game/activity)
 const WALLET_TO_NICK: Record<string, string> = {
@@ -83,14 +83,6 @@ type ApiResponse = { ok: boolean; error?: string; warning?: string; rows?: Row[]
 const MIN_DATE = '2025-07-25';
 const BALANCE_PATCH_DATE = '2026-01-13';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-// Format date as "2026-Jan-13" for display, parse "2026-Jan-13" or "2026-01-13" to ISO
-function formatDateDisplay(isoDate: string): string {
-  if (!isoDate) return '';
-  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return isoDate; // Return as-is if not ISO format
-  const [, year, month, day] = match;
-  return `${year}-${MONTH_NAMES[parseInt(month, 10) - 1]}-${day}`;
-}
 function parseDateInput(input: string): string {
   if (!input) return '';
   // Already ISO format
@@ -279,11 +271,11 @@ export default function Home() {
   const [explorerSearch, setExplorerSearch] = useState('');
   const [explorerWallet, setExplorerWallet] = useState<string | null>(null);
   const [explorerNick, setExplorerNick] = useState<string | null>(null);
-  const [explorerData, setExplorerData] = useState<{ days: { day: string; won: string; lost: string; net: string; txs: number }[]; totals: { won: string; lost: string; net: string; txs: number } } | null>(null);
+  const [explorerData, setExplorerData] = useState<{ days: { day: string; won: string; lost: string; net: string; txs: number; games?: number }[]; totals: { won: string; lost: string; net: string; txs: number; games?: number } } | null>(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerError, setExplorerError] = useState<string | null>(null);
   const explorerChartRef = useRef<HTMLDivElement>(null);
-  type PnlData = { days: { day: string; won: string; lost: string; net: string; txs: number }[]; totals: { won: string; lost: string; net: string; txs: number } };
+  type PnlData = { days: { day: string; won: string; lost: string; net: string; txs: number; games?: number }[]; totals: { won: string; lost: string; net: string; txs: number; games?: number } };
   const [walletInput, setWalletInput] = useState('');
   const [walletPnl, setWalletPnl] = useState<PnlData | null>(null);
   const [walletPnlLoading, setWalletPnlLoading] = useState(false);
@@ -1576,11 +1568,11 @@ export default function Home() {
                                       <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
                                         {netDollars > 0 ? `+$${netDollars}` : ''}
                                       </div>
-                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.txs} games)`} />
+                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.games ?? d.txs} games)`} />
                                     </>
                                   ) : (
                                     <>
-                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`} />
+                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.games ?? d.txs} games)`} />
                                       <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
                                         {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
                                       </div>
@@ -1677,7 +1669,7 @@ export default function Home() {
               {walletPnl && !walletPnlError && (
                 <div className="mt-1.5 text-[10px] text-emerald-500">
                   {showPlayerExplorer && walletPnlNick && <span className="font-medium">{walletPnlNick} · </span>}
-                  Net: {formatUsdm(walletPnl.totals.net, true)} · {walletPnl.totals.txs} games
+                  Net: {formatUsdm(walletPnl.totals.net, true)} · {walletPnl.totals.games ?? walletPnl.totals.txs} games
                 </div>
               )}
               {walletPnlError && (
@@ -1688,17 +1680,21 @@ export default function Home() {
             <div className="mt-4 space-y-3">
               <div>
                 <label className="block text-[11px] text-gray-400 mb-1">Start date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
-                  <input type="text" placeholder="2026-Jan-13" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={formatDateDisplay(startDate)} onChange={e=>setStartDate(parseDateInput(e.target.value))} />
-                </div>
+                <input
+                  type="date"
+                  className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 focus:border-gray-600 focus:outline-none [color-scheme:dark]"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                />
               </div>
               <div>
                 <label className="block text-[11px] text-gray-400 mb-1">End date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"/>
-                  <input type="text" placeholder="Latest" className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 pl-8 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-gray-600 focus:outline-none" value={endDate ? formatDateDisplay(endDate) : ''} onChange={e=>setEndDate(parseDateInput(e.target.value))} />
-                </div>
+                <input
+                  type="date"
+                  className="w-full rounded-lg bg-[#1c1c1c] border border-gray-700/60 px-3 py-2.5 text-sm text-gray-100 focus:border-gray-600 focus:outline-none [color-scheme:dark]"
+                  value={endDate || ''}
+                  onChange={e => setEndDate(e.target.value || '')}
+                />
               </div>
             </div>
 
@@ -1906,7 +1902,7 @@ export default function Home() {
                                 )}
                               </td>
                               <td className={`px-3 py-2.5 tabular-nums ${netClass}`}>{formatUsdm(r.net, true)}</td>
-                              <td className="px-3 py-2.5 text-right text-gray-500">{r.txs}</td>
+                              <td className="px-3 py-2.5 text-right text-gray-500">{r.games ?? r.txs}</td>
                             </tr>
                           );
                         });
@@ -2814,11 +2810,11 @@ export default function Home() {
                                       <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
                                         {netDollars > 0 ? `+$${netDollars}` : ''}
                                       </div>
-                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.txs} games)`} />
+                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.games ?? d.txs} games)`} />
                                     </>
                                   ) : (
                                     <>
-                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.txs} games)`} />
+                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.games ?? d.txs} games)`} />
                                       <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
                                         {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
                                       </div>
