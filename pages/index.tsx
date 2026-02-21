@@ -1540,67 +1540,80 @@ export default function Home() {
 
                 {walletPnl.days.length > 0 && (() => {
                   const maxAbs = Math.max(...walletPnl.days.map(d => Math.abs(Number(BigInt(d.net) / 1000000000000000000n))), 1);
-                  const chartHeight = 120;
                   const numDays = walletPnl.days.length;
-                  const barWidth = numDays <= 7 ? 36 : numDays <= 15 ? 28 : numDays <= 30 ? 22 : numDays <= 60 ? 16 : 14;
-                  const gap = barWidth <= 18 ? 1 : 2;
-                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
-                  const totalWidth = numDays * (barWidth + gap);
-                  const halfChart = chartHeight / 2;
+                  const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 30 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
+                  const gap = 2;
+                  const slotW = barWidth + gap;
+                  const totalWidth = numDays * slotW;
+                  // Reserve 14px top for positive labels, 14px bottom for negative labels, 100px for bars
+                  const LTOP = 14; const LBOT = 14; const barAreaH = 100;
+                  const chartHeight = LTOP + barAreaH + LBOT;
+                  const halfBar = barAreaH / 2;
+                  const zeroY = LTOP + halfBar;
+                  const today = new Date().toISOString().slice(0, 10);
+                  // Absolute-positioned date labels: track rightmost rendered edge to avoid overlap
+                  let lastLabelRight = -999;
+                  const dateLabels = walletPnl.days.map((d, i) => {
+                    const isToday = d.day === today;
+                    const cx = i * slotW + barWidth / 2;
+                    const approxW = 28;
+                    const lx = cx - approxW / 2;
+                    if (!isToday && lx < lastLabelRight + 3) return null;
+                    lastLabelRight = lx + approxW;
+                    return (
+                      <div key={d.day + '-dl'} style={{ position: 'absolute', left: cx, transform: 'translateX(-50%)', top: 3, whiteSpace: 'nowrap' }}
+                        className={`text-[8px] leading-none ${isToday ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>
+                        {d.day.slice(5)}
+                      </div>
+                    );
+                  });
                   return (
                     <div>
                       <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
-                      <div ref={walletPnlChartRef} className="overflow-x-auto pb-2 -mx-1">
+                      <div ref={walletPnlChartRef} className="overflow-x-auto pb-1 -mx-1">
                         <div style={{ minWidth: Math.max(totalWidth, 280) }}>
+                          {/* Bar area */}
                           <div className="relative" style={{ height: chartHeight }}>
-                            <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
+                            <div className="absolute left-0 right-0 border-t border-gray-700/40" style={{ top: zeroY }} />
                             {walletPnl.days.map((d, i) => {
                               const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
                               const isPositive = netDollars >= 0;
-                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
-                              const isToday = d.day === new Date().toISOString().slice(0, 10);
-                              const left = i * (barWidth + gap);
+                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfBar, 2);
+                              const isToday = d.day === today;
+                              const left = i * slotW;
                               const barColor = isPositive ? (isToday ? '#22c55e' : '#16a34a') : (isToday ? '#ef4444' : 'rgba(239,68,68,0.7)');
-                              return (
-                                <div key={d.day} style={{ position: 'absolute', left, width: barWidth, top: 0, height: chartHeight }}>
-                                  {isPositive ? (
-                                    <>
-                                      <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
-                                        {netDollars > 0 ? `+$${netDollars}` : ''}
-                                      </div>
-                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.games ?? d.txs} games)`} />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.games ?? d.txs} games)`} />
-                                      <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
-                                        {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              );
+                              const label = netDollars > 0 ? `+$${netDollars}` : netDollars < 0 ? `-$${Math.abs(netDollars)}` : '';
+                              const barLeft = left + barWidth * 0.1;
+                              const barW = barWidth * 0.8;
+                              if (isPositive) {
+                                const barTop = zeroY - barH;
+                                return (
+                                  <Fragment key={d.day}>
+                                    <div className="rounded-t absolute" style={{ background: barColor, left: barLeft, width: barW, top: barTop, height: barH }} title={`${d.day}: ${label} (${d.games ?? d.txs} games)`} />
+                                    {label && <div className="text-[8px] text-green-400 leading-none text-center absolute" style={{ width: barWidth, left, top: barTop - 12, overflow: 'hidden' }}>{label}</div>}
+                                  </Fragment>
+                                );
+                              } else {
+                                const barTop = zeroY;
+                                return (
+                                  <Fragment key={d.day}>
+                                    <div className="rounded-b absolute" style={{ background: barColor, left: barLeft, width: barW, top: barTop, height: barH }} title={`${d.day}: ${label} (${d.games ?? d.txs} games)`} />
+                                    {label && <div className="text-[8px] text-red-400 leading-none text-center absolute" style={{ width: barWidth, left, top: barTop + barH + 2, overflow: 'hidden' }}>{label}</div>}
+                                  </Fragment>
+                                );
+                              }
                             })}
                           </div>
-                          <div className="flex" style={{ gap }}>
-                            {walletPnl.days.map((d, i) => {
-                              const isToday = d.day === new Date().toISOString().slice(0, 10);
-                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
-                              return (
-                                <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
-                                  <div className={`text-[8px] text-gray-400 whitespace-nowrap leading-none mt-1 ${showLabel ? '' : 'invisible'}`}>
-                                    {d.day.slice(5)}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          {/* Date labels row */}
+                          <div className="relative" style={{ height: 18 }}>
+                            {dateLabels}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500 border-t border-gray-800 pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500 border-t border-gray-800 pt-2 mt-1">
                         <div>{numDays} days active</div>
                         <div>Avg: {formatUsdm((BigInt(walletPnl.totals.net) / BigInt(Math.max(numDays, 1))).toString(), true)}/day</div>
-                        <div>{walletPnl.totals.txs} total games</div>
+                        <div>{walletPnl.totals.games ?? walletPnl.totals.txs} total games</div>
                       </div>
                     </div>
                   );
@@ -2782,67 +2795,76 @@ export default function Home() {
 
                 {explorerData.days.length > 0 && (() => {
                   const maxAbs = Math.max(...explorerData.days.map(d => Math.abs(Number(BigInt(d.net) / 1000000000000000000n))), 1);
-                  const chartHeight = 140;
                   const numDays = explorerData.days.length;
                   const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 32 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
-                  const gap = barWidth <= 18 ? 1 : 3;
-                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
-                  const totalWidth = numDays * (barWidth + gap);
-                  const halfChart = chartHeight / 2;
+                  const gap = 2;
+                  const slotW = barWidth + gap;
+                  const totalWidth = numDays * slotW;
+                  const LTOP = 14; const LBOT = 14; const barAreaH = 100;
+                  const chartHeight = LTOP + barAreaH + LBOT;
+                  const halfBar = barAreaH / 2;
+                  const zeroY = LTOP + halfBar;
+                  const today = new Date().toISOString().slice(0, 10);
+                  let lastLabelRight = -999;
+                  const dateLabels = explorerData.days.map((d, i) => {
+                    const isToday = d.day === today;
+                    const cx = i * slotW + barWidth / 2;
+                    const approxW = 28;
+                    const lx = cx - approxW / 2;
+                    if (!isToday && lx < lastLabelRight + 3) return null;
+                    lastLabelRight = lx + approxW;
+                    return (
+                      <div key={d.day + '-dl'} style={{ position: 'absolute', left: cx, transform: 'translateX(-50%)', top: 3, whiteSpace: 'nowrap' }}
+                        className={`text-[8px] leading-none ${isToday ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>
+                        {d.day.slice(5)}
+                      </div>
+                    );
+                  });
                   return (
                     <div>
                       <div className="text-xs text-gray-400 mb-2">Daily Net P&L</div>
-                      <div ref={explorerChartRef} className="overflow-x-auto pb-2 -mx-1">
+                      <div ref={explorerChartRef} className="overflow-x-auto pb-1 -mx-1">
                         <div style={{ minWidth: Math.max(totalWidth, 280) }}>
                           <div className="relative" style={{ height: chartHeight }}>
-                            <div className="absolute left-0 right-0 border-t border-gray-700/50" style={{ top: halfChart }} />
+                            <div className="absolute left-0 right-0 border-t border-gray-700/40" style={{ top: zeroY }} />
                             {explorerData.days.map((d, i) => {
                               const netDollars = Number(BigInt(d.net) / 1000000000000000000n);
                               const isPositive = netDollars >= 0;
-                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfChart, 2);
-                              const isToday = d.day === new Date().toISOString().slice(0, 10);
-                              const left = i * (barWidth + gap);
+                              const barH = Math.max((Math.abs(netDollars) / maxAbs) * halfBar, 2);
+                              const isToday = d.day === today;
+                              const left = i * slotW;
                               const barColor = isPositive ? (isToday ? '#22c55e' : '#16a34a') : (isToday ? '#ef4444' : 'rgba(239,68,68,0.7)');
-                              return (
-                                <div key={d.day} style={{ position: 'absolute', left, width: barWidth, top: 0, height: chartHeight }}>
-                                  {isPositive ? (
-                                    <>
-                                      <div className="text-[8px] text-green-400 leading-none text-center absolute w-full" style={{ bottom: halfChart + barH + 2 }}>
-                                        {netDollars > 0 ? `+$${netDollars}` : ''}
-                                      </div>
-                                      <div className="rounded-t absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, bottom: halfChart }} title={`${d.day}: +$${netDollars} (${d.games ?? d.txs} games)`} />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="rounded-b absolute" style={{ background: barColor, width: '80%', left: '10%', height: barH, top: halfChart }} title={`${d.day}: -$${Math.abs(netDollars)} (${d.games ?? d.txs} games)`} />
-                                      <div className="text-[8px] text-red-400 leading-none text-center absolute w-full" style={{ top: halfChart + barH + 2 }}>
-                                        {netDollars < 0 ? `-$${Math.abs(netDollars)}` : ''}
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              );
+                              const label = netDollars > 0 ? `+$${netDollars}` : netDollars < 0 ? `-$${Math.abs(netDollars)}` : '';
+                              const barLeft = left + barWidth * 0.1;
+                              const barW = barWidth * 0.8;
+                              if (isPositive) {
+                                const barTop = zeroY - barH;
+                                return (
+                                  <Fragment key={d.day}>
+                                    <div className="rounded-t absolute" style={{ background: barColor, left: barLeft, width: barW, top: barTop, height: barH }} title={`${d.day}: ${label} (${d.games ?? d.txs} games)`} />
+                                    {label && <div className="text-[8px] text-green-400 leading-none text-center absolute" style={{ width: barWidth, left, top: barTop - 12, overflow: 'hidden' }}>{label}</div>}
+                                  </Fragment>
+                                );
+                              } else {
+                                const barTop = zeroY;
+                                return (
+                                  <Fragment key={d.day}>
+                                    <div className="rounded-b absolute" style={{ background: barColor, left: barLeft, width: barW, top: barTop, height: barH }} title={`${d.day}: ${label} (${d.games ?? d.txs} games)`} />
+                                    {label && <div className="text-[8px] text-red-400 leading-none text-center absolute" style={{ width: barWidth, left, top: barTop + barH + 2, overflow: 'hidden' }}>{label}</div>}
+                                  </Fragment>
+                                );
+                              }
                             })}
                           </div>
-                          <div className="flex" style={{ gap }}>
-                            {explorerData.days.map((d, i) => {
-                              const isToday = d.day === new Date().toISOString().slice(0, 10);
-                              const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
-                              return (
-                                <div key={d.day + '-label'} className="text-center" style={{ width: barWidth, minWidth: barWidth }}>
-                                  <div className={`text-[8px] sm:text-[10px] text-gray-400 whitespace-nowrap leading-none mt-1 ${showLabel ? '' : 'invisible'}`}>
-                                    {d.day.slice(5)}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          <div className="relative" style={{ height: 18 }}>
+                            {dateLabels}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2 mt-1">
                         <div>{numDays} days active</div>
                         <div>Avg: {formatUsdm((BigInt(explorerData.totals.net) / BigInt(Math.max(numDays, 1))).toString(), true)}/day</div>
-                        <div>{explorerData.totals.txs} total games</div>
+                        <div>{explorerData.totals.games ?? explorerData.totals.txs} total games</div>
                       </div>
                     </div>
                   );
