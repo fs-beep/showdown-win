@@ -336,22 +336,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const fresh = req.query?.fresh === '1';
   const playerQuery = typeof req.query?.player === 'string' ? req.query.player.toLowerCase().trim() : '';
-  const losersQuery = req.query?.losers === '1';
-
-  // Losers leaderboard (internal use)
-  if (losersQuery) {
-    let state: State | null = null;
-    if (kvOk) { try { state = await kv.get<State>(STATE_KEY); } catch {} }
-    if (!state) return res.status(200).json({ ok: false, error: 'No state' });
-    const rows = Object.entries(state.totals).map(([player, s]) => ({
-      player,
-      won: s.won,
-      lost: s.lost,
-      net: (BigInt(s.won) - BigInt(s.lost)).toString(),
-      txs: s.txs,
-    })).sort((a, b) => (BigInt(a.net) < BigInt(b.net) ? -1 : 1));
-    return res.status(200).json({ ok: true, rows: rows.slice(0, 20) });
-  }
 
   // 0) Per-player daily P&L lookup (reads from state, no sync)
   if (playerQuery && /^0x[a-f0-9]{40}$/.test(playerQuery)) {
