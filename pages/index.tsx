@@ -2022,23 +2022,6 @@ export default function Home() {
         </div>
 
         {/* Tables navigation */}
-        <div className="mt-6 rounded-lg bg-[#141414] p-4 border border-gray-800/60">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
-            Jump to
-              </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <a href="#player-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Player stats</a>
-            <a href="#class-vs-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Class vs Class</a>
-            <a href="#player-matches" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Matches</a>
-            <a href="#global-class-stats" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Global stats</a>
-            <a href="#top-by-class" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">Best by class</a>
-            <a href="#all-decoded" className="px-3 py-1.5 rounded bg-[#1c1c1c] text-gray-300 hover:bg-[#282828] hover:text-white transition-colors">All games</a>
-            {showMoneyTables && (
-              <a href="#top-usdm-profits" className="px-3 py-1.5 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 border border-red-800/50 transition-colors">Top Earners</a>
-            )}
-          </div>
-        </div>
-
         {/* Player-focused tables */}
         <details id="player-section" className="mt-6" open>
           <summary className="flex items-center gap-3 cursor-pointer list-none text-xs uppercase tracking-widest font-bold text-gray-400">
