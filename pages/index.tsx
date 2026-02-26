@@ -2669,7 +2669,7 @@ export default function Home() {
           const gap = 2;
           const slotW = barWidth + gap;
           const totalWidth = numDays * slotW;
-          const LABEL_ZONE = 50;
+          const LABEL_ZONE = 60;
           const barAreaH = 150;
           const chartHeight = LABEL_ZONE + barAreaH;
           const today = new Date().toISOString().slice(0, 10);
@@ -2716,8 +2716,8 @@ export default function Home() {
                             title={`${d.day}: ${labelText}`}
                           />
                           <div
-                            className="absolute text-[8px] sm:text-[9px] text-gray-300 font-medium leading-none whitespace-nowrap origin-bottom-left"
-                            style={{ left: cx + 2, top: barTop - 4, transform: 'rotate(-55deg)' }}
+                            className="absolute text-[10px] sm:text-[11px] text-gray-200 font-semibold leading-none whitespace-nowrap origin-bottom-left"
+                            style={{ left: cx + 2, top: barTop - 14, transform: 'rotate(-55deg)' }}
                           >
                             {labelText}
                           </div>
