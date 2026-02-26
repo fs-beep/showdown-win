@@ -2601,7 +2601,7 @@ export default function Home() {
         </div>
 
         {/* Daily Active Users Chart */}
-        {dailyActiveUsers.length > 0 && (() => {
+        {!showPlayerExplorer && dailyActiveUsers.length > 0 && (() => {
           const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
           const chartHeight = 160;
           return (
