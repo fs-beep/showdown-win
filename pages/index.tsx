@@ -2669,7 +2669,7 @@ export default function Home() {
           const gap = 2;
           const slotW = barWidth + gap;
           const totalWidth = numDays * slotW;
-          const LABEL_ZONE = 60;
+          const LABEL_ZONE = 20;
           const barAreaH = 150;
           const chartHeight = LABEL_ZONE + barAreaH;
           const today = new Date().toISOString().slice(0, 10);
@@ -2715,12 +2715,31 @@ export default function Home() {
                             style={{ left: barLeft, width: barW, top: barTop, height: barH }}
                             title={`${d.day}: ${labelText}`}
                           />
-                          <div
-                            className="absolute text-[10px] sm:text-[11px] text-gray-200 font-semibold leading-none whitespace-nowrap origin-bottom-left"
-                            style={{ left: cx + 2, top: barTop - 14, transform: 'rotate(-55deg)' }}
-                          >
-                            {labelText}
-                          </div>
+                          {barH >= 40 ? (
+                            <div style={{
+                              position: 'absolute',
+                              left: barLeft,
+                              width: barW,
+                              top: barTop,
+                              height: barH,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              pointerEvents: 'none',
+                            }}>
+                              <span style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}
+                                className="text-[10px] sm:text-[11px] font-semibold text-white/90 leading-none">
+                                {labelText}
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ position: 'absolute', left: cx, top: barTop - 14,
+                              transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
+                              className="text-[8px] font-medium text-gray-300 leading-none">
+                              {labelText}
+                            </div>
+                          )}
                         </Fragment>
                       );
                     })}
