@@ -2669,31 +2669,12 @@ export default function Home() {
           const gap = 2;
           const slotW = barWidth + gap;
           const totalWidth = numDays * slotW;
-          const LTOP = 18; // reserved space above bars for value labels
+          const LABEL_ZONE = 50;
           const barAreaH = 150;
-          const chartHeight = LTOP + barAreaH;
+          const chartHeight = LABEL_ZONE + barAreaH;
           const today = new Date().toISOString().slice(0, 10);
 
-          // Value labels: skip when overlapping horizontally
-          let lastValRight = -999;
-          const valueLabels = volData.map((d, i) => {
-            const barH = Math.max((d.amount / maxVol) * barAreaH, 3);
-            const cx = i * slotW + barWidth / 2;
-            const labelText = `$${d.amount.toLocaleString()}`;
-            const approxW = labelText.length * 5.5 + 2;
-            const lx = cx - approxW / 2;
-            const barTop = chartHeight - barH;
-            if (lx < lastValRight + 4) return null;
-            lastValRight = lx + approxW;
-            return (
-              <div key={d.day + '-val'} style={{ position: 'absolute', left: cx, transform: 'translateX(-50%)', top: barTop - 14, whiteSpace: 'nowrap' }}
-                className="text-[8px] sm:text-[9px] text-gray-300 font-medium leading-none">
-                {labelText}
-              </div>
-            );
-          });
-
-          // Date labels: skip when overlapping horizontally
+          // Date labels: smart-skip to avoid overlap
           let lastDateRight = -999;
           const dateLabels = volData.map((d, i) => {
             const isToday = d.day === today;
@@ -2718,24 +2699,32 @@ export default function Home() {
               </div>
               <div className="overflow-x-auto pb-1 -mx-1" ref={(el) => { if (el) setTimeout(() => el.scrollTo({ left: el.scrollWidth, behavior: 'auto' }), 50); }}>
                 <div style={{ minWidth: Math.max(totalWidth, 280) }}>
-                  {/* Bar + value label area */}
                   <div className="relative" style={{ height: chartHeight }}>
                     {volData.map((d, i) => {
                       const barH = Math.max((d.amount / maxVol) * barAreaH, 3);
                       const isToday = d.day === today;
                       const barLeft = i * slotW + barWidth * 0.1;
                       const barW = barWidth * 0.8;
+                      const barTop = chartHeight - barH;
+                      const cx = i * slotW + barWidth / 2;
+                      const labelText = `$${d.amount.toLocaleString()}`;
                       return (
-                        <div key={d.day}
-                          className={`rounded-t absolute transition-all ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
-                          style={{ left: barLeft, width: barW, top: chartHeight - barH, height: barH }}
-                          title={`${d.day}: $${d.amount.toLocaleString()}`}
-                        />
+                        <Fragment key={d.day}>
+                          <div
+                            className={`rounded-t absolute ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+                            style={{ left: barLeft, width: barW, top: barTop, height: barH }}
+                            title={`${d.day}: ${labelText}`}
+                          />
+                          <div
+                            className="absolute text-[8px] sm:text-[9px] text-gray-300 font-medium leading-none whitespace-nowrap origin-bottom-left"
+                            style={{ left: cx + 2, top: barTop - 4, transform: 'rotate(-55deg)' }}
+                          >
+                            {labelText}
+                          </div>
+                        </Fragment>
                       );
                     })}
-                    {valueLabels}
                   </div>
-                  {/* Date labels row */}
                   <div className="relative" style={{ height: 18 }}>
                     {dateLabels}
                   </div>
