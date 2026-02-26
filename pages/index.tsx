@@ -2669,9 +2669,10 @@ export default function Home() {
           const gap = 2;
           const slotW = barWidth + gap;
           const totalWidth = numDays * slotW;
-          const LABEL_ZONE = 20;
+          // Reserve space at top for vertical labels (writing-mode labels read bottom-to-top)
+          const LABEL_TOP = 70;
           const barAreaH = 150;
-          const chartHeight = LABEL_ZONE + barAreaH;
+          const chartHeight = LABEL_TOP + barAreaH;
           const today = new Date().toISOString().slice(0, 10);
 
           // Date labels: smart-skip to avoid overlap
@@ -2705,41 +2706,41 @@ export default function Home() {
                       const isToday = d.day === today;
                       const barLeft = i * slotW + barWidth * 0.1;
                       const barW = barWidth * 0.8;
-                      const barTop = chartHeight - barH;
-                      const cx = i * slotW + barWidth / 2;
+                      const barTop = LABEL_TOP + barAreaH - barH;
                       const labelText = `$${d.amount.toLocaleString()}`;
                       return (
                         <Fragment key={d.day}>
+                          {/* Bar */}
                           <div
                             className={`rounded-t absolute ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
                             style={{ left: barLeft, width: barW, top: barTop, height: barH }}
                             title={`${d.day}: ${labelText}`}
                           />
-                          {barH >= 40 ? (
-                            <div style={{
-                              position: 'absolute',
-                              left: barLeft,
-                              width: barW,
-                              top: barTop,
-                              height: barH,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              overflow: 'hidden',
-                              pointerEvents: 'none',
+                          {/* Label: vertical writing-mode, always above bar, always consistent */}
+                          <div style={{
+                            position: 'absolute',
+                            left: barLeft,
+                            width: barW,
+                            top: 0,
+                            height: barTop,
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'center',
+                            paddingBottom: 3,
+                            pointerEvents: 'none',
+                          }}>
+                            <span style={{
+                              writingMode: 'vertical-rl',
+                              transform: 'rotate(180deg)',
+                              whiteSpace: 'nowrap',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              lineHeight: 1,
+                              color: isToday ? '#f9fafb' : '#d1d5db',
                             }}>
-                              <span style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap' }}
-                                className="text-[10px] sm:text-[11px] font-semibold text-white/90 leading-none">
-                                {labelText}
-                              </span>
-                            </div>
-                          ) : (
-                            <div style={{ position: 'absolute', left: cx, top: barTop - 14,
-                              transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
-                              className="text-[8px] font-medium text-gray-300 leading-none">
                               {labelText}
-                            </div>
-                          )}
+                            </span>
+                          </div>
                         </Fragment>
                       );
                     })}
