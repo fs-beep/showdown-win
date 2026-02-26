@@ -2664,53 +2664,87 @@ export default function Home() {
             amount: Number(BigInt(v.volume) / 1000000000000000000n),
           }));
           const maxVol = Math.max(...volData.map(v => v.amount), 1);
-          const chartHeight = 160;
+          const numDays = volData.length;
+          const barWidth = numDays <= 7 ? 44 : numDays <= 15 ? 34 : numDays <= 30 ? 26 : numDays <= 60 ? 20 : 16;
+          const gap = 2;
+          const slotW = barWidth + gap;
+          const totalWidth = numDays * slotW;
+          const LTOP = 18; // reserved space above bars for value labels
+          const barAreaH = 150;
+          const chartHeight = LTOP + barAreaH;
+          const today = new Date().toISOString().slice(0, 10);
+
+          // Value labels: skip when overlapping horizontally
+          let lastValRight = -999;
+          const valueLabels = volData.map((d, i) => {
+            const barH = Math.max((d.amount / maxVol) * barAreaH, 3);
+            const cx = i * slotW + barWidth / 2;
+            const labelText = `$${d.amount.toLocaleString()}`;
+            const approxW = labelText.length * 5.5 + 2;
+            const lx = cx - approxW / 2;
+            const barTop = chartHeight - barH;
+            if (lx < lastValRight + 4) return null;
+            lastValRight = lx + approxW;
+            return (
+              <div key={d.day + '-val'} style={{ position: 'absolute', left: cx, transform: 'translateX(-50%)', top: barTop - 14, whiteSpace: 'nowrap' }}
+                className="text-[8px] sm:text-[9px] text-gray-300 font-medium leading-none">
+                {labelText}
+              </div>
+            );
+          });
+
+          // Date labels: skip when overlapping horizontally
+          let lastDateRight = -999;
+          const dateLabels = volData.map((d, i) => {
+            const isToday = d.day === today;
+            const cx = i * slotW + barWidth / 2;
+            const approxW = 28;
+            const lx = cx - approxW / 2;
+            if (!isToday && lx < lastDateRight + 3) return null;
+            lastDateRight = lx + approxW;
+            return (
+              <div key={d.day + '-date'} style={{ position: 'absolute', left: cx, transform: 'translateX(-50%)', top: 3, whiteSpace: 'nowrap' }}
+                className={`text-[8px] leading-none ${isToday ? 'text-gray-200 font-medium' : 'text-gray-500'}`}>
+                {d.day.slice(5)}
+              </div>
+            );
+          });
+
           return (
             <div className="mt-6 rounded-lg bg-[#141414] p-3 sm:p-4 border border-gray-800/60">
               <div className="text-sm font-semibold text-gray-200 mb-3 sm:mb-4">
                 Daily Volume
                 <span className="ml-2 text-xs text-gray-500">(USDM wagered per day)</span>
               </div>
-              <div className="overflow-x-auto pb-2 -mx-1" ref={(el) => { if (el) setTimeout(() => el.scrollTo({ left: el.scrollWidth, behavior: 'auto' }), 50); }}>
-                {(() => {
-                  const numDays = volData.length;
-                  const barWidth = numDays <= 7 ? 40 : numDays <= 15 ? 32 : numDays <= 30 ? 24 : numDays <= 60 ? 18 : 14;
-                  const gap = barWidth <= 18 ? 1 : 3;
-                  const labelEvery = numDays <= 10 ? 1 : numDays <= 20 ? 2 : numDays <= 40 ? 3 : numDays <= 80 ? 5 : 7;
-                  const totalWidth = numDays * (barWidth + gap);
-                  return (
-                    <div className="flex items-end" style={{ height: chartHeight + 40, minWidth: Math.max(totalWidth, 280), gap }}>
-                      {volData.map((d, i) => {
-                        const barHeight = Math.max((d.amount / maxVol) * chartHeight, 3);
-                        const isToday = d.day === new Date().toISOString().slice(0, 10);
-                        const showLabel = i % labelEvery === 0 || i === numDays - 1 || isToday;
-                        return (
-                          <div key={d.day} className="flex flex-col items-center justify-end" style={{ width: barWidth, minWidth: barWidth, height: '100%' }}>
-                            <div className="text-[9px] sm:text-[10px] text-gray-300 mb-0.5 font-medium leading-none" style={{ flexShrink: 0 }}>
-                              ${d.amount}
-                            </div>
-                            <div
-                              className={`rounded-t transition-all ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
-                              style={{ height: barHeight, width: '80%', flexShrink: 0, minHeight: 3 }}
-                              title={`${d.day}: $${d.amount}`}
-                            />
-                            <div
-                              className={`text-[8px] sm:text-[10px] mt-1 text-gray-400 whitespace-nowrap leading-none ${showLabel ? '' : 'invisible'}`}
-                              style={{ flexShrink: 0 }}
-                            >
-                              {d.day.slice(5)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+              <div className="overflow-x-auto pb-1 -mx-1" ref={(el) => { if (el) setTimeout(() => el.scrollTo({ left: el.scrollWidth, behavior: 'auto' }), 50); }}>
+                <div style={{ minWidth: Math.max(totalWidth, 280) }}>
+                  {/* Bar + value label area */}
+                  <div className="relative" style={{ height: chartHeight }}>
+                    {volData.map((d, i) => {
+                      const barH = Math.max((d.amount / maxVol) * barAreaH, 3);
+                      const isToday = d.day === today;
+                      const barLeft = i * slotW + barWidth * 0.1;
+                      const barW = barWidth * 0.8;
+                      return (
+                        <div key={d.day}
+                          className={`rounded-t absolute transition-all ${isToday ? 'bg-red-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+                          style={{ left: barLeft, width: barW, top: chartHeight - barH, height: barH }}
+                          title={`${d.day}: $${d.amount.toLocaleString()}`}
+                        />
+                      );
+                    })}
+                    {valueLabels}
+                  </div>
+                  {/* Date labels row */}
+                  <div className="relative" style={{ height: 18 }}>
+                    {dateLabels}
+                  </div>
+                </div>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-xs text-gray-500 border-t border-gray-800 pt-2 sm:pt-3">
                 <div>Total: {formatUsdm(usdmTotalVolume)}</div>
-                <div>Avg: ${volData.length > 0 ? Math.round(volData.reduce((s, d) => s + d.amount, 0) / volData.length) : 0}/day</div>
-                <div>Peak: ${maxVol}</div>
+                <div>Avg: ${volData.length > 0 ? Math.round(volData.reduce((s, d) => s + d.amount, 0) / volData.length).toLocaleString() : 0}/day</div>
+                <div>Peak: ${maxVol.toLocaleString()}</div>
               </div>
             </div>
           );
