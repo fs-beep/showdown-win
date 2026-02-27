@@ -2600,8 +2600,8 @@ export default function Home() {
           Daily cache on the server makes historical queries instant; today is fetched incrementally.
         </div>
 
-        {/* Daily Active Users Chart */}
-        {!showPlayerExplorer && dailyActiveUsers.length > 0 && (() => {
+        {/* Daily Active Users Chart — only visible in secret ?money=1 mode */}
+        {showPlayerExplorer && dailyActiveUsers.length > 0 && (() => {
           const maxCount = Math.max(...dailyActiveUsers.map(x => x.count), 1);
           const chartHeight = 160;
           return (
